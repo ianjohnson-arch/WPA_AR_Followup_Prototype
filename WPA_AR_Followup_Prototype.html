@@ -494,42 +494,101 @@ document.addEventListener('keydown', function(e){
   if(e.key==='Escape' && window.__c1seg){ window.__c1seg=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
 });
 
+function acctSeed(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return function(){ h=Math.imul(h^(h>>>15),2246822507); h=Math.imul(h^(h>>>13),3266489909); return ((h^(h>>>16))>>>0)/4294967296; }; }
+const CARC_ROOT = {'CO-197':'Authorization','CO-50':'Medical Necessity','CO-29':'Timely Filing','CO-16':'Coding','CO-97':'Coding','CO-4':'Coding','CO-11':'Coding','CO-27':'Eligibility','CO-22':'Eligibility','CO-18':'Duplicate'};
+const CARC_DESC = {'CO-197':'Precert/authorization absent','CO-50':'Not medically necessary','CO-29':'Timely filing limit expired','CO-16':'Missing/invalid information','CO-97':'Bundled / included in other service','CO-4':'Procedure inconsistent w/ modifier','CO-27':'Coverage terminated','CO-22':'Coordination of benefits','CO-18':'Duplicate claim','CO-11':'Diagnosis inconsistent w/ procedure'};
+function nbaFor(row, root, rnd){
+  const b = row.bal;
+  if (row.timer != null && row.timer <= 5) return [
+    {a:'File claim/appeal TODAY — timely-filing deadline in '+row.timer+' days', erv:Math.round(b*0.7), why:'Past the filing limit, recovery odds collapse to ~18% (CO-29 appeal rate). A filed claim can be corrected later; an unfiled one cannot.'},
+    {a:'Attach proof of original submission if resubmitting', erv:Math.round(b*0.45), why:'Clearinghouse acceptance reports satisfy most payers\' timely-filing evidence requirements.'},
+    {a:'Escalate to supervisor if documentation is incomplete', erv:Math.round(b*0.2), why:'Supervisor queue carries same-day SLA on timer-critical accounts.'}];
+  const sets = {
+    'Authorization':[
+      {a:'Submit retro-authorization appeal with clinical documentation', p:0.55, why:'This payer approves retro-auth appeals on comparable claim types when clinical docs are attached; appeal window is finite — file early.'},
+      {a:'Request peer-to-peer clinical review', p:0.38, why:'Effective fallback when retro-auth is denied; requires attending availability. Median 11-day turnaround.'},
+      {a:'Route preventability signal to scheduling (auth-at-booking gap)', p:0.1, why:'Recovery aside, this denial was preventable at scheduling — the upstream fix stops recurrence.'}],
+    'Medical Necessity':[
+      {a:'Request peer-to-peer review; attach op note and H&P', p:0.5, why:'Clinical-judgment denials overturn most often through physician-to-physician review, not paper appeals.'},
+      {a:'File formal appeal with medical-necessity criteria mapping', p:0.4, why:'Map documentation to the payer\'s published criteria (e.g., InterQual/MCG) line by line.'},
+      {a:'Flag for clinical documentation improvement review', p:0.12, why:'Recurring med-necessity denials on this service line suggest a documentation template gap.'}],
+    'Timely Filing':[
+      {a:'File TF appeal with proof of original timely submission', p:0.18, why:'Only viable if clearinghouse records show original submission inside the window — pull the 999/277 acknowledgments.'},
+      {a:'Review for corrected-claim pathway', p:0.1, why:'Some payers accept corrected claims outside TF limits when the original was timely.'},
+      {a:'Route to write-off review with prevention note', p:0.05, why:'If no timely proof exists, document the intake-to-bill delay for the upstream billing-SLA fix.'}],
+    'Coding':[
+      {a:'Correct claim per CARC guidance and resubmit', p:0.66, why:'Coding denials are fact-correctable — highest appeal-success family (~66-74%). Verify modifier/diagnosis alignment before resubmitting.'},
+      {a:'Route to coder for modifier/diagnosis validation', p:0.5, why:'Second set of eyes prevents a second denial on the corrected claim.'},
+      {a:'Log pattern for coder feedback loop', p:0.1, why:'Repeat CO-16/CO-97 patterns on the same CPT feed the coding-education fix.'}],
+    'Eligibility':[
+      {a:'Verify coverage span for DOS; rebill correct payer', p:0.55, why:'Most eligibility denials resolve by identifying the correct active coverage — run real-time eligibility for the date of service.'},
+      {a:'Correct COB order and resubmit', p:0.45, why:'If secondary was billed as primary, resequencing typically pays without appeal.'},
+      {a:'Contact patient/guarantor to update coverage info', p:0.2, why:'Use when payer records show termination — patient may have replacement coverage on file nowhere else.'}],
+    'Duplicate':[
+      {a:'Confirm original claim status before any action', p:0.5, why:'If the original paid, this line closes with adjustment; if the original also denied, work THAT denial instead.'},
+      {a:'Void duplicate; document original claim ref #', p:0.3, why:'Keeps the account clean and prevents a third submission.'},
+      {a:'Check for legitimate repeat-service modifier need', p:0.15, why:'True repeat services need modifier 76/77 — a coding fix, not a duplicate.'}]};
+  if (root && sets[root]) return sets[root].map(o=>({a:o.a, erv:Math.round(b*o.p), why:o.why}));
+  if (row.cls === 'Self-Pay') return [
+    {a:'Offer payment plan on next patient contact', erv:Math.round(b*0.4), why:'Self-pay balances over $500 collect ~2.3x more often with a structured plan than statement cycles alone.'},
+    {a:'Screen for charity care / financial assistance eligibility', erv:Math.round(b*0.15), why:'Converts uncollectable balance into program reimbursement where the patient qualifies.'},
+    {a:'Verify no unbilled coverage exists (MRN-level scan)', erv:Math.round(b*0.3), why:'A meaningful share of self-pay balances have discoverable coverage that was never billed.'}];
+  if (row.stage === 'Awaiting Payer') return [
+    {a:'Check claim status via payer portal; document ref #', erv:Math.round(b*row.prop), why:'Portal status is faster than the phone queue and creates the paper trail for any later dispute.'},
+    {a:'Call provider line if portal shows no record of claim', erv:Math.round(b*0.5), why:'"No claim on file" this deep into adjudication usually means a clearinghouse rejection nobody caught — resubmit window matters.'},
+    {a:'Set follow-up to payer adjudication window, not a default', erv:Math.round(b*0.2), why:'Touching before the payer\'s window wastes a touch; after it, the account stalls.'}];
+  return [
+    {a:'Call payer for claim status; document rep name and ref #', erv:Math.round(b*row.prop), why:'Status call with documented reference creates leverage for escalation if the claim sits.'},
+    {a:'Verify billing address/claim data if no payer record', erv:Math.round(b*0.45), why:'Claims "not on file" at this age usually failed intake — verify and resubmit.'},
+    {a:'Escalate if no movement within 5 business days', erv:Math.round(b*0.25), why:'Escalations on 45+ day accounts resolve ~2x faster than continued standard follow-up.'}];
+}
 function openAccount(acct) {
   const row = WPA.queue.find(r => r.acct === acct);
   if (!row) return;
+  const rnd = acctSeed(acct);
+  const root = row.carc ? (CARC_ROOT[row.carc]||'Administrative') : null;
+  const reps = ['Marcus','Diana','Angela','Tom','Priya','Kevin'];
+  const rep1 = reps[Math.floor(rnd()*reps.length)], ref1 = Math.floor(10000+rnd()*89999), ref2 = Math.floor(1000+rnd()*8999);
+  // ---- timeline with real rep note activity ----
+  const submitDay = Math.min(8, Math.max(2, row.age - 2));
+  const respDay = Math.max(submitDay + 1, row.age - (row.carc ? 12 : 10));
+  const lastTouch = Math.max(respDay + 1, row.age - row.dst);
+  const firstTouch = Math.max(respDay + 1, Math.min(lastTouch - 1, respDay + 3));
+  const tl = [
+    {d:'Day 1', t:'Service', txt:'Service rendered. Charges $'+Math.round(row.bal*1.4).toLocaleString()+' posted; account entered billing queue.'},
+    {d:'Day '+submitDay, t:'Billed', txt:'Clean claim submitted to '+row.payer+' via clearinghouse (837). Acceptance ack received.'}];
+  if (row.carc) {
+    tl.push({d:'Day '+respDay, t:'Denial', txt:'835 received — '+row.carc+' ('+(CARC_DESC[row.carc]||'')+'). Line denied; routed to denial workqueue. Root cause: '+root+'.'});
+    const notes = {
+      'Authorization':'Jordan Reyes — Called '+row.payer+' provider line, rep '+rep1+' (ref #'+ref1+'). Denial upheld pending auth documentation. Retro-auth request submitted via portal w/ clinical notes, conf #A-'+ref2+'. F/U set per payer response window.',
+      'Medical Necessity':'Jordan Reyes — Reviewed denial w/ coding. Requested op note + H&P from HIM for peer-to-peer packet. '+row.payer+' P2P line requires attending availability — placed request w/ clinic. F/U 5 business days.',
+      'Timely Filing':'Jordan Reyes — Pulled clearinghouse 999/277 acks. Original submission date documented. Drafting TF appeal w/ proof of timely submission, ref #'+ref1+'. F/U on appeal receipt confirmation.',
+      'Coding':'Jordan Reyes — Reviewed CARC w/ coder: modifier correction identified. Corrected claim resubmitted via clearinghouse conf #C-'+ref2+', accepted '+ (10+Math.floor(rnd()*3)) +':'+(10+Math.floor(rnd()*49))+'. F/U for 835 in 14d.',
+      'Eligibility':'Jordan Reyes — Ran real-time eligibility for DOS: coverage discrepancy confirmed. Called '+row.payer+', rep '+rep1+' ref #'+ref1+' — COB order under review. Requested patient coverage update via guarantor letter.',
+      'Duplicate':'Jordan Reyes — Located original claim: status pending in adjudication. Flagged this line as duplicate, void request submitted ref #'+ref1+'. Monitoring original claim for payment.'};
+    tl.push({d:'Day '+firstTouch, t:'Touch', txt:notes[root]||('Jordan Reyes — Worked denial per '+row.carc+' protocol. Ref #'+ref1+'. F/U set.')});
+    if (lastTouch > firstTouch) tl.push({d:'Day '+lastTouch, t:'Touch', txt:'Jordan Reyes — Status check: no payer decision yet ('+row.dst+'d since last activity). '+(row.dst>10?'Escalation threshold approaching — flagged for supervisor visibility.':'Within expected response window; F/U date holds.')});
+  } else {
+    tl.push({d:'Day '+respDay, t:'Response', txt:row.stage==='Awaiting Payer' ? 'Claim in '+row.payer+' adjudication. No 835 posted yet.' : 'Claim acknowledged by '+row.payer+'; pending adjudication.'});
+    tl.push({d:'Day '+firstTouch, t:'Touch', txt:'Jordan Reyes — Portal status check: claim in process, no exceptions noted. Ref snapshot saved. F/U set to payer adjudication window ('+(row.cls==='Medicaid'?'30':'21')+'d).'});
+    if (lastTouch > firstTouch) tl.push({d:'Day '+lastTouch, t:'Touch', txt:'Jordan Reyes — Called '+row.payer+' provider line, rep '+rep1+' ref #'+ref1+': claim pending, ETA '+(5+Math.floor(rnd()*8))+' business days. If no 835 by then, escalate w/ ref #. F/U set.'});
+  }
+  if (row.srisk > 0.7 || row.dst > 21) tl.push({d:'Day '+row.age, t:'Stall', txt:'No forward movement in '+row.dst+' days — stall risk '+(row.srisk*100).toFixed(0)+'%. Auto-elevated in worklist priority.'});
+  const preventable = root && ['Authorization','Eligibility','Coding','Timely Filing','Duplicate'].includes(root);
+  const prevTxt = {
+    'Authorization':'Root cause = missing prior auth at scheduling. Classifier: PREVENTABLE — route signal to upstream auth workflow, not just the appeal.',
+    'Eligibility':'Root cause = coverage not verified at registration. Classifier: PREVENTABLE — real-time eligibility check at point of service stops recurrence.',
+    'Coding':'Root cause = claim-edit gap (modifier/diagnosis mismatch). Classifier: PREVENTABLE — pre-bill edit rule + coder feedback loop stops recurrence.',
+    'Timely Filing':'Root cause = intake-to-bill delay exceeded the filing window. Classifier: PREVENTABLE — 5-day bill SLA and timer alerts stop recurrence.',
+    'Duplicate':'Root cause = resubmission without status check. Classifier: PREVENTABLE — claim-status verification step before any resubmit.'};
   WPA._selectedAccount = {
-    acct: row.acct,
-    pt: row.pt,
-    payer: row.payer,
-    cls: row.cls,
-    bal: row.bal,
-    age: row.age,
-    carc: row.carc || null,
-    root: row.carc ? 'Prior Auth' : null,
-    prop: row.prop,
-    srisk: row.srisk,
-    cw: row.cw,
-    stage: row.stage,
-    seg: row.seg,
-    timer: row.timer,
-    timeline: (function(){
-      var submitDay = Math.min(8, Math.max(2, row.age - 2));
-      var respDay = Math.max(submitDay + 1, row.age - (row.carc ? 12 : 10));
-      var touchDay = Math.max(respDay + 1, row.age - row.dst);
-      return [
-        {d: 'Day 1', t: 'Service Rendered', txt: 'Initial service. Claim entered billing queue.'},
-        {d: 'Day ' + submitDay, t: 'Claim Submitted', txt: 'Clean claim submitted to ' + row.payer + '.'},
-        row.carc ? {d: 'Day ' + respDay, t: 'Denial', txt: row.payer + ' denied — ' + (row.carc||'') + '. ' + (row.nba||'')} : {d: 'Day ' + respDay, t: 'Payer Response', txt: 'Claim in adjudication. No response received yet.'},
-        {d: 'Day ' + touchDay, t: 'Collector Touch', txt: row.dst > 7 ? ('Last collector touch — ' + row.dst + ' days ago. Follow-up required.') : ('Collector touched account. ' + (row.nba || ''))},
-      ].filter(Boolean);
-    })(),
-    payerCtx: {approval: Math.round(60 + Math.random()*25), respDays: Math.round(12 + Math.random()*8), similar: Math.round(30 + Math.random()*40)},
-    nba: [
-      {a: row.nba, erv: row.erv, why: 'Highest-confidence path based on payer history and claim profile.'},
-      {a: 'Verify eligibility status with ' + row.payer + ' before resubmission.', erv: Math.round(row.erv * 0.6), why: 'Eligibility mismatch accounts for 18% of denials with this payer.'},
-      {a: 'Escalate to supervisor if no response within 5 business days.', erv: Math.round(row.erv * 0.4), why: 'Escalations on accounts > 45 days have 2.1x resolution rate.'},
-    ],
-    prevent: row.carc ? {flag: true, txt: 'Prior authorization was not obtained before service. This denial type is preventable in 91% of similar cases — verify auth before submission for this payer and procedure combination.'} : {flag: false, txt: ''},
+    acct: row.acct, pt: row.pt, payer: row.payer, cls: row.cls, bal: row.bal, age: row.age,
+    carc: row.carc || null, root: root, prop: row.prop, srisk: row.srisk, cw: row.cw,
+    stage: row.stage, seg: row.seg, timer: row.timer,
+    timeline: tl,
+    payerCtx: {approval: Math.round(45 + rnd()*35), respDays: Math.round(12 + rnd()*16), similar: Math.round(30 + rnd()*110)},
+    nba: nbaFor(row, root, rnd),
+    prevent: preventable ? {flag:true, txt: prevTxt[root]} : {flag:false, txt:''},
     fromContext: 'Collector — My Work Queue (ranked #' + (WPA.queue.indexOf(row)+1) + ' by ERV)'
   };
   delete rendered['collector-c4'];
@@ -557,22 +616,23 @@ RENDER['collector-c2'] = function(){
   const adj = (m.pctGoal * m.cli).toFixed(0);
   $$('page-collector-c2').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','My Performance',
     'Complexity-adjusted productivity, touch efficiency, resolution rate, and trend vs. team benchmarks.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('Claims / day', m.claimsDay, 'vs 65 benchmark','+2.1','up')}
+  + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      ${kpi('Complexity-adjusted score', m.prod30, ML('CLI '+m.cli)+' avg daily weighted units — the primary fair-comparison metric','+4%','up')}
       ${kpi('% of goal (raw)', m.pctGoal+'%', 'daily touch goal '+m.goal)}
-      ${kpi('Complexity-adjusted score', m.prod30, ML('complexity load index '+m.cli)+' — fair-comparison metric','+4%','up')}
+      ${kpi('Claims / day', m.claimsDay, 'vs 65 benchmark','+2.1','up')}
       ${kpi('Touches / claim', m.tpc, 'lower = more efficient','-0.2','up')}
+      ${kpi('First-pass throughput', (m.fpr*100).toFixed(0)+'%', 'closed without reassignment')}
     </div>
     <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      ${kpi('First-pass throughput', (m.fpr*100).toFixed(0)+'%', 'closed without reassignment')}
       ${kpi('Resolution rate', (m.res*100).toFixed(0)+'%', 'closed / worked this period')}
       ${kpi('Avg days to close', m.dtc, 'FLO create → close')}
       ${kpi('Accounts closed MTD', Math.round(m.res * m.queue * 0.15), 'accounts resolved to close this month')}
-      ${kpi('Cash collected MTD', '$'+m.revK+'K', 'payments posted on my assigned accounts')}
+      ${kpi('Recovery efficiency', '$'+Math.round(m.revK*1000/(m.prod30*22)), ML('per weighted unit worked')+' · ERV capture '+Math.round((m.res*0.55+m.fpr*0.45)*100)+'%','+$9','up')}
+      ${kpi('Cash collected MTD', '$'+m.revK+'K', 'context only — raw $ is not complexity-normalized')}
     </div>`
   + `<div class="grid g2">
-      ${card('6-month trend — complexity-adjusted productivity', canvas('c2trend'), 'me vs team average')}
-      ${card('Last 30 days — daily adjusted units vs goal', canvas('c2daily','chart-tall'))}
+      ${card('6-month trend — complexity-adjusted score', canvas('c2trend'), 'me vs team average · avg daily weighted units')}
+      ${card('Last 30 days — complexity-adjusted score vs goal', canvas('c2daily','chart-tall'), 'same metric as the KPI tile, daily')}
     </div>
     <div class="grid g2">
       ${card('Accounts closed — monthly', canvas('c2closed'), 'count of accounts resolved to close this collector')}
@@ -583,7 +643,7 @@ RENDER['collector-c2'] = function(){
     {label:'Jordan (adjusted)', data:m.monthly, borderColor:C.blue, backgroundColor:C.blue+'22', fill:true},
     {label:'Team avg', data:teamMonthly, borderColor:C.slate, borderDash:[5,4]}]);
   line('c2daily', WPA.labels30, [
-    {label:'Adjusted units', data:m.series, borderColor:C.blue},
+    {label:'Daily complexity-adjusted score', data:m.series, borderColor:C.blue},
     {label:'Goal', data:m.series.map(()=>m.goal), borderColor:C.orange, borderDash:[6,4], pointRadius:0}]);
   // Closed accounts per month — derived from resolution rate × avg queue worked
   const closedMonthly = m.monthly.map((prod,i)=>Math.round(prod * 0.82 * (i<5 ? 0.95+i*0.01 : 1)));
@@ -989,13 +1049,14 @@ function renderS2(){
     ${c.anomaly?`<div class="alert ${c.anomaly.sev==='High'?'red':'yellow'}" style="margin-bottom:12px"><div>
       <div class="alert-sig">🤖 Collector Anomaly — ${c.anomaly.cat} · ${c.anomaly.sev}</div>
       <div class="alert-txt">${c.anomaly.desc}</div></div></div>`:''}
-    <div class="kpi-row" style="grid-template-columns:repeat(6,1fr)">
+    <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
       ${kpi('% of goal', c.pctGoal+'%','30-day')}
       ${kpi('Quality score', c.q.score,'rubric 30/25/30/15')}
       ${kpi('Complexity load', c.cli+'×', ML('CLI vs team 1.0'))}
       ${kpi('First-pass', (c.fpr*100).toFixed(0)+'%','')}
       ${kpi('Days to close', c.dtc,'')}
       ${kpi('Stale follow-ups', (c.stale*100).toFixed(0)+'%','past due w/o touch')}
+      ${kpi('Recovery efficiency', '$'+Math.round(c.revK*1000/(c.prod30*22)), ML('$ / weighted unit')+' · ERV capture '+Math.round((c.res*0.55+c.fpr*0.45)*100)+'%')}
     </div>
     <div class="grid g2">
       ${card('Daily adjusted productivity — vs team avg', canvas('s2trend'))}
@@ -1628,14 +1689,14 @@ const SRC = {
 /* ---------- shared core KPIs ---------- */
 reg(['days-in-ar'],{
  d:'Average age of outstanding AR balance, dollar-weighted across all open accounts.',
- c:'<code>Σ(account age × balance) ÷ Σ(balance)</code>. Ages measured from discharge/service-end date. Bad-debt accounts excluded; credit balances included at absolute value. Point-in-time as of last snapshot.',
+ c:'<code>Total AR balance ÷ average daily net patient service revenue</code> (trailing 90 days) — HFMA MAP Key definition. Bad debt excluded. Point-in-time as of the last nightly snapshot.',
  p:'The single most-watched AR velocity metric — directly tied to cash-flow timing and carrying cost.',
  i:'Lower is better. Falling = cash accelerating. Rising with flat volume = collections slowing or aged inventory accumulating.',
  a:'Above 45-day benchmark: check the Throughput funnel for which stage is inflating age, then work the stall queue. A 5-day reduction on this AR base ≈ $41K/yr carrying-cost savings (Gate 6 §4.4).',
  s:SRC.rma});
 reg(['collection-rate'],{
  d:'Share of billed dollars actually collected.',
- c:'<code>(Total payments collected ÷ total billed) × 100</code>, rolling 12 months. Contractual adjustments excluded from the numerator; bad debt excluded from both.',
+ c:'Net collection rate: <code>payments collected ÷ (billed charges − contractual adjustments) × 100</code>, rolling 12 months — HFMA MAP Key definition. Bad debt written off excluded from the denominator.',
  p:'The bottom-line effectiveness measure of the entire revenue cycle.',
  i:'Higher is better; > 95% is the HFMA-derived benchmark. A falling rate with a stable payer mix usually points at denials or write-off discipline, not effort.',
  a:'Below target: decompose by payer class (Financial Performance page). If one class is dragging, it is a payer problem; if uniform, it is a process problem.',
@@ -1839,14 +1900,14 @@ reg(['what-good-looks-like'],{
 /* ---------- collector C4 ---------- */
 reg(['account'],{
  d:'The account under review: identifier, patient (display-only), and payer.',
- c:'Header fields from the RMA account record joined to DMA denial detail.',
+ c:'Account number, patient (initials, display-only), and payer plan from the latest RMA account snapshot, joined to DMA 835 denial detail on account number.',
  p:'Anchor context for everything below.',
  i:'Patient identifiers are display-only per Gate 12 — never inputs to any score.',
  a:'—',
  s:SRC.rma});
 reg(['balance'],{
  d:'Current outstanding balance and the account\'s complexity weight.',
- c:'Balance from latest RMA snapshot; complexity weight = balance_wt × age_wt × payer_wt × denial_wt (normalized).',
+ c:'Current outstanding balance from the latest nightly RMA snapshot: <code>billed charges − payments − contractual adjustments</code>. The complexity weight shown alongside is a separate model output (see Complexity-adjusted score).',
  p:'The stake, and how much credit working this account earns.',
  i:'Weight > 1.0 = harder than the average account; each touch here yields > 1 productivity unit.',
  a:'—',
@@ -2689,6 +2750,13 @@ function setBar(bar, vp, txt, btnTxt){
     bar.appendChild(b);
   }
 }
+reg(['recovery-efficiency'],{
+ d:'Dollars collected per complexity-weighted unit of work — the money metric that is fair across different books of business.',
+ c:'<code>Cash collected (MTD) ÷ Σ complexity-weighted units worked in period</code>. Companion figure: ERV capture = collected ÷ propensity-weighted expected value of accounts worked.',
+ p:'Raw cash rankings reward whoever holds the easiest book. Dividing by weighted units asks the fair question: how much did each unit of real work yield?',
+ i:'High $/unit + high ERV capture = efficient execution. High $/unit + low capture = an easy book flattering the number. Low $/unit + high capture = a hard book being worked well — do not mistake it for underperformance.',
+ a:'Use for coaching and comparison in place of raw cash. Raw Cash Collected stays on the page for context but should never rank collectors.',
+ s:'Source: RMA transactions + touch log + complexity model'});
 /* ── hover tooltip ── */
 let _htTimer = null;
 function showHtip(el){
