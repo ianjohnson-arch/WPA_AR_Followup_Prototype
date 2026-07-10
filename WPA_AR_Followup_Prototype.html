@@ -115,6 +115,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tbl-viewport.vh420{flex:none;height:420px}
 .tbl-bar button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 9px;font-size:10.5px;color:var(--midblue);cursor:pointer;font-family:inherit}
 .tbl-bar button:hover{background:var(--blue-bg)}
+.pf-link{font-size:9.5px;font-weight:700;color:var(--orange);text-decoration:none;white-space:nowrap}
+.pf-link:hover{text-decoration:underline}
+#pf-toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,12px);background:var(--navy);color:#fff;font-size:12px;padding:10px 16px;border-radius:8px;box-shadow:0 8px 24px rgba(27,42,74,.3);opacity:0;pointer-events:none;transition:all .18s ease;z-index:300;max-width:80vw}
+#pf-toast.show{opacity:1;transform:translate(-50%,0)}
 .tbl-bar{display:flex;align-items:center;gap:10px;padding:7px 10px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface3)}
 .tbl-bar button{border:none;background:none;font-size:11px;font-weight:600;color:var(--midblue);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
 .tbl-bar button:hover{color:var(--navy)}
@@ -463,9 +467,9 @@ RENDER['collector-c1'] = function(){
     filtQ.forEach(r=>{ const k=r.age<=30?'0-30':r.age<=60?'31-60':r.age<=90?'61-90':r.age<=120?'91-120':'120+'; buckets[k]++; });
     window.__c1mixBuckets = buckets;
     const flagsHtml = urgentRows.map(r=>
-      `<div class="alert red" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Timely filing · ${r.timer}d left</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive</div></div></div>`).join('')
+      `<div class="alert red" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Timely filing · ${r.timer}d left</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive &nbsp;·&nbsp; ${pfLink(r.acct)}</div></div></div>`).join('')
       + stallRows.map(r=>
-      `<div class="alert yellow" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Stall risk ${(r.srisk*100).toFixed(0)}%</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — no touch in ${r.dst}d. ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive</div></div></div>`).join('')
+      `<div class="alert yellow" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Stall risk ${(r.srisk*100).toFixed(0)}%</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — no touch in ${r.dst}d. ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive &nbsp;·&nbsp; ${pfLink(r.acct)}</div></div></div>`).join('')
       + (urgentRows.length===0 && stallRows.length===0 ? `<div style="color:var(--text3);font-size:11.5px;padding:8px 2px">No urgent flags in this segment right now.</div>` : '')
       + `<div class="alert blue"><div><div class="alert-sig">Denial responses today</div><div class="alert-txt">4 new 835 denial lines posted to your queue overnight — 2 are CO-197 (auth) on Molina, appeal window 60d.</div></div></div>`;
     return `<div class="grid g23">
@@ -542,6 +546,24 @@ function nbaFor(row, root, rnd){
     {a:'Verify billing address/claim data if no payer record', erv:Math.round(b*0.45), why:'Claims "not on file" at this age usually failed intake — verify and resubmit.'},
     {a:'Escalate if no movement within 5 business days', erv:Math.round(b*0.25), why:'Escalations on 45+ day accounts resolve ~2x faster than continued standard follow-up.'}];
 }
+function pfLink(acct, small){
+  return `<a href="#" class="pf-link" onclick="event.stopPropagation();pfNavigate('${acct}');return false" title="Navigate to the PayFlo worklist card for ${acct}">PayFlo${small?'':' card'} ↗</a>`;
+}
+function pfNavigate(acct){
+  let t = document.getElementById('pf-toast');
+  if(!t){ t=document.createElement('div'); t.id='pf-toast'; document.body.appendChild(t); }
+  t.textContent = 'Prototype: would deep-link to the PayFlo worklist card for '+acct+' (payflo://worklist/'+acct+')';
+  t.classList.add('show');
+  clearTimeout(window.__pfT); window.__pfT = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+// Keep the queue's "Recommended next action" identical to the deep dive's #1 ranked action
+function syncQueueNBA(){
+  WPA.queue.forEach(r=>{
+    const root = r.carc ? (CARC_ROOT[r.carc]||'Administrative') : null;
+    r.nba = nbaFor(r, root, acctSeed(r.acct))[0].a;
+  });
+}
+syncQueueNBA();
 function openAccount(acct) {
   const row = WPA.queue.find(r => r.acct === acct);
   if (!row) return;
@@ -602,7 +624,7 @@ function buildQueueTable(){
   $$('qtbl').innerHTML = `<thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th>
     <th class="r">Balance</th><th class="r">Age</th><th class="r">Timer</th><th class="r">Prop.</th>
     <th class="r">ERV</th><th>Recommended next action ${'🤖'}</th></tr></thead><tbody>` +
-  rows.map(r=>`<tr style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Click to open Account Deep Dive"><td>${urgPill(r)}</td><td><b>${r.acct}</b><br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
+  rows.map(r=>`<tr style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Click to open Account Deep Dive"><td>${urgPill(r)}</td><td><b>${r.acct}</b> ${pfLink(r.acct,1)}<br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
     <td>${r.pt}</td><td>${r.payer}<br><span style="color:var(--text3);font-size:10px">${r.cls}</span></td>
     <td class="r">${fmt$full(r.bal)}</td><td class="r">${r.age}d</td>
     <td class="r">${r.timer==null?'—':(r.timer<=5?`<b style="color:var(--red)">${r.timer}d</b>`:r.timer+'d')}</td>
@@ -768,10 +790,10 @@ RENDER['collector-c4'] = function(){
     el.innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Account Deep Dive',
       'Full account timeline, denial history, ML recommendations, and payer context — everything needed to act on one claim.')
     + `<div style="font-size:11px;color:var(--text2);background:var(--surface2);border-radius:6px;padding:6px 12px;margin-bottom:10px">
-        ↩ Opened from: <b>${d.fromContext}</b> &nbsp;·&nbsp; <a href="#" onclick="WPA._selectedAccount=null;WPA._c4ActiveBucket=null;WPA._c4ActiveAcct=null;delete rendered['collector-c4'];switchPage('collector','c1');return false" style="color:var(--blue)">← Back to queue</a>
+        ↩ Opened from: <b>${d.fromContext}</b> &nbsp;·&nbsp; ${pfLink(d.acct)} &nbsp;·&nbsp; <a href="#" onclick="WPA._selectedAccount=null;WPA._c4ActiveBucket=null;WPA._c4ActiveAcct=null;delete rendered['collector-c4'];switchPage('collector','c1');return false" style="color:var(--blue)">← Back to queue</a>
       </div>`
     + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-        ${kpi('Account', d.acct, d.pt+' · '+d.payer)}
+        ${kpi('Account', d.acct, d.pt+' · '+d.payer+' &nbsp; '+pfLink(d.acct))}
         ${kpi('Balance', fmt$full(d.bal), 'complexity weight '+d.cw+'×')}
         ${kpi('Age', d.age+' days', d.carc ? 'denied '+d.carc+' · '+(d.root||'') : d.stage||'')}
         ${kpi('Propensity to collect', (d.prop*100).toFixed(0)+'%', ML('per-account model'))}
@@ -887,7 +909,7 @@ RENDER['collector-c4'] = function(){
       detailSection = `<div style="margin-top:20px;border-top:2px solid var(--border);padding-top:16px">
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">Account Detail — ${d.acct}</div>`
       + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-          ${kpi('Account', d.acct, d.pt+' · '+d.payer)}
+          ${kpi('Account', d.acct, d.pt+' · '+d.payer+' &nbsp; '+pfLink(d.acct))}
           ${kpi('Balance', fmt$full(d.bal), 'complexity weight '+d.cw+'×')}
           ${kpi('Age', d.age+' days', d.carc?'denied '+d.carc:d.stage||'')}
           ${kpi('Propensity to collect', (d.prop*100).toFixed(0)+'%', ML('per-account model'))}
@@ -1112,7 +1134,7 @@ RENDER['supervisor-s3'] = function(){
       <div class="card-note">${ML('Stall Prediction Model')} ranked by risk × balance</div></div>
       <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th class="r">Balance</th>
       <th class="r">Stall risk</th><th>Est. stall date</th><th>Collector</th><th>Recommended intervention</th></tr></thead><tbody>
-      ${WPA.predStall.slice(0,15).map(r=>`<tr><td><b>${r.acct}</b></td><td>${r.payer}</td><td class="r">${fmt$full(r.bal)}</td>
+      ${WPA.predStall.slice(0,15).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td class="r">${fmt$full(r.bal)}</td>
         <td class="r"><b style="color:${r.risk>0.8?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b></td>
         <td>${r.estDate}</td><td>${r.coll}</td><td>${r.rec}</td></tr>`).join('')}</tbody></table></div></div></div>
     <div style="height:12px"></div>
@@ -1120,7 +1142,7 @@ RENDER['supervisor-s3'] = function(){
       <div class="card-note">named stall flags per Gate 2 §5.2</div></div>
       <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>Stage</th><th>Stall flag</th>
       <th class="r">Days stalled</th><th class="r">Balance</th><th>Collector</th><th>Supervisor</th></tr></thead><tbody>
-      ${WPA.stallRows.slice(0,14).map(r=>`<tr><td><b>${r.acct}</b></td><td>${r.payer}</td><td>${r.stage}</td>
+      ${WPA.stallRows.slice(0,14).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.stage}</td>
         <td><span class="pill red" style="font-family:monospace;font-size:9px">${r.flag}</span></td>
         <td class="r">${r.days}d</td><td class="r">${fmt$full(r.bal)}</td><td>${r.coll}</td><td>${r.sup}</td></tr>`).join('')}</tbody></table></div></div></div>`;
   mkChart('s3funnel',{type:'bar',data:{labels:f.map(x=>x.stage),
@@ -1281,7 +1303,7 @@ RENDER['supervisor-s6'] = function(){
     <div class="grid g2">
       <div class="card tfill"><div class="card-head"><div class="card-title">Flag queue</div></div>
         <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Collector</th><th>Flag</th><th>Trigger</th><th>Date</th><th>Status</th></tr></thead><tbody>
-        ${K.rows.map(r=>`<tr><td><b>${r.coll}</b></td><td>${sevPill(r.sev)} ${r.type}</td>
+        ${K.rows.slice().sort((a,b)=>a.days-b.days).map(r=>`<tr><td><b>${r.coll}</b></td><td>${sevPill(r.sev)} ${r.type}</td>
           <td style="max-width:220px;font-size:10.5px">${r.metric}</td><td>${r.date}</td>
           <td><span class="pill ${r.status==='Active'?'amber':'green'}">${r.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
       ${card('Supervisor action log', K.log.map(l=>`<div style="padding:7px 0;border-bottom:1px solid #f1f2f4">
@@ -1620,7 +1642,7 @@ RENDER['denial-dm3'] = function(){
       <div class="tbl-viewport vh420"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>CARC</th><th>Root cause</th>
       <th class="r">Value</th><th>Stage</th><th class="r">Days open</th><th class="r">Deadline</th><th class="r">Exp. win 🤖</th></tr></thead><tbody>
       ${A.rows.slice().sort((a,b)=>a.deadline-b.deadline).map(r=>`<tr>
-        <td><b>${r.acct}</b></td><td>${r.payer}</td><td>${r.carc}</td><td>${r.root}</td>
+        <td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.carc}</td><td>${r.root}</td>
         <td class="r">${fmt$full(r.bal)}</td><td><span class="pill blue">${r.stage}</span></td>
         <td class="r">${r.days}d</td>
         <td class="r">${r.deadline<=10?`<b style="color:var(--red)">${r.deadline}d</b>`:r.deadline+'d'}</td>
@@ -2659,9 +2681,10 @@ function slugify(t){
           .replace(/\s+/g,'-').slice(0,60);
 }
 function attachInfo(){
-  document.querySelectorAll('.card-title, .kpi-label').forEach(el=>{
+  document.querySelectorAll('.card-title, .kpi-label, .page-title').forEach(el=>{
     if (el.querySelector('.info-btn')) return;
-    const key = slugify(el.textContent||'');
+    let key = slugify(el.textContent||'');
+    if (el.classList.contains('page-title')) key = 'page-' + key;
     if (!key) return;
     const b = document.createElement('button');
     b.className = 'info-btn'; b.type = 'button';
@@ -2739,6 +2762,13 @@ function fitViewport(vp){
   if (shown >= total) setBar(bar, vp, `Showing all <b>${total}</b>`, null);
   else setBar(bar, vp, `Showing <b>${shown}</b> of <b>${total}</b> — fitted to space`, `Show all ${total}`);
 }
+function flipOrder(vp){
+  const tb = vp.querySelector('table.tbl tbody'); if(!tb) return;
+  [...tb.rows].reverse().forEach(r=>tb.appendChild(r));
+  vp.dataset.flipped = vp.dataset.flipped==='1' ? '' : '1';
+  const bar = vp.nextElementSibling; if(bar && bar.dataset) delete bar.dataset.sig;
+  fitViewport(vp);
+}
 function setBar(bar, vp, txt, btnTxt){
   const sig = txt + '|' + (btnTxt||'');
   if (bar.dataset.sig === sig) return;
@@ -2749,6 +2779,15 @@ function setBar(bar, vp, txt, btnTxt){
     b.addEventListener('click', ()=>{ vp.dataset.expanded = vp.dataset.expanded==='1' ? '' : '1'; delete bar.dataset.sig; fitViewport(vp); });
     bar.appendChild(b);
   }
+  const tb = vp.querySelector('table.tbl tbody');
+  if (tb && tb.rows.length > 1){
+    const f = document.createElement('button'); f.type='button';
+    f.textContent = vp.dataset.flipped==='1' ? '⇅ Top-ranked first' : '⇅ Reverse order';
+    f.title = 'Flip the sort — bring the bottom of this list to the top';
+    f.style.marginLeft = 'auto';
+    f.addEventListener('click', ()=>flipOrder(vp));
+    bar.appendChild(f);
+  }
 }
 reg(['recovery-efficiency'],{
  d:'Dollars collected per complexity-weighted unit of work — the money metric that is fair across different books of business.',
@@ -2757,11 +2796,169 @@ reg(['recovery-efficiency'],{
  i:'High $/unit + high ERV capture = efficient execution. High $/unit + low capture = an easy book flattering the number. Low $/unit + high capture = a hard book being worked well — do not mistake it for underperformance.',
  a:'Use for coaching and comparison in place of raw cash. Raw Cash Collected stays on the page for context but should never rank collectors.',
  s:'Source: RMA transactions + touch log + complexity model'});
+
+/* ---------- dashboard-level purpose entries (page titles) ---------- */
+reg(['page-my-work-queue'],{
+ d:'The collector\'s daily operating surface: an ML-prioritized worklist that answers "what should I work next?" so the highest expected dollars with the tightest deadlines get touched first.',
+ c:'Scope: your assigned active universe, all segments. Rank = expected recovery value × urgency (timer + stall risk). Refreshed nightly; worked-today counter is intraday.',
+ p:'Removes queue-order guesswork. The economics are already in the ranking — working top-down IS the strategy.',
+ i:'Start at the urgent flags, then work the ranked queue in order. The segment chips filter everything on the page.',
+ a:'Deviating to easy accounts lowers your complexity load index, which supervisors can see. Trust the rank.',
+ s:'Sources: RMA + touch log + payer timers + propensity/stall models · nightly 6:00 AM CST'});
+reg(['page-my-performance'],{
+ d:'Your production scorecard — complexity-adjusted so a hard book and an easy book compare fairly, with outcome metrics (closes, recovery efficiency) alongside activity metrics.',
+ c:'Scope: trailing 30 days + 6-month trend. Primary metric: complexity-adjusted score (weighted units/day). Money shown per weighted unit, not raw.',
+ p:'One page that answers "am I on track, and where am I strong or weak vs the team?"',
+ i:'Lead tile first (adjusted score), then the radar shape for your profile. Raw cash is context only — it is not how performance is judged here.',
+ a:'A weak dimension on this page is the thing to bring to your next 1:1 — before your supervisor does.',
+ s:'Sources: touch log + RMA transactions + complexity model'});
+reg(['page-my-quality-scorecard'],{
+ d:'How well the work is documented — the four rubric behaviors (notes, status updates, follow-up dates, aged attention) plus NLI scoring of what your notes actually say.',
+ c:'Scope: rolling 7-day rubric window (min 10 accounts) + recent notes individually scored. Rubric weights 30/25/30/15 per Gate 7.',
+ p:'Volume without documentation is invisible work: it cannot survive an appeal, a handoff, or an audit.',
+ i:'Find your weakest of the four dimensions — the composite improves fastest by fixing that one behavior.',
+ a:'Copy the structure of the high-scoring examples: who, what, ref #, dated next step.',
+ s:'Sources: touch log flags + NLI model (simulated)'});
+reg(['page-account-deep-dive'],{
+ d:'Everything about one account on one screen: full event timeline with rep notes, ML-ranked next actions with expected values, payer behavior for this claim type, and a preventability read.',
+ c:'Scope: single account, complete history. Actions ranked by balance × conditional success probability. Opens from any account link across the app.',
+ p:'The rule is simple: never act on an account without its context. This page is that context.',
+ i:'Read the timeline bottom-up (latest first in reverse), take action #1 unless you hold information the model lacks, and use the PayFlo link to execute.',
+ a:'If the last two touches say the same thing, the next touch should be different — escalate, do not repeat.',
+ s:'Sources: RMA + DMA 835 + touch log, joined per account · ML action ranking (simulated)'});
+reg(['page-coaching-development'],{
+ d:'Your active coaching plan and progress — the same view your supervisor sees, so there are no surprises in a 1:1.',
+ c:'Scope: open plan targets with baselines, current values, and deadlines; supervisor notes from the action log.',
+ p:'Coaching works when the coached person can see the scoreboard.',
+ i:'Bars ≥ 80% ahead of the deadline = on track; the projected close date assumes your current pace holds.',
+ a:'A stuck target is a conversation to start, not a status to hide.',
+ s:'Sources: Coaching Engine plan record + live metrics'});
+reg(['page-team-command-center'],{
+ d:'The supervisor\'s morning scan: team health at a glance, every collector RAG-coded across five signals, and everything the ML flagged overnight — prioritized by revenue impact.',
+ c:'Scope: your team (filter by supervisor), trailing 30 days, alerts from six signal models with suppression rules.',
+ p:'Five minutes here replaces an hour of report archaeology — who is fine, who needs a look, who needs a conversation today.',
+ i:'Alert feed first (red → amber → blue), then scan heat-map rows: red goal + green CLI = effort; red goal + high CLI = workload.',
+ a:'Anomaly badges outrank threshold colors — the model catches drift before thresholds trip.',
+ s:'Sources: all four data feeds + 6 ML signal models · nightly 6:00 AM CST'});
+reg(['page-collector-deep-dive'],{
+ d:'One collector, fully unpacked: trend vs team, complexity load, quality dimensions, recovery efficiency, and their complete flag history.',
+ c:'Scope: selected collector, trailing 30 days. Every metric shown next to team context.',
+ p:'The prep page for any performance conversation — evidence, not impressions.',
+ i:'Anomaly banner first if present. Then ask the workload-vs-behavior question: CLI and queue size distinguish "overloaded" from "underperforming."',
+ a:'Compare on adjusted score and recovery efficiency, never raw counts or raw cash.',
+ s:'Sources: touch log + RMA + complexity model + Coaching Engine'});
+reg(['page-workflow-throughput'],{
+ d:'Where the pipeline is stuck: stage funnel, stall dollars by stage × payer class, segment bottlenecks, disposition flow, and the accounts predicted to stall next week.',
+ c:'Scope: full active universe. Stall thresholds per stage and payer (Gate 7 §5); predictions from the stall model.',
+ p:'Throughput problems hide in averages — this page locates them by stage, segment, payer, and dollar.',
+ i:'Start at the red callout (largest single stall pocket) — it is a ready-made work order. Hot heatmap rows = process problems; hot columns = payer problems.',
+ a:'Preempting the top 10 predicted stalls by balance each week is the highest-leverage 30 minutes on this dashboard.',
+ s:'Sources: RMA + touch log + stall prediction model · nightly'});
+reg(['page-denial-management'],{
+ d:'The supervisor\'s denial operating view: rate trend, root causes in dollars, the appeal-vs-prevent split, and active payer anomalies.',
+ c:'Scope: all active denials, 26-week trend, anomalies vs each payer\'s own 90-day baseline.',
+ p:'Denials are the largest controllable leak — this page decides where effort goes: fight it, or fix what causes it.',
+ i:'A CARC mix shift at one payer = policy change (external); broad drift = process slippage (internal).',
+ a:'Route preventable roots to their upstream owners; reserve appeal capacity for clinical-judgment denials.',
+ s:'Sources: DMA 835 + root-cause classifier + payer anomaly model'});
+reg(['page-staffing-capacity'],{
+ d:'The staffing math made visible: staffed vs model-required FTE, workload balance, the 90-day demand forecast, and a scenario builder for the target work-down window.',
+ c:'Scope: current team + 13-week forecast. Formula: weighted inventory ÷ (throughput baseline × target days) — Gate 7 §6.',
+ p:'Turns "we feel understaffed" into a number Finance can interrogate, with the hire-trigger date attached.',
+ i:'The forecast crossing staffed+1 minus hiring lead time = your requisition deadline. It is printed in the business case.',
+ a:'Adjust the scenario slider before a headcount conversation — the target window is often the more available lever.',
+ s:'Sources: RMA + touch log + staffing demand model (simulated)'});
+reg(['page-coaching-command'],{
+ d:'The coaching function\'s work queue: every active flag with its trigger evidence, the auto-drafted 1:1 brief, pre/post improvement tracking, and the audit-ready action log.',
+ c:'Scope: all flags across the team, six rule types, 7-day suppression (3 for high severity).',
+ p:'Flags that sit unresolved are worse than no flags — this page keeps the coaching loop moving and measurable.',
+ i:'Sort by severity then age; anything open past 14 days is dragging your resolution-rate KPI.',
+ a:'Log every 1:1 in the action log — improvement tracking anchors to those dates.',
+ s:'Sources: Coaching Engine rules + touch log'});
+reg(['page-payer-intelligence'],{
+ d:'Payer behavior surveillance: each payer scored on denial rate, payment timing, and appeal success, with anomaly detection against its own 90-day baseline.',
+ c:'Scope: all payers, weekly trends. Anomaly = ±2σ sustained; > 30 days sustained promotes to a contract-level flag.',
+ p:'Payers change the rules without telling you. This page notices within weeks, not quarters.',
+ i:'Judge each payer against its own baseline — Medicaid timing never looks like Medicare timing, and that is fine.',
+ a:'Confirmed policy shifts run two tracks in parallel: operational (fix the workflow) and commercial (payer relations).',
+ s:'Sources: DMA 835 + payer anomaly model'});
+reg(['page-executive-summary'],{
+ d:'The leadership one-pager: eight KPIs against target and benchmark, the revenue waterfall, the period forecast with probability, and the three biggest risks with recommended interventions.',
+ c:'Scope: enterprise, current period + 12-month trend. RAG thresholds per the Gate 6 KPI registry.',
+ p:'Designed to run a leadership meeting from a single screen — status, trajectory, and this week\'s decisions.',
+ i:'Scorecard sparklines show direction; the forecast panel says whether the month lands; the risk cards say what to do about it.',
+ a:'Each risk card names its owner-action — the meeting output is assigning those three things.',
+ s:'Sources: all feeds, rolled up · forecast from propensity model'});
+reg(['page-financial-performance'],{
+ d:'The money mechanics: AR aging by class, reimbursement by payer, write-off trend with ML-tagged recoverable share, and program unit economics.',
+ c:'Scope: enterprise, trailing 12 months. Write-off recoverability from retrospective propensity scoring.',
+ p:'Separates structural revenue loss (contract rates) from operational loss (process) — they need different fixes.',
+ i:'The recoverable-write-off table is the fastest money on the page: each pattern has a one-line workflow fix.',
+ a:'Sustained low reimbursement + anomaly flag = the contract renegotiation shortlist.',
+ s:'Sources: RMA transactions + DMA + propensity model'});
+reg(['page-operational-intelligence'],{
+ d:'The ML-derived operational read: stall exposure, preventable-denial opportunity by root cause, and whether the coaching program is measurably working.',
+ c:'Scope: enterprise, portfolio level. Coaching effect measured coached-vs-uncoached cohort, pre/post 30 days.',
+ p:'Bridges the exec view and the supervisor view — the "why" behind the scorecard colors.',
+ i:'The coached-cohort delta vs baseline drift is the honest test of the coaching investment.',
+ a:'The preventable-$ bars are a prioritized process-fix backlog — each maps to an upstream owner.',
+ s:'Sources: stall + root-cause + propensity models, portfolio-aggregated'});
+reg(['page-benchmarking'],{
+ d:'Every headline metric against national benchmarks and the VisiQuate client-cohort percentile — context for whether a number is good.',
+ c:'Scope: HFMA MAP Key-derived standards; percentile among VisiQuate clients (illustrative in prototype).',
+ p:'A number without a benchmark is just a number. Gaps here are the quantified improvement roadmap.',
+ i:'Every bar short of its tick is a lever; the two largest dollar-weighted gaps are called out beneath the table.',
+ a:'Sequence the improvement roadmap by dollar-weighted gap, not by which metric looks worst.',
+ s:'Sources: internal metrics vs HFMA-derived benchmarks'});
+reg(['page-staffing-roi'],{
+ d:'Headcount as an investment case: labor cost vs attributed collections, the cost of the current gap, and the add-one-FTE business case with payback.',
+ c:'Scope: annualized program economics + 90-day FTE forecast with the staffed+1 decision line.',
+ p:'Moves the staffing conversation from opinion to a payback calculation.',
+ i:'Sub-12-month payback is a straightforward approval in most systems; the requisition deadline is printed.',
+ a:'The FTE-avoidance logic runs both ways — under-hiring can cost more than the hire.',
+ s:'Sources: staffing model + RMA transactions + demand forecast (simulated)'});
+reg(['page-strategic-insights'],{
+ d:'Second-order ML signals for leadership: under-resourced high-value clusters, payer contract flags, and process fixes that beat appeals — each with a dollar value attached.',
+ c:'Scope: signals promoted from operational models only after persistence filters (e.g., 30-day sustain for contract flags).',
+ p:'Starts the strategy conversation at impact ("$840K acceleration") instead of at data.',
+ i:'Each card documents its own model and threshold — the machinery is inspectable, not a black box.',
+ a:'The combined-impact table is the executive ask: three initiatives, ~$1.7M, owners implied.',
+ s:'Sources: cluster analysis + anomaly + root-cause models (simulated)'});
+reg(['page-denial-landscape'],{
+ d:'The full denial picture: volume, dollars, rate trend with policy-change annotations, CARC breakdown, and ML root-cause classification.',
+ c:'Scope: all active denials, 26 weeks. Preventability flagged per denial; ~85-87% preventable is consistent with industry findings.',
+ p:'The denial team\'s home page — what is hitting us, from whom, and why.',
+ i:'Dollar-weighted views beat count views: a few med-necessity denials can outweigh many duplicates.',
+ a:'The CARC table\'s pathway column is the triage: "upstream fix" rows should shrink over time if prevention is working.',
+ s:'Sources: DMA 835 + root-cause classifier'});
+reg(['page-payer-scorecard'],{
+ d:'Denial behavior by payer: rates, payment timing, appeal win rates, CARC profiles, and anomaly signals — the evidence base for payer-specific strategy.',
+ c:'Scope: all payers, weekly trend per payer vs own 90-day baseline.',
+ p:'Where "the payers are getting worse" becomes "Molina\'s CO-197 share doubled on June 3."',
+ i:'A distribution shift in the CARC mix is the signature of a policy change; a volume spike is usually noise.',
+ a:'Stack appeal effort at the highest-win payers; escalate sustained anomalies to contract discussions.',
+ s:'Sources: DMA 835 + payer anomaly model'});
+reg(['page-appeal-pipeline'],{
+ d:'The appeal operation: everything in flight by stage, deadline risk first, win rates by payer and denial type, and cycle-time tracking.',
+ c:'Scope: active appeals + trailing-12-month decided outcomes.',
+ p:'A blown appeal deadline converts a 60% recovery chance to zero — this page exists so that never happens.',
+ i:'Red deadlines outrank everything; after those, work by value × expected win.',
+ a:'A very high win rate can mean under-appealing — check the selection rate, not just the outcome rate.',
+ s:'Sources: DMA 835 + appeal tracking + expected-win model'});
+reg(['page-prevention-opportunities'],{
+ d:'Denial management\'s endgame: which denials should never have happened, the five upstream fixes worth the most, and the claims to intercept before they go out the door.',
+ c:'Scope: preventable denials + queued-claim predictions. Opportunity = preventable $ × realistic recovery/prevention rates, annualized.',
+ p:'Prevention beats appeals roughly 3:1 on ROI — this page is where denial management becomes a prevention program.',
+ i:'Each process fix names dollars and an implied owner outside the billing office; the hard part is organizational, not analytical.',
+ a:'Instrument each fix after launch so the estimate becomes a measured result.',
+ s:'Sources: root-cause classifier + denial prediction model (simulated)'});
+
 /* ── hover tooltip ── */
 let _htTimer = null;
 function showHtip(el){
   const raw = (el.textContent||'').replace('ⓘ','').trim();
-  const key = slugify(raw);
+  let key = slugify(raw);
+  if (el.classList && el.classList.contains('page-title')) key = 'page-' + key;
   const e = (typeof INFO!=='undefined' && INFO[key]) || null;
   const tip = document.getElementById('htip');
   document.getElementById('htip-title').textContent = raw || key;
@@ -2779,7 +2976,7 @@ function showHtip(el){
 }
 function hideHtip(){ clearTimeout(_htTimer); document.getElementById('htip').style.display='none'; }
 function attachHoverTip(){
-  document.querySelectorAll('.card-title, .kpi-label, .tbl th').forEach(el=>{
+  document.querySelectorAll('.card-title, .kpi-label, .tbl th, .page-title').forEach(el=>{
     if (el.dataset.htAttached) return;
     el.dataset.htAttached = '1';
     el.addEventListener('mouseenter', ()=>{
