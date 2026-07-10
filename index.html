@@ -106,7 +106,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tbl td{padding:7px 9px;border-bottom:1px solid #f1f2f4;vertical-align:top;font-variant-numeric:tabular-nums}
 .tbl tr:hover td{background:var(--surface3)}
 .tbl .r{text-align:right}.tbl th.r{text-align:right}
-.scroll-y{max-height:420px;overflow-y:auto}
+.scroll-y{overflow-y:auto;max-height:420px}
+.card.tfill{display:flex;flex-direction:column}
+.card.tfill .card-body{flex:1;display:flex;flex-direction:column;min-height:0}
+.tbl-viewport{flex:1 1 auto;min-height:0;position:relative}
+.tbl-viewport>.tbl-scroll{position:absolute;inset:0;overflow-y:hidden}
+.tbl-viewport.vh380{flex:none;height:380px}
+.tbl-viewport.vh420{flex:none;height:420px}
+.tbl-bar button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 9px;font-size:10.5px;color:var(--midblue);cursor:pointer;font-family:inherit}
+.tbl-bar button:hover{background:var(--blue-bg)}
+.pf-link{font-size:9.5px;font-weight:700;color:var(--orange);text-decoration:none;white-space:nowrap}
+.pf-link:hover{text-decoration:underline}
+#pf-toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,12px);background:var(--navy);color:#fff;font-size:12px;padding:10px 16px;border-radius:8px;box-shadow:0 8px 24px rgba(27,42,74,.3);opacity:0;pointer-events:none;transition:all .18s ease;z-index:300;max-width:80vw}
+#pf-toast.show{opacity:1;transform:translate(-50%,0)}
+.tbl-bar{display:flex;align-items:center;gap:10px;padding:7px 10px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface3)}
+.tbl-bar button{border:none;background:none;font-size:11px;font-weight:600;color:var(--midblue);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.tbl-bar button:hover{color:var(--navy)}
 .pill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap}
 .pill.red{background:var(--red-bg);color:var(--red)}.pill.amber{background:var(--amber-bg);color:var(--amber)}
 .pill.green{background:var(--green-bg);color:var(--green)}.pill.blue{background:var(--blue-bg);color:var(--midblue)}
@@ -180,6 +195,14 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 .ip-t code{font-size:10.5px;background:var(--surface2);padding:1px 4px;border-radius:4px}
 @media (prefers-reduced-motion: no-preference){#info-pop{animation:ipin .12s ease-out}}
 @keyframes ipin{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+
+/* hover tooltip */
+#htip{display:none;position:fixed;z-index:300;max-width:280px;background:var(--navy);color:#fff;border-radius:7px;padding:7px 10px;pointer-events:none;box-shadow:0 4px 16px rgba(27,42,74,.25)}
+#htip-title{font-size:11px;font-weight:700;margin-bottom:3px;line-height:1.3}
+#htip-calc{font-size:10px;opacity:.85;line-height:1.45}
+#htip-calc code{font-size:9.5px;background:rgba(255,255,255,.15);padding:1px 4px;border-radius:3px}
+@media (prefers-reduced-motion: no-preference){#htip{animation:htipIn .1s ease-out}}
+@keyframes htipIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
 
 </style>
 </head>
@@ -410,40 +433,198 @@ RENDER['collector-c1'] = function(){
       ${kpi('At risk today', atRisk.length, 'timer ≤ 5 days or stall risk > 0.7','+3','down')}
       ${kpi('Timely-filing deadlines ≤ 3d', q.filter(r=>r.timer!=null&&r.timer<=3).length,'auto-elevated to top of queue')}
     </div>`
-  + `<div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">My segments</div>
-      <div class="card-note">FLO primary segment (SSD-4B) · segment filter in global bar applies to the queue below</div></div>
-      <div class="card-body" style="display:grid;grid-template-columns:repeat(${Math.min(7,WPA.mySegs.length)},1fr);gap:8px">
-      ${WPA.mySegs.map(s=>`<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:0">
+  + (()=>{
+    const activeSeg = window.__c1seg||null;
+    const segCards = WPA.mySegs.map(s=>{
+      const on = activeSeg===s.name;
+      return `<div onclick="toggleC1Seg('${s.name}')" title="${on?'Click to clear filter':'Click to filter queue, flags, and chart to this segment'}"
+        style="border:2px solid ${on?'var(--midblue)':'var(--border)'};border-radius:8px;padding:8px 10px;min-width:0;cursor:pointer;
+        background:${on?'#EFF6FF':'var(--surface)'};transition:border-color .12s,background .12s"
+        onmouseenter="if('${on}'!=='true')this.style.borderColor='var(--midblue)'"
+        onmouseleave="if('${on}'!=='true')this.style.borderColor='var(--border)'">
         <div class="mini-label" style="white-space:normal;line-height:1.3">${s.name}</div>
         <div style="font-size:16px;font-weight:700;color:var(--navy)" class="num">${s.n}</div>
         <div style="font-size:10px;color:var(--text2)" class="num">${fmt$(s.erv)} ERV${s.atRisk?` · <span style="color:var(--amber);font-weight:700">${s.atRisk} at risk</span>`:''}</div>
-      </div>`).join('')}</div></div>`
-  + `<div class="grid g23">
-      <div class="card"><div class="card-head"><div class="card-title">Prioritized queue</div>
-        <div class="card-note">${ML('Next Best Action rank')} &nbsp; sort: ERV × urgency · click column pills to filter via global bar</div></div>
-        <div class="scroll-y"><table class="tbl" id="qtbl"></table></div>
-        <div class="gap-note">Showing top 70 of ${m.queue} accounts · patient names display-only per Gate 12 PHI controls (never used in scoring)</div></div>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:12px" id="c1segs-card"><div class="card-head">
+      <div class="card-title">My segments</div>
+      <div class="card-note">${activeSeg
+        ? `<span style="color:var(--midblue);font-weight:600">Filtered: ${activeSeg}</span> &nbsp;·&nbsp; <a href="#" onclick="toggleC1Seg('${activeSeg}');return false" style="color:var(--text3)">× Clear</a> &nbsp;·&nbsp; Esc to clear`
+        : 'FLO primary segment (SSD-4B) · click a segment to filter queue, flags &amp; chart'}</div>
+    </div>
+    <div class="card-body" style="display:grid;grid-template-columns:repeat(${Math.min(7,WPA.mySegs.length)},1fr);gap:8px">
+      ${segCards}
+    </div></div>`;
+  })()
+  + (()=>{
+    const activeSeg = window.__c1seg||null;
+    const filtQ = activeSeg ? WPA.queue.filter(r=>r.seg===activeSeg) : WPA.queue;
+    const urgentRows = filtQ.filter(r=>r.timer!=null&&r.timer<=5).slice(0,3);
+    const stallRows = filtQ.filter(r=>r.srisk>0.8).slice(0,2);
+    // Queue mix aging buckets for filtered set
+    const buckets = {'0-30':0,'31-60':0,'61-90':0,'91-120':0,'120+':0};
+    filtQ.forEach(r=>{ const k=r.age<=30?'0-30':r.age<=60?'31-60':r.age<=90?'61-90':r.age<=120?'91-120':'120+'; buckets[k]++; });
+    window.__c1mixBuckets = buckets;
+    const flagsHtml = urgentRows.map(r=>
+      `<div class="alert red" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Timely filing · ${r.timer}d left</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive &nbsp;·&nbsp; ${pfLink(r.acct)}</div></div></div>`).join('')
+      + stallRows.map(r=>
+      `<div class="alert yellow" style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Open Account Deep Dive"><div><div class="alert-sig">Stall risk ${(r.srisk*100).toFixed(0)}%</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — no touch in ${r.dst}d. ${r.nba}</div><div class="alert-act">→ Open Account Deep Dive &nbsp;·&nbsp; ${pfLink(r.acct)}</div></div></div>`).join('')
+      + (urgentRows.length===0 && stallRows.length===0 ? `<div style="color:var(--text3);font-size:11.5px;padding:8px 2px">No urgent flags in this segment right now.</div>` : '')
+      + `<div class="alert blue"><div><div class="alert-sig">Denial responses today</div><div class="alert-txt">4 new 835 denial lines posted to your queue overnight — 2 are CO-197 (auth) on Molina, appeal window 60d.</div></div></div>`;
+    return `<div class="grid g23">
+      <div class="card" style="display:flex;flex-direction:column"><div class="card-head"><div class="card-title">Prioritized queue</div>
+        <div class="card-note">${ML('Next Best Action rank')} &nbsp; sort: ERV × urgency${activeSeg?' · <b style="color:var(--midblue)">'+activeSeg+'</b>':''}</div></div>
+        <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl" id="qtbl"></table></div></div>
+        <div class="gap-note">Queue of ${m.queue} accounts (top 70 ranked) · patient names display-only per Gate 12 PHI controls (never used in scoring)</div></div>
       <div>
-        ${card('Urgent flags', WPA.queue.slice(0,70).filter(r=>r.timer!=null&&r.timer<=5).slice(0,3).map(r=>
-          `<div class="alert red"><div><div class="alert-sig">Timely filing · ${r.timer}d left</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — ${r.nba}</div></div></div>`).join('')
-          + atRisk.filter(r=>r.srisk>0.8).slice(0,2).map(r=>
-          `<div class="alert yellow"><div><div class="alert-sig">Stall risk ${(r.srisk*100).toFixed(0)}%</div><div class="alert-txt"><b>${r.acct}</b> · ${r.payer} · ${fmt$full(r.bal)} — no touch in ${r.dst}d. ${r.nba}</div></div></div>`).join('')
-          + `<div class="alert blue"><div><div class="alert-sig">Denial responses today</div><div class="alert-txt">4 new 835 denial lines posted to your queue overnight — 2 are CO-197 (auth) on Molina, appeal window 60d.</div></div></div>`,
-          ML('Stall Prediction'))}
+        ${card('Urgent flags'+(activeSeg?' — '+activeSeg:''), flagsHtml, ML('Stall Prediction'))}
         <div style="height:12px"></div>
-        ${card('Queue mix', canvas('c1mix','chart-short'),'by aging bucket')}
+        ${card('Queue mix'+(activeSeg?' — '+activeSeg:''), canvas('c1mix','chart-short'),'by aging bucket')}
       </div>
     </div>`;
+  })();
+  window.__fseg = window.__c1seg||'';
   buildQueueTable();
-  bar('c1mix', Object.keys(m.aging), [{data:Object.values(m.aging), backgroundColor:[C.blue,C.teal,C.amber,'#EA580C',C.red]}], noLegend);
+  bar('c1mix', Object.keys(window.__c1mixBuckets), [{data:Object.values(window.__c1mixBuckets), backgroundColor:[C.blue,C.teal,C.amber,'#EA580C',C.red]}], noLegend);
 };
+window.__c1seg = window.__c1seg || null;
+function toggleC1Seg(name){
+  window.__c1seg = (window.__c1seg === name) ? null : name;
+  delete rendered['collector-c1'];
+  RENDER['collector-c1']();
+}
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape' && window.__c1seg){ window.__c1seg=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
+});
+
+function acctSeed(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return function(){ h=Math.imul(h^(h>>>15),2246822507); h=Math.imul(h^(h>>>13),3266489909); return ((h^(h>>>16))>>>0)/4294967296; }; }
+const CARC_ROOT = {'CO-197':'Authorization','CO-50':'Medical Necessity','CO-29':'Timely Filing','CO-16':'Coding','CO-97':'Coding','CO-4':'Coding','CO-11':'Coding','CO-27':'Eligibility','CO-22':'Eligibility','CO-18':'Duplicate'};
+const CARC_DESC = {'CO-197':'Precert/authorization absent','CO-50':'Not medically necessary','CO-29':'Timely filing limit expired','CO-16':'Missing/invalid information','CO-97':'Bundled / included in other service','CO-4':'Procedure inconsistent w/ modifier','CO-27':'Coverage terminated','CO-22':'Coordination of benefits','CO-18':'Duplicate claim','CO-11':'Diagnosis inconsistent w/ procedure'};
+function nbaFor(row, root, rnd){
+  const b = row.bal;
+  if (row.timer != null && row.timer <= 5) return [
+    {a:'File claim/appeal TODAY — timely-filing deadline in '+row.timer+' days', erv:Math.round(b*0.7), why:'Past the filing limit, recovery odds collapse to ~18% (CO-29 appeal rate). A filed claim can be corrected later; an unfiled one cannot.'},
+    {a:'Attach proof of original submission if resubmitting', erv:Math.round(b*0.45), why:'Clearinghouse acceptance reports satisfy most payers\' timely-filing evidence requirements.'},
+    {a:'Escalate to supervisor if documentation is incomplete', erv:Math.round(b*0.2), why:'Supervisor queue carries same-day SLA on timer-critical accounts.'}];
+  const sets = {
+    'Authorization':[
+      {a:'Submit retro-authorization appeal with clinical documentation', p:0.55, why:'This payer approves retro-auth appeals on comparable claim types when clinical docs are attached; appeal window is finite — file early.'},
+      {a:'Request peer-to-peer clinical review', p:0.38, why:'Effective fallback when retro-auth is denied; requires attending availability. Median 11-day turnaround.'},
+      {a:'Route preventability signal to scheduling (auth-at-booking gap)', p:0.1, why:'Recovery aside, this denial was preventable at scheduling — the upstream fix stops recurrence.'}],
+    'Medical Necessity':[
+      {a:'Request peer-to-peer review; attach op note and H&P', p:0.5, why:'Clinical-judgment denials overturn most often through physician-to-physician review, not paper appeals.'},
+      {a:'File formal appeal with medical-necessity criteria mapping', p:0.4, why:'Map documentation to the payer\'s published criteria (e.g., InterQual/MCG) line by line.'},
+      {a:'Flag for clinical documentation improvement review', p:0.12, why:'Recurring med-necessity denials on this service line suggest a documentation template gap.'}],
+    'Timely Filing':[
+      {a:'File TF appeal with proof of original timely submission', p:0.18, why:'Only viable if clearinghouse records show original submission inside the window — pull the 999/277 acknowledgments.'},
+      {a:'Review for corrected-claim pathway', p:0.1, why:'Some payers accept corrected claims outside TF limits when the original was timely.'},
+      {a:'Route to write-off review with prevention note', p:0.05, why:'If no timely proof exists, document the intake-to-bill delay for the upstream billing-SLA fix.'}],
+    'Coding':[
+      {a:'Correct claim per CARC guidance and resubmit', p:0.66, why:'Coding denials are fact-correctable — highest appeal-success family (~66-74%). Verify modifier/diagnosis alignment before resubmitting.'},
+      {a:'Route to coder for modifier/diagnosis validation', p:0.5, why:'Second set of eyes prevents a second denial on the corrected claim.'},
+      {a:'Log pattern for coder feedback loop', p:0.1, why:'Repeat CO-16/CO-97 patterns on the same CPT feed the coding-education fix.'}],
+    'Eligibility':[
+      {a:'Verify coverage span for DOS; rebill correct payer', p:0.55, why:'Most eligibility denials resolve by identifying the correct active coverage — run real-time eligibility for the date of service.'},
+      {a:'Correct COB order and resubmit', p:0.45, why:'If secondary was billed as primary, resequencing typically pays without appeal.'},
+      {a:'Contact patient/guarantor to update coverage info', p:0.2, why:'Use when payer records show termination — patient may have replacement coverage on file nowhere else.'}],
+    'Duplicate':[
+      {a:'Confirm original claim status before any action', p:0.5, why:'If the original paid, this line closes with adjustment; if the original also denied, work THAT denial instead.'},
+      {a:'Void duplicate; document original claim ref #', p:0.3, why:'Keeps the account clean and prevents a third submission.'},
+      {a:'Check for legitimate repeat-service modifier need', p:0.15, why:'True repeat services need modifier 76/77 — a coding fix, not a duplicate.'}]};
+  if (root && sets[root]) return sets[root].map(o=>({a:o.a, erv:Math.round(b*o.p), why:o.why}));
+  if (row.cls === 'Self-Pay') return [
+    {a:'Offer payment plan on next patient contact', erv:Math.round(b*0.4), why:'Self-pay balances over $500 collect ~2.3x more often with a structured plan than statement cycles alone.'},
+    {a:'Screen for charity care / financial assistance eligibility', erv:Math.round(b*0.15), why:'Converts uncollectable balance into program reimbursement where the patient qualifies.'},
+    {a:'Verify no unbilled coverage exists (MRN-level scan)', erv:Math.round(b*0.3), why:'A meaningful share of self-pay balances have discoverable coverage that was never billed.'}];
+  if (row.stage === 'Awaiting Payer') return [
+    {a:'Check claim status via payer portal; document ref #', erv:Math.round(b*row.prop), why:'Portal status is faster than the phone queue and creates the paper trail for any later dispute.'},
+    {a:'Call provider line if portal shows no record of claim', erv:Math.round(b*0.5), why:'"No claim on file" this deep into adjudication usually means a clearinghouse rejection nobody caught — resubmit window matters.'},
+    {a:'Set follow-up to payer adjudication window, not a default', erv:Math.round(b*0.2), why:'Touching before the payer\'s window wastes a touch; after it, the account stalls.'}];
+  return [
+    {a:'Call payer for claim status; document rep name and ref #', erv:Math.round(b*row.prop), why:'Status call with documented reference creates leverage for escalation if the claim sits.'},
+    {a:'Verify billing address/claim data if no payer record', erv:Math.round(b*0.45), why:'Claims "not on file" at this age usually failed intake — verify and resubmit.'},
+    {a:'Escalate if no movement within 5 business days', erv:Math.round(b*0.25), why:'Escalations on 45+ day accounts resolve ~2x faster than continued standard follow-up.'}];
+}
+function pfLink(acct, small){
+  return `<a href="#" class="pf-link" onclick="event.stopPropagation();pfNavigate('${acct}');return false" title="Navigate to the PayFlo worklist card for ${acct}">PayFlo${small?'':' card'} ↗</a>`;
+}
+function pfNavigate(acct){
+  let t = document.getElementById('pf-toast');
+  if(!t){ t=document.createElement('div'); t.id='pf-toast'; document.body.appendChild(t); }
+  t.textContent = 'Prototype: would deep-link to the PayFlo worklist card for '+acct+' (payflo://worklist/'+acct+')';
+  t.classList.add('show');
+  clearTimeout(window.__pfT); window.__pfT = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+// Keep the queue's "Recommended next action" identical to the deep dive's #1 ranked action
+function syncQueueNBA(){
+  WPA.queue.forEach(r=>{
+    const root = r.carc ? (CARC_ROOT[r.carc]||'Administrative') : null;
+    r.nba = nbaFor(r, root, acctSeed(r.acct))[0].a;
+  });
+}
+syncQueueNBA();
+function openAccount(acct) {
+  const row = WPA.queue.find(r => r.acct === acct);
+  if (!row) return;
+  const rnd = acctSeed(acct);
+  const root = row.carc ? (CARC_ROOT[row.carc]||'Administrative') : null;
+  const reps = ['Marcus','Diana','Angela','Tom','Priya','Kevin'];
+  const rep1 = reps[Math.floor(rnd()*reps.length)], ref1 = Math.floor(10000+rnd()*89999), ref2 = Math.floor(1000+rnd()*8999);
+  // ---- timeline with real rep note activity ----
+  const submitDay = Math.min(8, Math.max(2, row.age - 2));
+  const respDay = Math.max(submitDay + 1, row.age - (row.carc ? 12 : 10));
+  const lastTouch = Math.max(respDay + 1, row.age - row.dst);
+  const firstTouch = Math.max(respDay + 1, Math.min(lastTouch - 1, respDay + 3));
+  const tl = [
+    {d:'Day 1', t:'Service', txt:'Service rendered. Charges $'+Math.round(row.bal*1.4).toLocaleString()+' posted; account entered billing queue.'},
+    {d:'Day '+submitDay, t:'Billed', txt:'Clean claim submitted to '+row.payer+' via clearinghouse (837). Acceptance ack received.'}];
+  if (row.carc) {
+    tl.push({d:'Day '+respDay, t:'Denial', txt:'835 received — '+row.carc+' ('+(CARC_DESC[row.carc]||'')+'). Line denied; routed to denial workqueue. Root cause: '+root+'.'});
+    const notes = {
+      'Authorization':'Jordan Reyes — Called '+row.payer+' provider line, rep '+rep1+' (ref #'+ref1+'). Denial upheld pending auth documentation. Retro-auth request submitted via portal w/ clinical notes, conf #A-'+ref2+'. F/U set per payer response window.',
+      'Medical Necessity':'Jordan Reyes — Reviewed denial w/ coding. Requested op note + H&P from HIM for peer-to-peer packet. '+row.payer+' P2P line requires attending availability — placed request w/ clinic. F/U 5 business days.',
+      'Timely Filing':'Jordan Reyes — Pulled clearinghouse 999/277 acks. Original submission date documented. Drafting TF appeal w/ proof of timely submission, ref #'+ref1+'. F/U on appeal receipt confirmation.',
+      'Coding':'Jordan Reyes — Reviewed CARC w/ coder: modifier correction identified. Corrected claim resubmitted via clearinghouse conf #C-'+ref2+', accepted '+ (10+Math.floor(rnd()*3)) +':'+(10+Math.floor(rnd()*49))+'. F/U for 835 in 14d.',
+      'Eligibility':'Jordan Reyes — Ran real-time eligibility for DOS: coverage discrepancy confirmed. Called '+row.payer+', rep '+rep1+' ref #'+ref1+' — COB order under review. Requested patient coverage update via guarantor letter.',
+      'Duplicate':'Jordan Reyes — Located original claim: status pending in adjudication. Flagged this line as duplicate, void request submitted ref #'+ref1+'. Monitoring original claim for payment.'};
+    tl.push({d:'Day '+firstTouch, t:'Touch', txt:notes[root]||('Jordan Reyes — Worked denial per '+row.carc+' protocol. Ref #'+ref1+'. F/U set.')});
+    if (lastTouch > firstTouch) tl.push({d:'Day '+lastTouch, t:'Touch', txt:'Jordan Reyes — Status check: no payer decision yet ('+row.dst+'d since last activity). '+(row.dst>10?'Escalation threshold approaching — flagged for supervisor visibility.':'Within expected response window; F/U date holds.')});
+  } else {
+    tl.push({d:'Day '+respDay, t:'Response', txt:row.stage==='Awaiting Payer' ? 'Claim in '+row.payer+' adjudication. No 835 posted yet.' : 'Claim acknowledged by '+row.payer+'; pending adjudication.'});
+    tl.push({d:'Day '+firstTouch, t:'Touch', txt:'Jordan Reyes — Portal status check: claim in process, no exceptions noted. Ref snapshot saved. F/U set to payer adjudication window ('+(row.cls==='Medicaid'?'30':'21')+'d).'});
+    if (lastTouch > firstTouch) tl.push({d:'Day '+lastTouch, t:'Touch', txt:'Jordan Reyes — Called '+row.payer+' provider line, rep '+rep1+' ref #'+ref1+': claim pending, ETA '+(5+Math.floor(rnd()*8))+' business days. If no 835 by then, escalate w/ ref #. F/U set.'});
+  }
+  if (row.srisk > 0.7 || row.dst > 21) tl.push({d:'Day '+row.age, t:'Stall', txt:'No forward movement in '+row.dst+' days — stall risk '+(row.srisk*100).toFixed(0)+'%. Auto-elevated in worklist priority.'});
+  const preventable = root && ['Authorization','Eligibility','Coding','Timely Filing','Duplicate'].includes(root);
+  const prevTxt = {
+    'Authorization':'Root cause = missing prior auth at scheduling. Classifier: PREVENTABLE — route signal to upstream auth workflow, not just the appeal.',
+    'Eligibility':'Root cause = coverage not verified at registration. Classifier: PREVENTABLE — real-time eligibility check at point of service stops recurrence.',
+    'Coding':'Root cause = claim-edit gap (modifier/diagnosis mismatch). Classifier: PREVENTABLE — pre-bill edit rule + coder feedback loop stops recurrence.',
+    'Timely Filing':'Root cause = intake-to-bill delay exceeded the filing window. Classifier: PREVENTABLE — 5-day bill SLA and timer alerts stop recurrence.',
+    'Duplicate':'Root cause = resubmission without status check. Classifier: PREVENTABLE — claim-status verification step before any resubmit.'};
+  WPA._selectedAccount = {
+    acct: row.acct, pt: row.pt, payer: row.payer, cls: row.cls, bal: row.bal, age: row.age,
+    carc: row.carc || null, root: root, prop: row.prop, srisk: row.srisk, cw: row.cw,
+    stage: row.stage, seg: row.seg, timer: row.timer,
+    timeline: tl,
+    payerCtx: {approval: Math.round(45 + rnd()*35), respDays: Math.round(12 + rnd()*16), similar: Math.round(30 + rnd()*110)},
+    nba: nbaFor(row, root, rnd),
+    prevent: preventable ? {flag:true, txt: prevTxt[root]} : {flag:false, txt:''},
+    fromContext: 'Collector — My Work Queue (ranked #' + (WPA.queue.indexOf(row)+1) + ' by ERV)'
+  };
+  delete rendered['collector-c4'];
+  switchPage('collector', 'c4');
+}
 function buildQueueTable(){
   const cls = window.__fcls||'', seg = window.__fseg||'';
   const rows = WPA.queue.filter(r=>(!cls||r.cls===cls)&&(!seg||r.seg===seg));
+  // Mark as expanded so limitTables() skips it — the flex:1 scroll-y fills the card and handles overflow
+  
   $$('qtbl').innerHTML = `<thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th>
     <th class="r">Balance</th><th class="r">Age</th><th class="r">Timer</th><th class="r">Prop.</th>
     <th class="r">ERV</th><th>Recommended next action ${'🤖'}</th></tr></thead><tbody>` +
-  rows.map(r=>`<tr><td>${urgPill(r)}</td><td><b>${r.acct}</b><br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
+  rows.map(r=>`<tr style="cursor:pointer" onclick="openAccount('${r.acct}')" title="Click to open Account Deep Dive"><td>${urgPill(r)}</td><td><b>${r.acct}</b> ${pfLink(r.acct,1)}<br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
     <td>${r.pt}</td><td>${r.payer}<br><span style="color:var(--text3);font-size:10px">${r.cls}</span></td>
     <td class="r">${fmt$full(r.bal)}</td><td class="r">${r.age}d</td>
     <td class="r">${r.timer==null?'—':(r.timer<=5?`<b style="color:var(--red)">${r.timer}d</b>`:r.timer+'d')}</td>
@@ -457,45 +638,41 @@ RENDER['collector-c2'] = function(){
   const adj = (m.pctGoal * m.cli).toFixed(0);
   $$('page-collector-c2').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','My Performance',
     'Complexity-adjusted productivity, touch efficiency, resolution rate, and trend vs. team benchmarks.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('Claims / day', m.claimsDay, 'vs 65 benchmark','+2.1','up')}
+  + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      ${kpi('Complexity-adjusted score', m.prod30, ML('CLI '+m.cli)+' avg daily weighted units — the primary fair-comparison metric','+4%','up')}
       ${kpi('% of goal (raw)', m.pctGoal+'%', 'daily touch goal '+m.goal)}
-      ${kpi('Complexity-adjusted score', m.prod30, ML('complexity load index '+m.cli)+' — fair-comparison metric','+4%','up')}
+      ${kpi('Claims / day', m.claimsDay, 'vs 65 benchmark','+2.1','up')}
       ${kpi('Touches / claim', m.tpc, 'lower = more efficient','-0.2','up')}
-    </div>
-    <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
       ${kpi('First-pass throughput', (m.fpr*100).toFixed(0)+'%', 'closed without reassignment')}
+    </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
       ${kpi('Resolution rate', (m.res*100).toFixed(0)+'%', 'closed / worked this period')}
       ${kpi('Avg days to close', m.dtc, 'FLO create → close')}
-      ${kpi('Revenue collected (attributed)', '$'+m.revK+'K', 'payments on my assigned accounts, MTD')}
+      ${kpi('Accounts closed MTD', Math.round(m.res * m.queue * 0.15), 'accounts resolved to close this month')}
+      ${kpi('Recovery efficiency', '$'+Math.round(m.revK*1000/(m.prod30*22)), ML('per weighted unit worked')+' · ERV capture '+Math.round((m.res*0.55+m.fpr*0.45)*100)+'%','+$9','up')}
+      ${kpi('Cash collected MTD', '$'+m.revK+'K', 'context only — raw $ is not complexity-normalized')}
     </div>`
   + `<div class="grid g2">
-      ${card('6-month trend — complexity-adjusted productivity', canvas('c2trend'), 'me vs team average')}
-      ${card('Peer percentile — where I sit', canvas('c2dist'), ML('Adjusted score')+' anonymized team distribution')}
+      ${card('6-month trend — complexity-adjusted score', canvas('c2trend'), 'me vs team average · avg daily weighted units')}
+      ${card('Last 30 days — complexity-adjusted score vs goal', canvas('c2daily','chart-tall'), 'same metric as the KPI tile, daily')}
     </div>
     <div class="grid g2">
-      ${card('Performance radar — 5 dimensions vs team avg', canvas('c2radar','chart-tall'))}
-      ${card('Last 30 days — daily adjusted units vs goal', canvas('c2daily','chart-tall'))}
+      ${card('Accounts closed — monthly', canvas('c2closed'), 'count of accounts resolved to close this collector')}
+      ${card('Cash collected — monthly ($K)', canvas('c2cash'), 'payments posted on assigned accounts · no team comparison')}
     </div>`;
   const teamMonthly = WPA.months.map((_,i)=>+(team.reduce((s,c)=>s+c.monthly[i],0)/team.length).toFixed(1));
   line('c2trend', WPA.months, [
     {label:'Jordan (adjusted)', data:m.monthly, borderColor:C.blue, backgroundColor:C.blue+'22', fill:true},
     {label:'Team avg', data:teamMonthly, borderColor:C.slate, borderDash:[5,4]}]);
-  // distribution: histogram of team prod30 + my marker
-  const bins=[0,0,0,0,0,0]; const lbls=['<40','40-50','50-60','60-70','70-80','80+'];
-  team.forEach(c=>{const b=Math.min(5,Math.max(0,Math.floor((c.prod30-30)/10)));bins[b]++;});
-  const myBin = Math.min(5,Math.max(0,Math.floor((m.prod30-30)/10)));
-  bar('c2dist', lbls, [{data:bins, backgroundColor:lbls.map((_,i)=>i===myBin?C.orange:C.lblue)}],
-    Object.assign({},noLegend,{plugins:{legend:{display:false},tooltip:{callbacks:{footer:()=> 'Orange bin = you · 58th percentile on adjusted productivity'}}}}));
-  const tAvg = d => +(team.reduce((s,c)=>s+d(c),0)/team.length).toFixed(1);
-  mkChart('c2radar',{type:'radar',data:{labels:['Productivity','Quality','Throughput (FPR)','Accuracy (notes)','Resolution'],
-    datasets:[
-      {label:'Jordan',data:[m.pctGoal, m.q.score, m.fpr*100, m.q.notes*100, m.res*100],borderColor:C.blue,backgroundColor:C.blue+'33',pointRadius:2},
-      {label:'Team avg',data:[tAvg(c=>c.pctGoal), tAvg(c=>c.q.score), tAvg(c=>c.fpr*100), tAvg(c=>c.q.notes*100), tAvg(c=>c.res*100)],borderColor:C.slate,backgroundColor:'transparent',borderDash:[5,4],pointRadius:0}]},
-    options:{responsive:true,maintainAspectRatio:false,scales:{r:{beginAtZero:true,max:100,ticks:{stepSize:25,font:{size:9}},grid:{color:C.grid}}}}});
   line('c2daily', WPA.labels30, [
-    {label:'Adjusted units', data:m.series, borderColor:C.blue},
+    {label:'Daily complexity-adjusted score', data:m.series, borderColor:C.blue},
     {label:'Goal', data:m.series.map(()=>m.goal), borderColor:C.orange, borderDash:[6,4], pointRadius:0}]);
+  // Closed accounts per month — derived from resolution rate × avg queue worked
+  const closedMonthly = m.monthly.map((prod,i)=>Math.round(prod * 0.82 * (i<5 ? 0.95+i*0.01 : 1)));
+  bar('c2closed', WPA.months, [{data:closedMonthly, backgroundColor:closedMonthly.map((_,i)=>i===5?C.blue:C.lblue), borderRadius:4}], noLegend);
+  // Cash collected per month ($K) — derived from monthly productivity × avg revenue per close
+  const cashMonthly = m.monthly.map((prod,i)=>+(prod * 2.71 * (0.9+i*0.02)).toFixed(1));
+  bar('c2cash', WPA.months, [{data:cashMonthly, backgroundColor:cashMonthly.map((_,i)=>i===5?C.green:C.green+'88'), borderRadius:4}], noLegend);
 };
 
 RENDER['collector-c3'] = function(){
@@ -512,7 +689,16 @@ RENDER['collector-c3'] = function(){
     </div>
     <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">
       ${kpi('Overall NLI note quality', (n.overall*100).toFixed(0), ML('mean of 4 dimensions')+' · scale 0–100 · aspirational model, simulated','+6','up')}
-      ${kpi('Rubric vs NLI', 'binary → continuous', 'the rubric checks a note exists; NLI scores whether it says anything')}
+      <div class="kpi-card" data-info="rubric-vs-nli" style="grid-column:span 1">
+        <div class="kpi-label">Rubric vs NLI — scoring gap</div>
+        <div style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:3px"><span>Rubric: notes exist</span><b>${(m.q.notes*100).toFixed(0)}%</b></div>
+          ${pbar(m.q.notes*100, 100, C.blue)}
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;margin:6px 0 3px"><span>NLI: note quality</span><b style="color:${n.overall>0.7?C.ml:n.overall>0.5?C.amber:C.red}">${(n.overall*100).toFixed(0)}</b></div>
+          ${pbar(n.overall*100, 100, n.overall>0.7?C.ml:n.overall>0.5?C.amber:C.red)}
+          <div style="font-size:9.5px;color:var(--text3);margin-top:6px">${((m.q.notes - n.overall)*100).toFixed(0)}-pt gap — notes exist but vary in quality</div>
+        </div>
+      </div>
     </div>`
   + `<div class="grid g32">
       ${card('My 4 NLI dimensions', dims.map(d=>`<div style="margin-bottom:12px">
@@ -536,60 +722,254 @@ RENDER['collector-c3'] = function(){
       'PHI-scrubbed example library')).join('')}</div>`;
 };
 
+WPA._c4Buckets = [
+  {
+    id: 'all-active',
+    label: 'All Active',
+    description: 'Full queue ranked by ERV × urgency — same order as My Work Queue.',
+    color: 'var(--navy)',
+    accounts: WPA.queue
+  },
+  {
+    id: 'high-erv',
+    label: 'High ERV — Clean Path',
+    description: 'High expected recovery, no denial, payer responsive. Best accounts to work first.',
+    color: 'var(--green)',
+    accounts: WPA.queue.filter(r => r.erv > 3000 && !r.carc && (r.timer == null || r.timer > 5))
+  },
+  {
+    id: 'timely-filing',
+    label: 'Timely Filing at Risk',
+    description: 'Filing deadline within 10 days. Must act today or these accounts become uncollectable.',
+    color: 'var(--red)',
+    accounts: WPA.queue.filter(r => r.timer != null && r.timer <= 10)
+  },
+  {
+    id: 'denial-preventable',
+    label: 'Denial — Preventable',
+    description: 'Active denial that ML flags as preventable. These could have been avoided upstream.',
+    color: 'var(--amber)',
+    accounts: WPA.queue.filter(r => r.carc && r.srisk < 0.5)
+  },
+  {
+    id: 'stall-risk',
+    label: 'Stall — High Risk',
+    description: 'Stall prediction score above 0.65. These accounts are likely to go cold without immediate action.',
+    color: 'var(--orange)',
+    accounts: WPA.queue.filter(r => r.srisk > 0.65)
+  },
+  {
+    id: 'appeal',
+    label: 'Appeal in Progress',
+    description: 'Denied accounts where an appeal has been submitted and is awaiting payer response.',
+    color: 'var(--blue)',
+    accounts: WPA.queue.filter(r => r.carc && r.stage === 'Denied–Pending Resolution')
+  }
+];
+WPA._c4ActiveBucket = WPA._c4ActiveBucket || null;
+WPA._c4ActiveAcct = WPA._c4ActiveAcct || null;
+
+function selectC4Bucket(id) {
+  WPA._c4ActiveBucket = id;
+  WPA._c4ActiveAcct = null;
+  delete rendered['collector-c4'];
+  RENDER['collector-c4']();
+}
+function selectC4Account(acct) {
+  WPA._c4ActiveAcct = acct;
+  delete rendered['collector-c4'];
+  RENDER['collector-c4']();
+}
+
 RENDER['collector-c4'] = function(){
-  const d = WPA.detail;
-  $$('page-collector-c4').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Account Deep Dive',
-    'Full account timeline, denial history, ML recommendations, and payer context — everything needed to act on one claim.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      ${kpi('Account', d.acct, d.pt+' · '+d.payer)}
-      ${kpi('Balance', fmt$full(d.bal), 'complexity weight '+d.cw+'×')}
-      ${kpi('Age', d.age+' days', 'denied '+d.carc+' · '+d.root)}
-      ${kpi('Propensity to collect', (d.prop*100).toFixed(0)+'%', ML('per-account model'))}
-      ${kpi('Stall risk (7d)', (d.srisk*100).toFixed(0)+'%', ML('Stall Prediction'))}
-    </div>
-    ${d.prevent.flag?`<div class="alert yellow" style="margin-bottom:12px"><div><div class="alert-sig">🤖 Denial Root Cause Classifier — PREVENTABLE (0.91 confidence)</div><div class="alert-txt">${d.prevent.txt}</div></div></div>`:''}
-    <div class="grid g23">
-      ${card('Account timeline — every touch, denial, payment, note',
-        `<div class="tline">`+d.timeline.map(t=>`<div class="tline-item ${t.t==='Denial'?'denial':t.t==='Stall'?'stall':''}">
-          <span class="tline-d">${t.d}</span><span class="tline-t">${t.t}</span><div class="tline-txt">${t.txt}</div></div>`).join('')+`</div>`)}
-      <div>
-        ${card('Next best actions — ranked', d.nba.map((a,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 11px;margin-bottom:8px;${i===0?'border-color:#A7F3D0;background:var(--green-bg)':''}">
-            <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px">${i+1}. ${a.a}</b><span class="pill green num">ERV ${fmt$(a.erv)}</span></div>
-            <div style="font-size:10.5px;color:var(--text2);margin-top:4px">${a.why}</div></div>`).join(''),
-          ML('Next Best Action Engine'))}
-        <div style="height:12px"></div>
-        ${card('Payer behavior — this claim type', `
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-            <div><div class="big-num" style="font-size:22px">${d.payerCtx.approval}%</div><div class="mini-label">retro-auth approval</div></div>
-            <div><div class="big-num" style="font-size:22px">${d.payerCtx.respDays}d</div><div class="mini-label">median response</div></div>
-            <div><div class="big-num" style="font-size:22px">${d.payerCtx.similar}</div><div class="mini-label">similar claims, 12mo</div></div>
-          </div>`, ML('Payer behavior model'))}
-      </div>
+  const el = $$('page-collector-c4');
+
+  // If navigated from a list (queue row click), show that account directly
+  if (WPA._selectedAccount) {
+    const d = WPA._selectedAccount;
+    el.innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Account Deep Dive',
+      'Full account timeline, denial history, ML recommendations, and payer context — everything needed to act on one claim.')
+    + `<div style="font-size:11px;color:var(--text2);background:var(--surface2);border-radius:6px;padding:6px 12px;margin-bottom:10px">
+        ↩ Opened from: <b>${d.fromContext}</b> &nbsp;·&nbsp; ${pfLink(d.acct)} &nbsp;·&nbsp; <a href="#" onclick="WPA._selectedAccount=null;WPA._c4ActiveBucket=null;WPA._c4ActiveAcct=null;delete rendered['collector-c4'];switchPage('collector','c1');return false" style="color:var(--blue)">← Back to queue</a>
+      </div>`
+    + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+        ${kpi('Account', d.acct, d.pt+' · '+d.payer+' &nbsp; '+pfLink(d.acct))}
+        ${kpi('Balance', fmt$full(d.bal), 'complexity weight '+d.cw+'×')}
+        ${kpi('Age', d.age+' days', d.carc ? 'denied '+d.carc+' · '+(d.root||'') : d.stage||'')}
+        ${kpi('Propensity to collect', (d.prop*100).toFixed(0)+'%', ML('per-account model'))}
+        ${kpi('Stall risk (7d)', (d.srisk*100).toFixed(0)+'%', ML('Stall Prediction'))}
+      </div>`
+    + (d.prevent && d.prevent.flag ? `<div class="alert yellow" style="margin-bottom:12px"><div><div class="alert-sig">🤖 Denial Root Cause Classifier — PREVENTABLE (0.91 confidence)</div><div class="alert-txt">${d.prevent.txt}</div></div></div>` : '')
+    + `<div class="grid g23">
+        ${card('Account timeline — every touch, denial, payment, note',
+          '<div class="tline">'+d.timeline.map(t=>`<div class="tline-item ${t.t==='Denial'?'denial':t.t==='Stall'?'stall':''}">
+            <span class="tline-d">${t.d}</span><span class="tline-t">${t.t}</span><div class="tline-txt">${t.txt}</div></div>`).join('')+'</div>')}
+        <div>
+          ${card('Next best actions — ranked', d.nba.map((a,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 11px;margin-bottom:8px;${i===0?'border-color:#A7F3D0;background:var(--green-bg)':''}">
+              <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px">${i+1}. ${a.a}</b><span class="pill green num">ERV ${fmt$(a.erv)}</span></div>
+              <div style="font-size:10.5px;color:var(--text2);margin-top:4px">${a.why}</div></div>`).join(''),
+            ML('Next Best Action Engine'))}
+          <div style="height:12px"></div>
+          ${card('Payer behavior — this claim type', `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+              <div><div class="big-num" style="font-size:22px">${d.payerCtx.approval}%</div><div class="mini-label">retro-auth approval</div></div>
+              <div><div class="big-num" style="font-size:22px">${d.payerCtx.respDays}d</div><div class="mini-label">median response</div></div>
+              <div><div class="big-num" style="font-size:22px">${d.payerCtx.similar}</div><div class="mini-label">similar claims, 12mo</div></div>
+            </div>`, ML('Payer behavior model'))}
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Direct access mode — show bucket selector + account picker
+  const buckets = WPA._c4Buckets;
+  const activeBucket = WPA._c4ActiveBucket ? buckets.find(b => b.id === WPA._c4ActiveBucket) : null;
+  const activeAcctId = WPA._c4ActiveAcct;
+
+  // Bucket segment-style widgets
+  const bucketPills = buckets.map(b => {
+    const count = b.accounts.length;
+    const erv = b.accounts.reduce((s,r)=>s+(r.erv||0),0);
+    const atRisk = b.accounts.filter(r=>(r.timer!=null&&r.timer<=5)||r.srisk>0.7).length;
+    const isActive = b.id === WPA._c4ActiveBucket;
+    return `<div onclick="selectC4Bucket('${b.id}')" style="
+        border:2px solid ${isActive ? b.color : 'var(--border)'};
+        border-radius:8px;padding:8px 10px 8px 14px;min-width:0;cursor:pointer;
+        background:${isActive ? 'var(--surface)' : 'var(--surface)'};
+        position:relative;overflow:hidden;transition:border-color .12s,box-shadow .12s;
+        ${isActive ? 'box-shadow:0 0 0 3px '+b.color+'28' : ''}
+      " onmouseenter="this.style.borderColor='${b.color}'" onmouseleave="this.style.borderColor='${isActive ? b.color : 'var(--border)'}'">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${b.color};border-radius:4px 0 0 4px"></div>
+      <div class="mini-label" style="white-space:normal;line-height:1.3;margin-bottom:2px">${b.label}</div>
+      <div style="font-size:18px;font-weight:700;color:var(--navy)" class="num">${count}</div>
+      <div style="font-size:10px;color:var(--text2)" class="num">${fmt$(erv)} ERV${atRisk ? ` · <span style="color:var(--amber);font-weight:700">${atRisk} at risk</span>` : ''}</div>
     </div>`;
+  }).join('');
+
+  let accountSection = '';
+  if (activeBucket) {
+    const accts = activeBucket.accounts;
+    if (accts.length === 0) {
+      accountSection = `<div style="color:var(--text3);font-size:12px;padding:12px">No accounts in this bucket right now.</div>`;
+    } else {
+      accountSection = `<div class="card">
+        <div class="card-head">
+          <div class="card-title">Select an account</div>
+          <div class="card-note">${accts.length} account${accts.length===1?'':'s'} in this category · click a row to open</div>
+        </div>
+        <div class="scroll-y"><table class="tbl"><thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th><th class="r">Balance</th><th class="r">Age</th><th class="r">Timer</th><th class="r">ERV</th><th class="r">Stall Risk</th><th>Denial</th><th>Recommended Next Action</th></tr></thead><tbody>`
+      + accts.map(r => `<tr style="cursor:pointer;background:${r.acct===activeAcctId?'var(--ltblue,#D6E4F3)':''}" onclick="selectC4Account('${r.acct}')" title="Click to open Account Deep Dive">
+          <td>${urgPill(r)}</td>
+          <td><b>${r.acct}</b><br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
+          <td>${r.pt}</td>
+          <td>${r.payer}<br><span style="color:var(--text3);font-size:10px">${r.cls}</span></td>
+          <td class="r">${fmt$full(r.bal)}</td>
+          <td class="r">${r.age}d</td>
+          <td class="r">${r.timer==null?'—':(r.timer<=5?`<b style="color:var(--red)">${r.timer}d</b>`:r.timer+'d')}</td>
+          <td class="r"><b>${fmt$(r.erv)}</b></td>
+          <td class="r" style="color:${r.srisk>0.65?'var(--red)':r.srisk>0.4?'var(--amber)':'var(--green)'}">${(r.srisk*100).toFixed(0)}%</td>
+          <td>${r.carc?`<span class="pill magenta">${r.carc}</span>`:'—'}</td>
+          <td style="max-width:200px">${r.nba}</td>
+        </tr>`).join('')
+      + `</tbody></table></div></div>`;
+    }
+  }
+
+  // If an account is selected, show its detail below
+  let detailSection = '';
+  if (activeAcctId && activeBucket) {
+    const row = activeBucket.accounts.find(r => r.acct === activeAcctId) || WPA.queue.find(r => r.acct === activeAcctId);
+    if (row) {
+      const d = {
+        acct: row.acct, pt: row.pt, payer: row.payer, cls: row.cls,
+        bal: row.bal, age: row.age, carc: row.carc || null,
+        root: row.carc ? 'Prior Auth' : null,
+        prop: row.prop, srisk: row.srisk, cw: row.cw,
+        stage: row.stage, seg: row.seg, timer: row.timer,
+        timeline: [
+          {d:'Day 1', t:'Service Rendered', txt:'Initial service. Claim entered billing queue.'},
+          {d:'Day 8', t:'Claim Submitted', txt:'Clean claim submitted to '+row.payer+'.'},
+          row.carc
+            ? {d:'Day '+(row.age-12), t:'Denial', txt:row.payer+' denied — '+(row.carc||'')+'. '+row.nba}
+            : {d:'Day '+(row.age-10), t:'Payer Response', txt:'Claim in adjudication. No response received yet.'},
+          row.dst > 7
+            ? {d:'Day '+(row.age-row.dst), t:'Collector Touch', txt:'Last touch — '+row.dst+' days ago. Follow-up required.'}
+            : {d:'Day '+(row.age-(row.dst||1)), t:'Collector Touch', txt:'Collector touched account. '+(row.nba||'')}
+        ],
+        payerCtx: {approval: Math.round(65+row.prop*25), respDays: Math.round(10+row.age*0.1), similar: Math.round(28+row.erv/200)},
+        nba: [
+          {a:row.nba, erv:row.erv, why:'Highest-confidence path based on payer history and claim profile.'},
+          {a:'Verify eligibility status with '+row.payer+' before resubmission.', erv:Math.round(row.erv*0.6), why:'Eligibility mismatch accounts for 18% of denials with this payer.'},
+          {a:'Escalate to supervisor if no response within 5 business days.', erv:Math.round(row.erv*0.4), why:'Escalations on accounts > 45 days have 2.1x resolution rate.'}
+        ],
+        prevent: row.carc
+          ? {flag:true, txt:'Prior authorization was not obtained before service. This denial type is preventable in 91% of similar cases.'}
+          : {flag:false, txt:''}
+      };
+      detailSection = `<div style="margin-top:20px;border-top:2px solid var(--border);padding-top:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px">Account Detail — ${d.acct}</div>`
+      + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+          ${kpi('Account', d.acct, d.pt+' · '+d.payer+' &nbsp; '+pfLink(d.acct))}
+          ${kpi('Balance', fmt$full(d.bal), 'complexity weight '+d.cw+'×')}
+          ${kpi('Age', d.age+' days', d.carc?'denied '+d.carc:d.stage||'')}
+          ${kpi('Propensity to collect', (d.prop*100).toFixed(0)+'%', ML('per-account model'))}
+          ${kpi('Stall risk (7d)', (d.srisk*100).toFixed(0)+'%', ML('Stall Prediction'))}
+        </div>`
+      + (d.prevent.flag ? `<div class="alert yellow" style="margin-bottom:12px"><div><div class="alert-sig">🤖 Denial Root Cause Classifier — PREVENTABLE</div><div class="alert-txt">${d.prevent.txt}</div></div></div>` : '')
+      + `<div class="grid g23">
+          ${card('Account timeline',
+            '<div class="tline">'+d.timeline.map(t=>`<div class="tline-item ${t.t==='Denial'?'denial':t.t==='Stall'?'stall':''}">
+              <span class="tline-d">${t.d}</span><span class="tline-t">${t.t}</span><div class="tline-txt">${t.txt}</div></div>`).join('')+'</div>')}
+          <div>
+            ${card('Next best actions — ranked', d.nba.map((a,i)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:10px 11px;margin-bottom:8px;${i===0?'border-color:#A7F3D0;background:var(--green-bg)':''}">
+                <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px">${i+1}. ${a.a}</b><span class="pill green num">ERV ${fmt$(a.erv)}</span></div>
+                <div style="font-size:10.5px;color:var(--text2);margin-top:4px">${a.why}</div></div>`).join(''),
+              ML('Next Best Action Engine'))}
+            <div style="height:12px"></div>
+            ${card('Payer behavior', `
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+                <div><div class="big-num" style="font-size:22px">${d.payerCtx.approval}%</div><div class="mini-label">retro-auth approval</div></div>
+                <div><div class="big-num" style="font-size:22px">${d.payerCtx.respDays}d</div><div class="mini-label">median response</div></div>
+                <div><div class="big-num" style="font-size:22px">${d.payerCtx.similar}</div><div class="mini-label">similar claims, 12mo</div></div>
+              </div>`, ML('Payer behavior model'))}
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+
+  el.innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Account Deep Dive',
+    'Select an account category below, then choose an account to see the full detail, ML recommendations, and timeline.')
+  + `<div style="display:grid;grid-template-columns:repeat(${buckets.length},1fr);gap:8px;margin-bottom:14px">${bucketPills}</div>`
+  + (activeBucket
+      ? `<div style="font-size:11.5px;color:var(--text2);padding:0 2px 10px">${activeBucket.description}</div>`
+      : `<div style="font-size:12px;color:var(--text3);padding:20px 0;text-align:center">Select a category above to browse accounts.</div>`)
+  + accountSection
+  + detailSection;
 };
 
 RENDER['collector-c5'] = function(){
   const p = WPA.coaching.myPlan;
   $$('page-collector-c5').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Coaching & Development',
     'Your active coaching plan, improvement targets, and progress — the collector view of what your supervisor sees.')
-  + `<div class="grid g32">
+  + `<div class=”grid g32”>
       ${card('Active coaching plan — opened '+p.opened,
-        `<div style="font-size:13px;font-weight:600;margin-bottom:10px">Focus: ${p.focus}</div>`
-        + p.targets.map(t=>{const prog=(t.now-t.from)/(t.to-t.from);return `<div style="margin-bottom:13px">
-          <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px">
-            <span>${t.m}</span><span class="num"><b>${t.now}</b> → target ${t.to} by ${t.by}</span></div>
+        `<div style=”font-size:13px;font-weight:600;margin-bottom:10px”>Focus: ${p.focus}</div>`
+        + p.targets.map(t=>{const prog=(t.now-t.from)/(t.to-t.from);return `<div style=”margin-bottom:13px”>
+          <div style=”display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px”>
+            <span>${t.m}</span><span class=”num”><b>${t.now}</b> → target ${t.to} by ${t.by}</span></div>
           ${pbar(Math.max(2,prog*100),100, prog>=0.8?C.ml:C.blue)}
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">baseline ${t.from} · ${(prog*100).toFixed(0)}% of the way there</div></div>`;}).join(''))}
+          <div style=”font-size:10px;color:var(--text3);margin-top:2px”>baseline ${t.from} · ${(prog*100).toFixed(0)}% of the way there</div></div>`;}).join(''))}
       <div>
-        ${card('Supervisor note — Dana Whitfield', `<div class="note-txt">“${p.coachNote}”</div>
-          <div style="font-size:10.5px;color:var(--text3);margin-top:6px">Next 1:1 check-in: Jul 16 · logged in Supervisor Action Log</div>`)}
-        <div style="height:12px"></div>
-        ${card('Path to on-track', `<table class="tbl"><tbody>
-            <tr><td>Follow-up date set rate</td><td class="r">+4 pts needed</td><td class="r">by Aug 1</td></tr>
-            <tr><td>Contact-named NLI dim</td><td class="r">+0.04 needed</td><td class="r">by Aug 1</td></tr>
-            <tr><td>% of goal</td><td class="r">+4 pts needed</td><td class="r">by Aug 15</td></tr>
+        ${card('Supervisor note — Dana Whitfield', `<div class=”note-txt”>”${p.coachNote}”</div>
+          <div style=”font-size:10.5px;color:var(--text3);margin-top:6px”>Next 1:1 check-in: Jul 16 · logged in Supervisor Action Log</div>`)}
+        <div style=”height:12px”></div>
+        ${card('Path to on-track', `<table class=”tbl”><tbody>
+            <tr><td>Follow-up date set rate</td><td class=”r”>+4 pts needed</td><td class=”r”>by Aug 1</td></tr>
+            <tr><td>Contact-named NLI dim</td><td class=”r”>+0.04 needed</td><td class=”r”>by Aug 1</td></tr>
+            <tr><td>% of goal</td><td class=”r”>+4 pts needed</td><td class=”r”>by Aug 15</td></tr>
           </tbody></table>
-          <div style="font-size:10.5px;color:var(--text2);margin-top:8px">All three trending green at current pace — plan projected to close <b>Aug 12</b>.</div>`)}
+          <div style=”font-size:10.5px;color:var(--text2);margin-top:8px”>All three trending green at current pace — plan projected to close <b>Aug 12</b>.</div>`)}
       </div>
     </div>`;
 };
@@ -611,9 +991,9 @@ RENDER['supervisor-s1'] = function(){
       ${kpi('Revenue forecast', fmt$(ex.forecast.expected*1e6), ML('propensity × queue')+' vs $4.8M target')}
     </div>`
   + `<div class="grid g23">
-      <div class="card"><div class="card-head"><div class="card-title">Collector heat map — instant team scan</div>
+      <div class="card tfill"><div class="card-head"><div class="card-title">Collector heat map — instant team scan</div>
         <div class="card-note">${ML('multi-signal')} filter by supervisor in global bar · red/amber/green thresholds per config</div></div>
-        <div class="scroll-y"><table class="tbl" id="heatgrid"></table></div></div>
+        <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl" id="heatgrid"></table></div></div></div>
       ${card("Today's ML alert feed", WPA.mlFeed.map(a=>`<div class="alert ${a.sev}"><div>
           <div class="alert-sig">🤖 ${a.sig}</div><div class="alert-txt">${a.txt}</div>
           <div class="alert-act">→ ${a.act}</div></div></div>`).join(''), 'prioritized by revenue impact')}
@@ -691,13 +1071,14 @@ function renderS2(){
     ${c.anomaly?`<div class="alert ${c.anomaly.sev==='High'?'red':'yellow'}" style="margin-bottom:12px"><div>
       <div class="alert-sig">🤖 Collector Anomaly — ${c.anomaly.cat} · ${c.anomaly.sev}</div>
       <div class="alert-txt">${c.anomaly.desc}</div></div></div>`:''}
-    <div class="kpi-row" style="grid-template-columns:repeat(6,1fr)">
+    <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
       ${kpi('% of goal', c.pctGoal+'%','30-day')}
       ${kpi('Quality score', c.q.score,'rubric 30/25/30/15')}
       ${kpi('Complexity load', c.cli+'×', ML('CLI vs team 1.0'))}
       ${kpi('First-pass', (c.fpr*100).toFixed(0)+'%','')}
       ${kpi('Days to close', c.dtc,'')}
       ${kpi('Stale follow-ups', (c.stale*100).toFixed(0)+'%','past due w/o touch')}
+      ${kpi('Recovery efficiency', '$'+Math.round(c.revK*1000/(c.prod30*22)), ML('$ / weighted unit')+' · ERV capture '+Math.round((c.res*0.55+c.fpr*0.45)*100)+'%')}
     </div>
     <div class="grid g2">
       ${card('Daily adjusted productivity — vs team avg', canvas('s2trend'))}
@@ -751,19 +1132,19 @@ RENDER['supervisor-s3'] = function(){
       <div class="card-body"><table class="tbl" id="segtbl"></table></div></div>
     <div class="card"><div class="card-head"><div class="card-title">Predicted stalls — act before they stall</div>
       <div class="card-note">${ML('Stall Prediction Model')} ranked by risk × balance</div></div>
-      <div class="scroll-y"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th class="r">Balance</th>
+      <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th class="r">Balance</th>
       <th class="r">Stall risk</th><th>Est. stall date</th><th>Collector</th><th>Recommended intervention</th></tr></thead><tbody>
-      ${WPA.predStall.slice(0,15).map(r=>`<tr><td><b>${r.acct}</b></td><td>${r.payer}</td><td class="r">${fmt$full(r.bal)}</td>
+      ${WPA.predStall.slice(0,15).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td class="r">${fmt$full(r.bal)}</td>
         <td class="r"><b style="color:${r.risk>0.8?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b></td>
-        <td>${r.estDate}</td><td>${r.coll}</td><td>${r.rec}</td></tr>`).join('')}</tbody></table></div></div>
+        <td>${r.estDate}</td><td>${r.coll}</td><td>${r.rec}</td></tr>`).join('')}</tbody></table></div></div></div>
     <div style="height:12px"></div>
     <div class="card"><div class="card-head"><div class="card-title">Stall alert queue — currently stalled, top by balance</div>
       <div class="card-note">named stall flags per Gate 2 §5.2</div></div>
-      <div class="scroll-y"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>Stage</th><th>Stall flag</th>
+      <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>Stage</th><th>Stall flag</th>
       <th class="r">Days stalled</th><th class="r">Balance</th><th>Collector</th><th>Supervisor</th></tr></thead><tbody>
-      ${WPA.stallRows.slice(0,14).map(r=>`<tr><td><b>${r.acct}</b></td><td>${r.payer}</td><td>${r.stage}</td>
+      ${WPA.stallRows.slice(0,14).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.stage}</td>
         <td><span class="pill red" style="font-family:monospace;font-size:9px">${r.flag}</span></td>
-        <td class="r">${r.days}d</td><td class="r">${fmt$full(r.bal)}</td><td>${r.coll}</td><td>${r.sup}</td></tr>`).join('')}</tbody></table></div></div>`;
+        <td class="r">${r.days}d</td><td class="r">${fmt$full(r.bal)}</td><td>${r.coll}</td><td>${r.sup}</td></tr>`).join('')}</tbody></table></div></div></div>`;
   mkChart('s3funnel',{type:'bar',data:{labels:f.map(x=>x.stage),
     datasets:[{label:'Accounts',data:f.map(x=>x.n),backgroundColor:f.map(x=>x.stage.startsWith('Resolved')?C.ml:C.blue),borderRadius:4},
               {label:'Stalled $ (K)',data:f.map(x=>x.stallD/1000),backgroundColor:C.red+'AA',borderRadius:4}]},
@@ -920,11 +1301,11 @@ RENDER['supervisor-s6'] = function(){
         ML('NLI + trend + peer comparison'))}
     </div>
     <div class="grid g2">
-      <div class="card"><div class="card-head"><div class="card-title">Flag queue</div></div>
-        <div class="scroll-y"><table class="tbl"><thead><tr><th>Collector</th><th>Flag</th><th>Trigger</th><th>Date</th><th>Status</th></tr></thead><tbody>
-        ${K.rows.map(r=>`<tr><td><b>${r.coll}</b></td><td>${sevPill(r.sev)} ${r.type}</td>
+      <div class="card tfill"><div class="card-head"><div class="card-title">Flag queue</div></div>
+        <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Collector</th><th>Flag</th><th>Trigger</th><th>Date</th><th>Status</th></tr></thead><tbody>
+        ${K.rows.slice().sort((a,b)=>a.days-b.days).map(r=>`<tr><td><b>${r.coll}</b></td><td>${sevPill(r.sev)} ${r.type}</td>
           <td style="max-width:220px;font-size:10.5px">${r.metric}</td><td>${r.date}</td>
-          <td><span class="pill ${r.status==='Active'?'amber':'green'}">${r.status}</span></td></tr>`).join('')}</tbody></table></div></div>
+          <td><span class="pill ${r.status==='Active'?'amber':'green'}">${r.status}</span></td></tr>`).join('')}</tbody></table></div></div></div>
       ${card('Supervisor action log', K.log.map(l=>`<div style="padding:7px 0;border-bottom:1px solid #f1f2f4">
           <span class="mini-label">${l.d} · ${l.sup}</span><div style="font-size:11.5px;margin-top:2px">${l.txt}</div></div>`).join(''), 'timestamped · audit-ready')}
     </div>`;
@@ -938,13 +1319,13 @@ RENDER['supervisor-s7'] = function(){
     'Payer-level scorecard, anomaly detection vs each payer\'s own 90-day baseline, and contract-escalation signals.')
   + `<div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">Payer scorecard</div>
       <div class="card-note">${ML('Payer Behavior Anomaly')} vs own 90-day rolling baseline</div></div>
-      <div class="scroll-y"><table class="tbl"><thead><tr><th>Payer</th><th>Class</th><th class="r">Denial rate</th>
+      <div class="tbl-viewport vh420"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Payer</th><th>Class</th><th class="r">Denial rate</th>
       <th class="r">Pay days</th><th class="r">Reimb %</th><th class="r">Appeal win %</th><th class="r">AR balance</th><th>Signal</th></tr></thead><tbody>
       ${WPA.payers.map(p=>`<tr><td><b>${p.name}</b></td><td>${p.cls}</td>
         <td class="r" style="${p.denRate>14?'color:var(--red);font-weight:700':''}">${p.denRate}%</td>
         <td class="r">${p.payDays}d</td><td class="r">${p.reimb}%</td><td class="r">${p.appealWin}%</td>
         <td class="r">${fmt$(p.arBal)}</td>
-        <td>${p.anom?`<span class="pill ${p.anom.sev==='High'?'red':'amber'}">🤖 ${p.anom.sev} anomaly</span>`:'<span class="pill gray">baseline</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+        <td>${p.anom?`<span class="pill ${p.anom.sev==='High'?'red':'amber'}">🤖 ${p.anom.sev} anomaly</span>`:'<span class="pill gray">baseline</span>'}</td></tr>`).join('')}</tbody></table></div></div></div>
     <div class="grid g23">
       <div class="card"><div class="card-head"><div class="card-title">Denial-rate trend — <span id="s7name">Molina Healthcare</span></div>
         <div><select class="inline-sel" id="s7sel" onchange="s7trend()">${WPA.payers.map(p=>`<option ${p.name==='Molina Healthcare'?'selected':''}>${p.name}</option>`).join('')}</select></div></div>
@@ -1178,9 +1559,9 @@ RENDER['denial-dm1'] = function(){
       ${card('ML root-cause classification', canvas('dm1root'), ML('CARC/RARC → root cause buckets'))}
     </div>
     <div class="grid g23">
-      <div class="card"><div class="card-head"><div class="card-title">Top CARC codes — count, dollars, trend</div>
+      <div class="card tfill"><div class="card-head"><div class="card-title">Top CARC codes — count, dollars, trend</div>
         <div class="card-note">financial-class filter applies</div></div>
-        <div class="scroll-y"><table class="tbl" id="dm1carcs"></table></div></div>
+        <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl" id="dm1carcs"></table></div></div></div>
       ${card('Denial rate by financial class', canvas('dm1cls','chart-tall'))}
     </div>`;
   line('dm1trend', D.rateTrend.map((_,i)=>'W'+(i+1)), [
@@ -1258,14 +1639,14 @@ RENDER['denial-dm3'] = function(){
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Active appeals — deadline risk first</div>
       <div class="card-note">red = deadline ≤ 10 days</div></div>
-      <div class="scroll-y"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>CARC</th><th>Root cause</th>
+      <div class="tbl-viewport vh420"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>CARC</th><th>Root cause</th>
       <th class="r">Value</th><th>Stage</th><th class="r">Days open</th><th class="r">Deadline</th><th class="r">Exp. win 🤖</th></tr></thead><tbody>
       ${A.rows.slice().sort((a,b)=>a.deadline-b.deadline).map(r=>`<tr>
-        <td><b>${r.acct}</b></td><td>${r.payer}</td><td>${r.carc}</td><td>${r.root}</td>
+        <td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.carc}</td><td>${r.root}</td>
         <td class="r">${fmt$full(r.bal)}</td><td><span class="pill blue">${r.stage}</span></td>
         <td class="r">${r.days}d</td>
         <td class="r">${r.deadline<=10?`<b style="color:var(--red)">${r.deadline}d</b>`:r.deadline+'d'}</td>
-        <td class="r">${(r.expWin*100).toFixed(0)}%</td></tr>`).join('')}</tbody></table></div></div>`;
+        <td class="r">${(r.expWin*100).toFixed(0)}%</td></tr>`).join('')}</tbody></table></div></div></div>`;
   bar('dm3stage', byStage.map(x=>x.s), [{data:byStage.map(x=>x.n), backgroundColor:C.magenta}], noLegend);
   bar('dm3payer', A.successByPayer.slice().sort((a,b)=>b.sr-a.sr).map(x=>x.p.split(' ')[0]),
     [{data:A.successByPayer.slice().sort((a,b)=>b.sr-a.sr).map(x=>x.sr), backgroundColor:C.blue}],
@@ -1294,13 +1675,13 @@ RENDER['denial-dm4'] = function(){
           <td><span class="pill magenta">${f.root}</span></td>
           <td class="r"><b>${fmt$(f.impact)}</b></td>
           <td>${pbar(f.impact, D.processFixes[0].impact, C.ml)}</td></tr>`).join('')}</tbody></table></div></div>
-      ${card('Intercept before submission', `<div class="scroll-y" style="max-height:330px"><table class="tbl">
+      ${card('Intercept before submission', `<div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>Claim</th><th>Payer</th><th class="r">Risk 🤖</th><th>Suggested fix</th></tr></thead><tbody>
         ${D.predRows.slice().sort((a,b)=>b.risk-a.risk).map(r=>`<tr><td><b>${r.claim}</b><br><span style="color:var(--text3);font-size:10px">${r.svc}</span></td>
           <td>${r.payer}</td><td class="r"><b style="color:${r.risk>0.75?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b><br>
           <span style="font-size:9.5px;color:var(--text3)">${r.codes.join(' · ')}</span></td>
-          <td style="font-size:10.5px">${r.fix}</td></tr>`).join('')}</tbody></table></div>`,
-        ML('Denial Prediction Score'))}
+          <td style="font-size:10.5px">${r.fix}</td></tr>`).join('')}</tbody></table></div></div>`,
+        ML('Denial Prediction Score'),'tfill')}
     </div>`;
 };
 
@@ -1330,14 +1711,14 @@ const SRC = {
 /* ---------- shared core KPIs ---------- */
 reg(['days-in-ar'],{
  d:'Average age of outstanding AR balance, dollar-weighted across all open accounts.',
- c:'<code>Σ(account age × balance) ÷ Σ(balance)</code>. Ages measured from discharge/service-end date. Bad-debt accounts excluded; credit balances included at absolute value. Point-in-time as of last snapshot.',
+ c:'<code>Total AR balance ÷ average daily net patient service revenue</code> (trailing 90 days) — HFMA MAP Key definition. Bad debt excluded. Point-in-time as of the last nightly snapshot.',
  p:'The single most-watched AR velocity metric — directly tied to cash-flow timing and carrying cost.',
  i:'Lower is better. Falling = cash accelerating. Rising with flat volume = collections slowing or aged inventory accumulating.',
  a:'Above 45-day benchmark: check the Throughput funnel for which stage is inflating age, then work the stall queue. A 5-day reduction on this AR base ≈ $41K/yr carrying-cost savings (Gate 6 §4.4).',
  s:SRC.rma});
 reg(['collection-rate'],{
  d:'Share of billed dollars actually collected.',
- c:'<code>(Total payments collected ÷ total billed) × 100</code>, rolling 12 months. Contractual adjustments excluded from the numerator; bad debt excluded from both.',
+ c:'Net collection rate: <code>payments collected ÷ (billed charges − contractual adjustments) × 100</code>, rolling 12 months — HFMA MAP Key definition. Bad debt written off excluded from the denominator.',
  p:'The bottom-line effectiveness measure of the entire revenue cycle.',
  i:'Higher is better; > 95% is the HFMA-derived benchmark. A falling rate with a stable payer mix usually points at denials or write-off discipline, not effort.',
  a:'Below target: decompose by payer class (Financial Performance page). If one class is dragging, it is a payer problem; if uniform, it is a process problem.',
@@ -1541,14 +1922,14 @@ reg(['what-good-looks-like'],{
 /* ---------- collector C4 ---------- */
 reg(['account'],{
  d:'The account under review: identifier, patient (display-only), and payer.',
- c:'Header fields from the RMA account record joined to DMA denial detail.',
+ c:'Account number, patient (initials, display-only), and payer plan from the latest RMA account snapshot, joined to DMA 835 denial detail on account number.',
  p:'Anchor context for everything below.',
  i:'Patient identifiers are display-only per Gate 12 — never inputs to any score.',
  a:'—',
  s:SRC.rma});
 reg(['balance'],{
  d:'Current outstanding balance and the account\'s complexity weight.',
- c:'Balance from latest RMA snapshot; complexity weight = balance_wt × age_wt × payer_wt × denial_wt (normalized).',
+ c:'Current outstanding balance from the latest nightly RMA snapshot: <code>billed charges − payments − contractual adjustments</code>. The complexity weight shown alongside is a separate model output (see Complexity-adjusted score).',
  p:'The stake, and how much credit working this account earns.',
  i:'Weight > 1.0 = harder than the average account; each touch here yields > 1 productivity unit.',
  a:'—',
@@ -2277,6 +2658,22 @@ reg(['flo-closed-mtd'],{
  a:'—',
  s:SRC.tl});
 
+
+reg(['accounts-closed-mtd','accounts-closed'],{
+ d:'Accounts you resolved to close this month.',
+ c:'Count of FLO records with a closed date this month where you were the assigned collector at close (payment to zero, write-off approval, or external transfer — Gate 10 step 9).',
+ p:'The outcome counterpart to touch volume — closes are what shrink the universe.',
+ i:'Read with days-to-close: high closes + falling days-to-close is the ideal shape.',
+ a:'—',
+ s:'Source: WPA Analytics / PayFlo touch log (daily)'});
+reg(['cash-collected-mtd','cash-collected'],{
+ d:'Payments posted on your assigned accounts, month to date.',
+ c:'Σ payment transactions (RMA) on accounts assigned to you at time of payment. Attribution is assignment-based, not causal.',
+ p:'Connects daily activity to dollars — the number leadership sees.',
+ i:'Directional over short windows; payer timing noise dominates week to week.',
+ a:'Use for trend and motivation, not cross-collector ranking (book composition differs).',
+ s:'Source: RMA daily account snapshot (client EHR/PM extract)'});
+
 /* ============ ⓘ info popover infrastructure ============ */
 function slugify(t){
   t = t.split('—')[0].split('·')[0];               // stable part of dynamic titles
@@ -2284,9 +2681,10 @@ function slugify(t){
           .replace(/\s+/g,'-').slice(0,60);
 }
 function attachInfo(){
-  document.querySelectorAll('.card-title, .kpi-label').forEach(el=>{
+  document.querySelectorAll('.card-title, .kpi-label, .page-title').forEach(el=>{
     if (el.querySelector('.info-btn')) return;
-    const key = slugify(el.textContent||'');
+    let key = slugify(el.textContent||'');
+    if (el.classList.contains('page-title')) key = 'page-' + key;
     if (!key) return;
     const b = document.createElement('button');
     b.className = 'info-btn'; b.type = 'button';
@@ -2331,14 +2729,287 @@ document.addEventListener('click', e=>{
   const pop = document.getElementById('info-pop');
   if (pop.style.display==='block' && !pop.contains(e.target)) closeInfo();
 });
+/* ── table space-fitting: viewport = allotted space, whole rows only; Show all scrolls in place ── */
+function limitTables(){
+  document.querySelectorAll('.tbl-viewport').forEach(fitViewport);
+}
+function fitViewport(vp){
+  const scroll = vp.querySelector('.tbl-scroll'); if(!scroll) return;
+  const tbl = scroll.querySelector('table.tbl'); if(!tbl || !tbl.tBodies.length) return;
+  if (vp.offsetParent === null) return;
+  const rows = Array.from(tbl.tBodies[0].rows);
+  const total = rows.length;
+  let bar = vp.nextElementSibling;
+  if(!(bar && bar.classList && bar.classList.contains('tbl-bar'))){
+    bar = document.createElement('div'); bar.className='tbl-bar'; vp.after(bar);
+  }
+  const expanded = vp.dataset.expanded === '1';
+  rows.forEach(r=>{ if(r.style.display) r.style.display=''; });
+  if (expanded){
+    scroll.style.overflowY='auto';
+    setBar(bar, vp, `Showing all <b>${total}</b> — scroll to browse`, 'Fit to space');
+    return;
+  }
+  scroll.style.overflowY='hidden';
+  const avail = scroll.clientHeight - (tbl.tHead ? tbl.tHead.offsetHeight : 0);
+  if (avail <= 20) return;
+  let used=0, shown=0;
+  for(const r of rows){
+    const h = r.offsetHeight || 34;
+    if (used + h <= avail){ used += h; shown++; }
+    else r.style.display='none';
+  }
+  if (shown >= total) setBar(bar, vp, `Showing all <b>${total}</b>`, null);
+  else setBar(bar, vp, `Showing <b>${shown}</b> of <b>${total}</b> — fitted to space`, `Show all ${total}`);
+}
+function flipOrder(vp){
+  const tb = vp.querySelector('table.tbl tbody'); if(!tb) return;
+  [...tb.rows].reverse().forEach(r=>tb.appendChild(r));
+  vp.dataset.flipped = vp.dataset.flipped==='1' ? '' : '1';
+  const bar = vp.nextElementSibling; if(bar && bar.dataset) delete bar.dataset.sig;
+  fitViewport(vp);
+}
+function setBar(bar, vp, txt, btnTxt){
+  const sig = txt + '|' + (btnTxt||'');
+  if (bar.dataset.sig === sig) return;
+  bar.dataset.sig = sig;
+  bar.innerHTML = txt + ' ';
+  if(btnTxt){
+    const b = document.createElement('button'); b.type='button'; b.textContent = btnTxt;
+    b.addEventListener('click', ()=>{ vp.dataset.expanded = vp.dataset.expanded==='1' ? '' : '1'; delete bar.dataset.sig; fitViewport(vp); });
+    bar.appendChild(b);
+  }
+  const tb = vp.querySelector('table.tbl tbody');
+  if (tb && tb.rows.length > 1){
+    const f = document.createElement('button'); f.type='button';
+    f.textContent = vp.dataset.flipped==='1' ? '⇅ Top-ranked first' : '⇅ Reverse order';
+    f.title = 'Flip the sort — bring the bottom of this list to the top';
+    f.style.marginLeft = 'auto';
+    f.addEventListener('click', ()=>flipOrder(vp));
+    bar.appendChild(f);
+  }
+}
+reg(['recovery-efficiency'],{
+ d:'Dollars collected per complexity-weighted unit of work — the money metric that is fair across different books of business.',
+ c:'<code>Cash collected (MTD) ÷ Σ complexity-weighted units worked in period</code>. Companion figure: ERV capture = collected ÷ propensity-weighted expected value of accounts worked.',
+ p:'Raw cash rankings reward whoever holds the easiest book. Dividing by weighted units asks the fair question: how much did each unit of real work yield?',
+ i:'High $/unit + high ERV capture = efficient execution. High $/unit + low capture = an easy book flattering the number. Low $/unit + high capture = a hard book being worked well — do not mistake it for underperformance.',
+ a:'Use for coaching and comparison in place of raw cash. Raw Cash Collected stays on the page for context but should never rank collectors.',
+ s:'Source: RMA transactions + touch log + complexity model'});
+
+/* ---------- dashboard-level purpose entries (page titles) ---------- */
+reg(['page-my-work-queue'],{
+ d:'The collector\'s daily operating surface: an ML-prioritized worklist that answers "what should I work next?" so the highest expected dollars with the tightest deadlines get touched first.',
+ c:'Scope: your assigned active universe, all segments. Rank = expected recovery value × urgency (timer + stall risk). Refreshed nightly; worked-today counter is intraday.',
+ p:'Removes queue-order guesswork. The economics are already in the ranking — working top-down IS the strategy.',
+ i:'Start at the urgent flags, then work the ranked queue in order. The segment chips filter everything on the page.',
+ a:'Deviating to easy accounts lowers your complexity load index, which supervisors can see. Trust the rank.',
+ s:'Sources: RMA + touch log + payer timers + propensity/stall models · nightly 6:00 AM CST'});
+reg(['page-my-performance'],{
+ d:'Your production scorecard — complexity-adjusted so a hard book and an easy book compare fairly, with outcome metrics (closes, recovery efficiency) alongside activity metrics.',
+ c:'Scope: trailing 30 days + 6-month trend. Primary metric: complexity-adjusted score (weighted units/day). Money shown per weighted unit, not raw.',
+ p:'One page that answers "am I on track, and where am I strong or weak vs the team?"',
+ i:'Lead tile first (adjusted score), then the radar shape for your profile. Raw cash is context only — it is not how performance is judged here.',
+ a:'A weak dimension on this page is the thing to bring to your next 1:1 — before your supervisor does.',
+ s:'Sources: touch log + RMA transactions + complexity model'});
+reg(['page-my-quality-scorecard'],{
+ d:'How well the work is documented — the four rubric behaviors (notes, status updates, follow-up dates, aged attention) plus NLI scoring of what your notes actually say.',
+ c:'Scope: rolling 7-day rubric window (min 10 accounts) + recent notes individually scored. Rubric weights 30/25/30/15 per Gate 7.',
+ p:'Volume without documentation is invisible work: it cannot survive an appeal, a handoff, or an audit.',
+ i:'Find your weakest of the four dimensions — the composite improves fastest by fixing that one behavior.',
+ a:'Copy the structure of the high-scoring examples: who, what, ref #, dated next step.',
+ s:'Sources: touch log flags + NLI model (simulated)'});
+reg(['page-account-deep-dive'],{
+ d:'Everything about one account on one screen: full event timeline with rep notes, ML-ranked next actions with expected values, payer behavior for this claim type, and a preventability read.',
+ c:'Scope: single account, complete history. Actions ranked by balance × conditional success probability. Opens from any account link across the app.',
+ p:'The rule is simple: never act on an account without its context. This page is that context.',
+ i:'Read the timeline bottom-up (latest first in reverse), take action #1 unless you hold information the model lacks, and use the PayFlo link to execute.',
+ a:'If the last two touches say the same thing, the next touch should be different — escalate, do not repeat.',
+ s:'Sources: RMA + DMA 835 + touch log, joined per account · ML action ranking (simulated)'});
+reg(['page-coaching-development'],{
+ d:'Your active coaching plan and progress — the same view your supervisor sees, so there are no surprises in a 1:1.',
+ c:'Scope: open plan targets with baselines, current values, and deadlines; supervisor notes from the action log.',
+ p:'Coaching works when the coached person can see the scoreboard.',
+ i:'Bars ≥ 80% ahead of the deadline = on track; the projected close date assumes your current pace holds.',
+ a:'A stuck target is a conversation to start, not a status to hide.',
+ s:'Sources: Coaching Engine plan record + live metrics'});
+reg(['page-team-command-center'],{
+ d:'The supervisor\'s morning scan: team health at a glance, every collector RAG-coded across five signals, and everything the ML flagged overnight — prioritized by revenue impact.',
+ c:'Scope: your team (filter by supervisor), trailing 30 days, alerts from six signal models with suppression rules.',
+ p:'Five minutes here replaces an hour of report archaeology — who is fine, who needs a look, who needs a conversation today.',
+ i:'Alert feed first (red → amber → blue), then scan heat-map rows: red goal + green CLI = effort; red goal + high CLI = workload.',
+ a:'Anomaly badges outrank threshold colors — the model catches drift before thresholds trip.',
+ s:'Sources: all four data feeds + 6 ML signal models · nightly 6:00 AM CST'});
+reg(['page-collector-deep-dive'],{
+ d:'One collector, fully unpacked: trend vs team, complexity load, quality dimensions, recovery efficiency, and their complete flag history.',
+ c:'Scope: selected collector, trailing 30 days. Every metric shown next to team context.',
+ p:'The prep page for any performance conversation — evidence, not impressions.',
+ i:'Anomaly banner first if present. Then ask the workload-vs-behavior question: CLI and queue size distinguish "overloaded" from "underperforming."',
+ a:'Compare on adjusted score and recovery efficiency, never raw counts or raw cash.',
+ s:'Sources: touch log + RMA + complexity model + Coaching Engine'});
+reg(['page-workflow-throughput'],{
+ d:'Where the pipeline is stuck: stage funnel, stall dollars by stage × payer class, segment bottlenecks, disposition flow, and the accounts predicted to stall next week.',
+ c:'Scope: full active universe. Stall thresholds per stage and payer (Gate 7 §5); predictions from the stall model.',
+ p:'Throughput problems hide in averages — this page locates them by stage, segment, payer, and dollar.',
+ i:'Start at the red callout (largest single stall pocket) — it is a ready-made work order. Hot heatmap rows = process problems; hot columns = payer problems.',
+ a:'Preempting the top 10 predicted stalls by balance each week is the highest-leverage 30 minutes on this dashboard.',
+ s:'Sources: RMA + touch log + stall prediction model · nightly'});
+reg(['page-denial-management'],{
+ d:'The supervisor\'s denial operating view: rate trend, root causes in dollars, the appeal-vs-prevent split, and active payer anomalies.',
+ c:'Scope: all active denials, 26-week trend, anomalies vs each payer\'s own 90-day baseline.',
+ p:'Denials are the largest controllable leak — this page decides where effort goes: fight it, or fix what causes it.',
+ i:'A CARC mix shift at one payer = policy change (external); broad drift = process slippage (internal).',
+ a:'Route preventable roots to their upstream owners; reserve appeal capacity for clinical-judgment denials.',
+ s:'Sources: DMA 835 + root-cause classifier + payer anomaly model'});
+reg(['page-staffing-capacity'],{
+ d:'The staffing math made visible: staffed vs model-required FTE, workload balance, the 90-day demand forecast, and a scenario builder for the target work-down window.',
+ c:'Scope: current team + 13-week forecast. Formula: weighted inventory ÷ (throughput baseline × target days) — Gate 7 §6.',
+ p:'Turns "we feel understaffed" into a number Finance can interrogate, with the hire-trigger date attached.',
+ i:'The forecast crossing staffed+1 minus hiring lead time = your requisition deadline. It is printed in the business case.',
+ a:'Adjust the scenario slider before a headcount conversation — the target window is often the more available lever.',
+ s:'Sources: RMA + touch log + staffing demand model (simulated)'});
+reg(['page-coaching-command'],{
+ d:'The coaching function\'s work queue: every active flag with its trigger evidence, the auto-drafted 1:1 brief, pre/post improvement tracking, and the audit-ready action log.',
+ c:'Scope: all flags across the team, six rule types, 7-day suppression (3 for high severity).',
+ p:'Flags that sit unresolved are worse than no flags — this page keeps the coaching loop moving and measurable.',
+ i:'Sort by severity then age; anything open past 14 days is dragging your resolution-rate KPI.',
+ a:'Log every 1:1 in the action log — improvement tracking anchors to those dates.',
+ s:'Sources: Coaching Engine rules + touch log'});
+reg(['page-payer-intelligence'],{
+ d:'Payer behavior surveillance: each payer scored on denial rate, payment timing, and appeal success, with anomaly detection against its own 90-day baseline.',
+ c:'Scope: all payers, weekly trends. Anomaly = ±2σ sustained; > 30 days sustained promotes to a contract-level flag.',
+ p:'Payers change the rules without telling you. This page notices within weeks, not quarters.',
+ i:'Judge each payer against its own baseline — Medicaid timing never looks like Medicare timing, and that is fine.',
+ a:'Confirmed policy shifts run two tracks in parallel: operational (fix the workflow) and commercial (payer relations).',
+ s:'Sources: DMA 835 + payer anomaly model'});
+reg(['page-executive-summary'],{
+ d:'The leadership one-pager: eight KPIs against target and benchmark, the revenue waterfall, the period forecast with probability, and the three biggest risks with recommended interventions.',
+ c:'Scope: enterprise, current period + 12-month trend. RAG thresholds per the Gate 6 KPI registry.',
+ p:'Designed to run a leadership meeting from a single screen — status, trajectory, and this week\'s decisions.',
+ i:'Scorecard sparklines show direction; the forecast panel says whether the month lands; the risk cards say what to do about it.',
+ a:'Each risk card names its owner-action — the meeting output is assigning those three things.',
+ s:'Sources: all feeds, rolled up · forecast from propensity model'});
+reg(['page-financial-performance'],{
+ d:'The money mechanics: AR aging by class, reimbursement by payer, write-off trend with ML-tagged recoverable share, and program unit economics.',
+ c:'Scope: enterprise, trailing 12 months. Write-off recoverability from retrospective propensity scoring.',
+ p:'Separates structural revenue loss (contract rates) from operational loss (process) — they need different fixes.',
+ i:'The recoverable-write-off table is the fastest money on the page: each pattern has a one-line workflow fix.',
+ a:'Sustained low reimbursement + anomaly flag = the contract renegotiation shortlist.',
+ s:'Sources: RMA transactions + DMA + propensity model'});
+reg(['page-operational-intelligence'],{
+ d:'The ML-derived operational read: stall exposure, preventable-denial opportunity by root cause, and whether the coaching program is measurably working.',
+ c:'Scope: enterprise, portfolio level. Coaching effect measured coached-vs-uncoached cohort, pre/post 30 days.',
+ p:'Bridges the exec view and the supervisor view — the "why" behind the scorecard colors.',
+ i:'The coached-cohort delta vs baseline drift is the honest test of the coaching investment.',
+ a:'The preventable-$ bars are a prioritized process-fix backlog — each maps to an upstream owner.',
+ s:'Sources: stall + root-cause + propensity models, portfolio-aggregated'});
+reg(['page-benchmarking'],{
+ d:'Every headline metric against national benchmarks and the VisiQuate client-cohort percentile — context for whether a number is good.',
+ c:'Scope: HFMA MAP Key-derived standards; percentile among VisiQuate clients (illustrative in prototype).',
+ p:'A number without a benchmark is just a number. Gaps here are the quantified improvement roadmap.',
+ i:'Every bar short of its tick is a lever; the two largest dollar-weighted gaps are called out beneath the table.',
+ a:'Sequence the improvement roadmap by dollar-weighted gap, not by which metric looks worst.',
+ s:'Sources: internal metrics vs HFMA-derived benchmarks'});
+reg(['page-staffing-roi'],{
+ d:'Headcount as an investment case: labor cost vs attributed collections, the cost of the current gap, and the add-one-FTE business case with payback.',
+ c:'Scope: annualized program economics + 90-day FTE forecast with the staffed+1 decision line.',
+ p:'Moves the staffing conversation from opinion to a payback calculation.',
+ i:'Sub-12-month payback is a straightforward approval in most systems; the requisition deadline is printed.',
+ a:'The FTE-avoidance logic runs both ways — under-hiring can cost more than the hire.',
+ s:'Sources: staffing model + RMA transactions + demand forecast (simulated)'});
+reg(['page-strategic-insights'],{
+ d:'Second-order ML signals for leadership: under-resourced high-value clusters, payer contract flags, and process fixes that beat appeals — each with a dollar value attached.',
+ c:'Scope: signals promoted from operational models only after persistence filters (e.g., 30-day sustain for contract flags).',
+ p:'Starts the strategy conversation at impact ("$840K acceleration") instead of at data.',
+ i:'Each card documents its own model and threshold — the machinery is inspectable, not a black box.',
+ a:'The combined-impact table is the executive ask: three initiatives, ~$1.7M, owners implied.',
+ s:'Sources: cluster analysis + anomaly + root-cause models (simulated)'});
+reg(['page-denial-landscape'],{
+ d:'The full denial picture: volume, dollars, rate trend with policy-change annotations, CARC breakdown, and ML root-cause classification.',
+ c:'Scope: all active denials, 26 weeks. Preventability flagged per denial; ~85-87% preventable is consistent with industry findings.',
+ p:'The denial team\'s home page — what is hitting us, from whom, and why.',
+ i:'Dollar-weighted views beat count views: a few med-necessity denials can outweigh many duplicates.',
+ a:'The CARC table\'s pathway column is the triage: "upstream fix" rows should shrink over time if prevention is working.',
+ s:'Sources: DMA 835 + root-cause classifier'});
+reg(['page-payer-scorecard'],{
+ d:'Denial behavior by payer: rates, payment timing, appeal win rates, CARC profiles, and anomaly signals — the evidence base for payer-specific strategy.',
+ c:'Scope: all payers, weekly trend per payer vs own 90-day baseline.',
+ p:'Where "the payers are getting worse" becomes "Molina\'s CO-197 share doubled on June 3."',
+ i:'A distribution shift in the CARC mix is the signature of a policy change; a volume spike is usually noise.',
+ a:'Stack appeal effort at the highest-win payers; escalate sustained anomalies to contract discussions.',
+ s:'Sources: DMA 835 + payer anomaly model'});
+reg(['page-appeal-pipeline'],{
+ d:'The appeal operation: everything in flight by stage, deadline risk first, win rates by payer and denial type, and cycle-time tracking.',
+ c:'Scope: active appeals + trailing-12-month decided outcomes.',
+ p:'A blown appeal deadline converts a 60% recovery chance to zero — this page exists so that never happens.',
+ i:'Red deadlines outrank everything; after those, work by value × expected win.',
+ a:'A very high win rate can mean under-appealing — check the selection rate, not just the outcome rate.',
+ s:'Sources: DMA 835 + appeal tracking + expected-win model'});
+reg(['page-prevention-opportunities'],{
+ d:'Denial management\'s endgame: which denials should never have happened, the five upstream fixes worth the most, and the claims to intercept before they go out the door.',
+ c:'Scope: preventable denials + queued-claim predictions. Opportunity = preventable $ × realistic recovery/prevention rates, annualized.',
+ p:'Prevention beats appeals roughly 3:1 on ROI — this page is where denial management becomes a prevention program.',
+ i:'Each process fix names dollars and an implied owner outside the billing office; the hard part is organizational, not analytical.',
+ a:'Instrument each fix after launch so the estimate becomes a measured result.',
+ s:'Sources: root-cause classifier + denial prediction model (simulated)'});
+
+/* ── hover tooltip ── */
+let _htTimer = null;
+function showHtip(el){
+  const raw = (el.textContent||'').replace('ⓘ','').trim();
+  let key = slugify(raw);
+  if (el.classList && el.classList.contains('page-title')) key = 'page-' + key;
+  const e = (typeof INFO!=='undefined' && INFO[key]) || null;
+  const tip = document.getElementById('htip');
+  document.getElementById('htip-title').textContent = raw || key;
+  document.getElementById('htip-calc').innerHTML = e && e.c ? e.c : (e && e.d ? e.d : '<em style="opacity:.6">Definition pending</em>');
+  tip.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  let x = r.left, y = r.bottom + 6;
+  const tw = tip.offsetWidth || 280;
+  if (x + tw > window.innerWidth - 8) x = window.innerWidth - tw - 8;
+  if (x < 8) x = 8;
+  if (y + (tip.offsetHeight || 60) > window.innerHeight - 8) y = r.top - (tip.offsetHeight || 60) - 6;
+  tip.style.left = x+'px'; tip.style.top = y+'px';
+  // reset animation
+  tip.style.animation = 'none'; tip.offsetHeight; tip.style.animation = '';
+}
+function hideHtip(){ clearTimeout(_htTimer); document.getElementById('htip').style.display='none'; }
+function attachHoverTip(){
+  document.querySelectorAll('.card-title, .kpi-label, .tbl th, .page-title').forEach(el=>{
+    if (el.dataset.htAttached) return;
+    el.dataset.htAttached = '1';
+    el.addEventListener('mouseenter', ()=>{
+      clearTimeout(_htTimer);
+      _htTimer = setTimeout(()=>showHtip(el), 1400);
+    });
+    el.addEventListener('mouseleave', hideHtip);
+    el.addEventListener('mousedown', hideHtip);
+  });
+}
+
+
+let __ftT; window.addEventListener('resize', ()=>{ clearTimeout(__ftT); __ftT = setTimeout(limitTables, 150); });
+(function(){
+  const sp = switchPage, sr = switchRole;
+  window.switchPage = function(r,p){ sp(r,p); requestAnimationFrame(limitTables); };
+  window.switchRole = function(r){ sr(r); requestAnimationFrame(limitTables); };
+})();
 document.addEventListener('DOMContentLoaded', ()=>{
+  const tip = document.createElement('div');
+  tip.id='htip';
+  tip.innerHTML = '<div id="htip-title"></div><div id="htip-calc"></div>';
+  document.body.appendChild(tip);
+
   const pop = document.createElement('div');
   pop.id='info-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-labelledby','ip-title');
   pop.innerHTML = `<div class="ip-head"><div id="ip-title"></div><button id="ip-close" aria-label="Close">×</button></div><div id="ip-body"></div>`;
   document.body.appendChild(pop);
   document.getElementById('ip-close').addEventListener('click', closeInfo);
-  new MutationObserver(()=>attachInfo()).observe(document.body,{childList:true,subtree:true});
+  new MutationObserver(()=>{ attachInfo(); attachHoverTip(); limitTables(); }).observe(document.body,{childList:true,subtree:true});
   attachInfo();
+  attachHoverTip();
+  limitTables();
 });
 
 </script>
