@@ -657,8 +657,12 @@ RENDER['collector-c2'] = function(){
       ${card('Last 30 days — complexity-adjusted score vs goal', canvas('c2daily','chart-tall'), 'same metric as the KPI tile, daily')}
     </div>
     <div class="grid g2">
-      ${card('Accounts closed — monthly', canvas('c2closed'), 'count of accounts resolved to close this collector')}
-      ${card('Cash collected — monthly ($K)', canvas('c2cash'), 'payments posted on assigned accounts · no team comparison')}
+      ${card('Performance radar — 5 dimensions vs team avg', canvas('c2radar','chart-tall'))}
+      ${card('Where I sit — 5 key metrics vs team average', '<div id="c2bullets"></div>', 'bar = Jordan · black tick = team avg')}
+    </div>
+    <div class="grid g2">
+      ${card('Open accounts vs complexity — monthly', canvas('c2backlog'), 'backlog (bars, left) · avg complexity load (line, right)')}
+      ${card('Accounts closed vs cash collected — monthly', canvas('c2dual'), 'closed (bars, left) · cash $K (line, right)')}
     </div>`;
   const teamMonthly = WPA.months.map((_,i)=>+(team.reduce((s,c)=>s+c.monthly[i],0)/team.length).toFixed(1));
   line('c2trend', WPA.months, [
@@ -667,12 +671,58 @@ RENDER['collector-c2'] = function(){
   line('c2daily', WPA.labels30, [
     {label:'Daily complexity-adjusted score', data:m.series, borderColor:C.blue},
     {label:'Goal', data:m.series.map(()=>m.goal), borderColor:C.orange, borderDash:[6,4], pointRadius:0}]);
-  // Closed accounts per month — derived from resolution rate × avg queue worked
+  // ── radar + bullet comparison: same 5 dimensions, two views ──
+  const tAvg = f => +(team.reduce((s,c)=>s+f(c),0)/team.length).toFixed(1);
+  const DIMS = [
+    {n:'Productivity (% of goal)', me:m.pctGoal, tm:tAvg(c=>c.pctGoal)},
+    {n:'Quality score', me:m.q.score, tm:tAvg(c=>c.q.score)},
+    {n:'Throughput (first-pass %)', me:+(m.fpr*100).toFixed(0), tm:tAvg(c=>c.fpr*100)},
+    {n:'Accuracy (notes %)', me:+(m.q.notes*100).toFixed(0), tm:tAvg(c=>c.q.notes*100)},
+    {n:'Resolution rate', me:+(m.res*100).toFixed(0), tm:tAvg(c=>c.res*100)}];
+  mkChart('c2radar',{type:'radar',data:{labels:DIMS.map(d=>d.n.split(' (')[0]),
+    datasets:[
+      {label:'Jordan',data:DIMS.map(d=>d.me),borderColor:C.blue,backgroundColor:C.blue+'33',pointRadius:2},
+      {label:'Team avg',data:DIMS.map(d=>d.tm),borderColor:C.slate,backgroundColor:'transparent',borderDash:[5,4],pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{r:{beginAtZero:true,max:110,ticks:{stepSize:25,font:{size:9}},grid:{color:C.grid}}}}});
+  const rows = DIMS.map(d=>{
+    const delta = +(d.me-d.tm).toFixed(1);
+    const cls = delta>=3?'up':delta<=-3?'down':'flat';
+    const col = delta>=3?C.ml:delta<=-3?C.amber:C.blue;
+    return `<div style="margin-bottom:13px">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px">
+        <span>${d.n}</span>
+        <span class="num"><b>${d.me}</b> vs ${d.tm.toFixed(0)} team <span class="delta ${cls}">${delta>0?'+':''}${delta}</span></span></div>
+      ${pbar(d.me, 110, col, d.tm)}</div>`;}).join('');
+  // narrative
+  const strong = DIMS.filter(d=>d.me-d.tm>=3).sort((a,b)=>(b.me-b.tm)-(a.me-a.tm));
+  const weak = DIMS.filter(d=>d.me-d.tm<=-3).sort((a,b)=>(a.me-a.tm)-(b.me-b.tm));
+  const par = DIMS.filter(d=>Math.abs(d.me-d.tm)<3);
+  let story = '';
+  if (strong.length) story += 'Ahead of the team on <b>' + strong.map(d=>d.n.split(' (')[0].toLowerCase()).join('</b>, <b>') + '</b>' + (strong[0]? ' (largest lead: +'+ (strong[0].me-strong[0].tm).toFixed(0) +' pts)' : '') + '. ';
+  if (weak.length) story += 'Trailing on <b>' + weak.map(d=>d.n.split(' (')[0].toLowerCase()).join('</b>, <b>') + '</b> — closing the largest gap ('+ weak[0].n.split(' (')[0].toLowerCase() +', '+ (weak[0].me-weak[0].tm).toFixed(0) +' pts) is the fastest way to move the composite. ';
+  if (!weak.length) story += 'No dimension trails the team by a meaningful margin — a balanced profile; the next gains come from raising the strongest dimensions rather than fixing weaknesses. ';
+  if (par.length && (strong.length||weak.length)) story += 'At team par on ' + par.map(d=>d.n.split(' (')[0].toLowerCase()).join(', ') + '.';
+  $$('c2bullets').innerHTML = rows + `<div style="font-size:11.5px;color:var(--text2);line-height:1.55;border-top:1px dashed var(--border);padding-top:10px;margin-top:2px">${story}</div>`;
+  // ── dual axis 1: open-account backlog (bars, left) vs avg complexity load (line, right) ──
+  const backlogMonthly = WPA.months.map((_,i)=>Math.round(m.queue * (1.075 - i*0.015)));
+  const cliMonthly = WPA.months.map((_,i)=>+(m.cli - (5-i)*0.012).toFixed(2));
+  mkChart('c2backlog',{type:'bar',data:{labels:WPA.months,datasets:[
+    {label:'Open accounts', data:backlogMonthly, backgroundColor:C.blue, borderRadius:4, yAxisID:'y', maxBarThickness:34, order:2},
+    {label:'Avg complexity load (CLI)', data:cliMonthly, type:'line', borderColor:C.ml, backgroundColor:C.ml, yAxisID:'y1', tension:.3, pointRadius:3, borderWidth:2, order:1}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{
+      x:{grid:{display:false}},
+      y:{grid:{color:C.grid},border:{display:false},title:{display:true,text:'open accounts',font:{size:9}}},
+      y1:{position:'right',grid:{drawOnChartArea:false},border:{display:false},suggestedMin:0.85,suggestedMax:1.1,title:{display:true,text:'complexity (CLI)',font:{size:9}}}}}});
+  // ── dual axis 2: accounts closed (bars, left) vs cash collected $K (line, right) ──
   const closedMonthly = m.monthly.map((prod,i)=>Math.round(prod * 0.82 * (i<5 ? 0.95+i*0.01 : 1)));
-  bar('c2closed', WPA.months, [{data:closedMonthly, backgroundColor:closedMonthly.map((_,i)=>i===5?C.blue:C.lblue), borderRadius:4}], noLegend);
-  // Cash collected per month ($K) — derived from monthly productivity × avg revenue per close
   const cashMonthly = m.monthly.map((prod,i)=>+(prod * 2.71 * (0.9+i*0.02)).toFixed(1));
-  bar('c2cash', WPA.months, [{data:cashMonthly, backgroundColor:cashMonthly.map((_,i)=>i===5?C.green:C.green+'88'), borderRadius:4}], noLegend);
+  mkChart('c2dual',{type:'bar',data:{labels:WPA.months,datasets:[
+    {label:'Accounts closed', data:closedMonthly, backgroundColor:C.blue, borderRadius:4, yAxisID:'y', maxBarThickness:34, order:2},
+    {label:'Cash collected ($K)', data:cashMonthly, type:'line', borderColor:C.ml, backgroundColor:C.ml, yAxisID:'y1', tension:.3, pointRadius:3, borderWidth:2, order:1}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{
+      x:{grid:{display:false}},
+      y:{grid:{color:C.grid},border:{display:false},title:{display:true,text:'accounts closed',font:{size:9}}},
+      y1:{position:'right',grid:{drawOnChartArea:false},border:{display:false},title:{display:true,text:'cash ($K)',font:{size:9}}}}}});
 };
 
 RENDER['collector-c3'] = function(){
@@ -2797,6 +2847,27 @@ reg(['recovery-efficiency'],{
  a:'Use for coaching and comparison in place of raw cash. Raw Cash Collected stays on the page for context but should never rank collectors.',
  s:'Source: RMA transactions + touch log + complexity model'});
 
+reg(['where-i-sit'],{
+ d:'Head-to-head comparison against the anonymized team average on the five key performance dimensions — the same dimensions as the radar, in a form that shows exact gaps.',
+ c:'Bar = your value; black tick = team average per dimension. Delta badge = your value − team average, in points. Dimensions: % of goal, quality score, first-pass %, notes %, resolution rate.',
+ p:'The radar shows your shape; this shows your distances — how far ahead or behind, dimension by dimension, with a written read.',
+ i:'Green delta ≥ +3 pts = genuine strength; amber ≤ −3 = coaching target; within ±3 = team par (noise, not signal).',
+ a:'Work the largest amber gap first — the composite improves fastest by fixing the weakest dimension, and the narrative names it.',
+ s:'Sources: touch log + RMA, anonymized team aggregate'});
+reg(['open-accounts-vs-complexity'],{
+ d:'Your backlog trajectory against the difficulty of what is in it — open assigned accounts (bars) vs average complexity load index (line, right axis).',
+ c:'Bars: month-end open account count. Line: mean complexity weight of assigned accounts (CLI, universe mean = 1.0). Independent axes — read direction, not intersection.',
+ p:'A shrinking backlog is only good news if the remaining book is not silently hardening. The two lines together tell the honest story.',
+ i:'Backlog down + CLI up = you are clearing the easy work and the residue is harder — expected and healthy IF adjusted score holds. Backlog up + CLI up = escalate for rebalancing before quality slips.',
+ a:'Rising CLI justifies flat raw touch counts — point to this chart in that conversation.',
+ s:'Sources: RMA snapshot + complexity model'});
+reg(['accounts-closed-vs-cash-collected'],{
+ d:'Outcome pairing: accounts you resolved to close (bars) against payments posted on your book (line, right axis, $K).',
+ c:'Bars: monthly FLO closes attributed to you. Line: monthly payment transactions on your assigned accounts. Independent axes.',
+ p:'Closes measure workflow throughput; cash measures financial yield. They usually move together — divergence is the interesting signal.',
+ i:'Closes up + cash flat = closing low-value accounts (or write-off-heavy closes). Cash up + closes flat = big-balance resolutions landing. Neither is wrong — but each means something different.',
+ a:'Remember cash is assignment-attributed and not complexity-normalized — Recovery Efficiency above is the fair version for comparisons.',
+ s:'Sources: touch log closes + RMA payment transactions'});
 /* ---------- dashboard-level purpose entries (page titles) ---------- */
 reg(['page-my-work-queue'],{
  d:'The collector\'s daily operating surface: an ML-prioritized worklist that answers "what should I work next?" so the highest expected dollars with the tightest deadlines get touched first.',
