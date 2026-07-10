@@ -1002,27 +1002,89 @@ RENDER['collector-c5'] = function(){
   const p = WPA.coaching.myPlan;
   $$('page-collector-c5').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Coaching & Development',
     'Your active coaching plan, improvement targets, and progress — the collector view of what your supervisor sees.')
-  + `<div class=”grid g32”>
+  + `<div class="grid g23">
       ${card('Active coaching plan — opened '+p.opened,
-        `<div style=”font-size:13px;font-weight:600;margin-bottom:10px”>Focus: ${p.focus}</div>`
-        + p.targets.map(t=>{const prog=(t.now-t.from)/(t.to-t.from);return `<div style=”margin-bottom:13px”>
-          <div style=”display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px”>
-            <span>${t.m}</span><span class=”num”><b>${t.now}</b> → target ${t.to} by ${t.by}</span></div>
+        `<div style="font-size:13px;font-weight:600;margin-bottom:14px">Focus: ${p.focus}</div>`
+        + p.targets.map(t=>{const prog=(t.now-t.from)/(t.to-t.from);return `<div style="margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;margin-bottom:6px">
+            <span style="color:var(--text)">${t.m}</span><span class="num" style="white-space:nowrap"><b>${t.now}</b> → target ${t.to} by ${t.by}</span></div>
           ${pbar(Math.max(2,prog*100),100, prog>=0.8?C.ml:C.blue)}
-          <div style=”font-size:10px;color:var(--text3);margin-top:2px”>baseline ${t.from} · ${(prog*100).toFixed(0)}% of the way there</div></div>`;}).join(''))}
+          <div style="font-size:10.5px;color:var(--text3);margin-top:5px">baseline ${t.from} · ${(prog*100).toFixed(0)}% of the way there</div></div>`;}).join(''))}
       <div>
-        ${card('Supervisor note — Dana Whitfield', `<div class=”note-txt”>”${p.coachNote}”</div>
-          <div style=”font-size:10.5px;color:var(--text3);margin-top:6px”>Next 1:1 check-in: Jul 16 · logged in Supervisor Action Log</div>`)}
-        <div style=”height:12px”></div>
-        ${card('Path to on-track', `<table class=”tbl”><tbody>
-            <tr><td>Follow-up date set rate</td><td class=”r”>+4 pts needed</td><td class=”r”>by Aug 1</td></tr>
-            <tr><td>Contact-named NLI dim</td><td class=”r”>+0.04 needed</td><td class=”r”>by Aug 1</td></tr>
-            <tr><td>% of goal</td><td class=”r”>+4 pts needed</td><td class=”r”>by Aug 15</td></tr>
+        ${card('Supervisor note — Dana Whitfield', `<div class="note-txt">“${p.coachNote}”</div>
+          <div style="font-size:10.5px;color:var(--text3);margin-top:6px">Next 1:1 check-in: Jul 16 · logged in Supervisor Action Log</div>`)}
+        <div style="height:12px"></div>
+        ${card('Path to on-track', `<table class="tbl"><tbody>
+            <tr><td>Follow-up date set rate</td><td class="r">+4 pts needed</td><td class="r">by Aug 1</td></tr>
+            <tr><td>Contact-named NLI dim</td><td class="r">+0.04 needed</td><td class="r">by Aug 1</td></tr>
+            <tr><td>% of goal</td><td class="r">+4 pts needed</td><td class="r">by Aug 15</td></tr>
           </tbody></table>
-          <div style=”font-size:10.5px;color:var(--text2);margin-top:8px”>All three trending green at current pace — plan projected to close <b>Aug 12</b>.</div>`)}
+          <div style="font-size:10.5px;color:var(--text2);margin-top:8px">All three trending green at current pace — plan projected to close <b>Aug 12</b>.</div>`)}
       </div>
-    </div>`;
+    </div>`
+  + `<div style="height:12px"></div>`
+  + card('Request a review — ask your supervisor for help',
+      `<div style="font-size:11.5px;color:var(--text2);margin-bottom:12px">Reach out to <b>Dana Whitfield</b> for a review or targeted help. Pick the areas you want to focus on and add any detail — this drops into your supervisor's coaching queue.</div>
+       <div style="font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">Areas I would like help with</div>
+       <div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:14px">
+         ${['Note quality / NLI dimensions','Follow-up timing & cadence','Denials & appeals','Payer-specific tactics','Productivity & queue management','Timely filing deadlines'].map(a=>
+           `<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text);cursor:pointer"><input type="checkbox" class="rr-area" value="${a}" style="accent-color:var(--collector)">${a}</label>`).join('')}
+       </div>
+       <div style="font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">What specifically would help?</div>
+       <textarea id="rr-msg" rows="3" placeholder="e.g. Can we review a few of my Molina denials together? I want to get the appeal notes right." style="width:100%;box-sizing:border-box;font-family:inherit;font-size:11.5px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical;margin-bottom:12px"></textarea>
+       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+         <label style="font-size:11.5px;color:var(--text2)">Preferred format
+           <select id="rr-fmt" style="font-size:11.5px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;margin-left:6px">
+             <option>Quick async note</option><option>30-min 1:1</option><option>Live shadow session</option></select></label>
+         <label style="font-size:11.5px;color:var(--text2)">Urgency
+           <select id="rr-urg" style="font-size:11.5px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);font-family:inherit;margin-left:6px">
+             <option>This week</option><option>Next 1:1 is fine</option><option>As soon as possible</option></select></label>
+         <button onclick="requestReview()" style="font-family:inherit;font-size:11.5px;font-weight:600;color:#fff;background:var(--collector);border:none;border-radius:6px;padding:7px 16px;cursor:pointer">Send to supervisor</button>
+         <span id="rr-status" style="font-size:11.5px;color:var(--green);font-weight:600"></span>
+       </div>`,
+      'goes to Dana Whitfield · logged in Supervisor Action Log')
+  + `<div style="height:12px"></div>`
+  + (function(){
+      const my = WPA.coaching.rows.filter(r=>r.cid==='c01' && r.type==='Review requested');
+      const sent = WPA._reviewJustSent; WPA._reviewJustSent = false;
+      const pendingCt = my.filter(r=>r.status!=='Resolved').length;
+      const banner = sent ? `<div style="font-size:11.5px;color:var(--green);font-weight:600;margin-bottom:10px">✓ Request sent to Dana Whitfield — she will see it in Coaching Command.</div>` : '';
+      const list = my.length ? my.map(r=>`<div style="padding:9px 0;border-bottom:1px solid #f1f2f4">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+            <span style="font-size:11.5px;font-weight:600;color:var(--text)">${r.areasStr||'General review'}</span>
+            <span class="pill ${r.status==='Resolved'?'green':'amber'}" style="white-space:nowrap">${r.status==='Resolved'?'Reviewed':'Pending'}</span></div>
+          ${r.msg?`<div style="font-size:11px;color:var(--text2);margin-top:3px">“${r.msg}”</div>`:''}
+          <div style="font-size:10.5px;color:var(--text3);margin-top:3px">Requested ${r.date} · to ${r.sup} · ${r.fmt} · ${r.urg}</div>
+        </div>`).join('') : `<div style="font-size:11.5px;color:var(--text3);padding:4px 0">No review requests yet. Use the form above to reach out to your supervisor.</div>`;
+      return card('My review requests', banner+list, pendingCt+' pending');
+    })();
 };
+function requestReview(){
+  const areas = Array.from(document.querySelectorAll('.rr-area:checked')).map(c=>c.value);
+  const msg = (document.getElementById('rr-msg')||{}).value || '';
+  const fmt = (document.getElementById('rr-fmt')||{}).value || '';
+  const urg = (document.getElementById('rr-urg')||{}).value || '';
+  const status = document.getElementById('rr-status');
+  const sev = urg==='As soon as possible' ? 'High' : urg==='This week' ? 'Medium' : 'Low';
+  const summary = (areas.length ? areas.join(', ') : 'General review') + (msg ? ' — “'+msg.trim()+'”' : '');
+  // Synthetic in-memory hand-off to the supervisor's Coaching Command queue
+  WPA.coaching.rows.unshift({
+    coll:'Jordan Reyes', cid:'c01', type:'Review requested', sev,
+    metric: summary + ' · '+fmt+' · '+urg, date:'Jul 9', status:'Active', days:0, sup:'Dana Whitfield',
+    areasStr: areas.length ? areas.join(', ') : 'General review', msg: msg.trim(), fmt, urg
+  });
+  WPA.coaching.byType['Review requested'] = (WPA.coaching.byType['Review requested']||0) + 1;
+  WPA.coaching.log.unshift({
+    d:'Jul 9', sup:'Jordan Reyes → Dana Whitfield',
+    txt:'Review requested — '+(areas.length?areas.join(', '):'general')+'. Format: '+fmt+'; urgency: '+urg+'.'
+  });
+  // Force the supervisor pages to rebuild with the new entry next time they open
+  delete rendered['supervisor-s6'];
+  delete rendered['supervisor-s2'];
+  WPA._reviewJustSent = true;
+  // Re-render the collector page so the pending list syncs immediately
+  if(RENDER['collector-c5']) RENDER['collector-c5']();
+}
 
 /* ============ SUPERVISOR ============ */
 RENDER['supervisor-s1'] = function(){
