@@ -931,7 +931,7 @@ RENDER['collector-c4'] = function(){
           <div class="card-title">Select an account</div>
           <div class="card-note">${accts.length} account${accts.length===1?'':'s'} in this category · click a row to open</div>
         </div>
-        <div class="scroll-y"><table class="tbl"><thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th><th class="r">Balance</th><th class="r">Age</th><th class="r">Timer</th><th class="r">ERV</th><th class="r">Stall Risk</th><th>Denial</th><th>Recommended Next Action</th></tr></thead><tbody>`
+        <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th><th class="r">Balance</th><th class="r">Age</th><th class="r">Timer</th><th class="r">ERV</th><th class="r">Stall Risk</th><th>Denial</th><th>Recommended Next Action</th></tr></thead><tbody>`
       + accts.map(r => `<tr style="cursor:pointer;background:${r.acct===activeAcctId?'var(--ltblue,#D6E4F3)':''}" onclick="selectC4Account('${r.acct}')" title="Click to open Account Deep Dive">
           <td>${urgPill(r)}</td>
           <td><b>${r.acct}</b><br><span style="color:var(--text3);font-size:9.5px">${r.seg}</span>${r.carc?`<br><span class="pill magenta">${r.carc}</span>`:''}</td>
@@ -945,7 +945,7 @@ RENDER['collector-c4'] = function(){
           <td>${r.carc?`<span class="pill magenta">${r.carc}</span>`:'—'}</td>
           <td style="max-width:200px">${r.nba}</td>
         </tr>`).join('')
-      + `</tbody></table></div></div>`;
+      + `</tbody></table></div></div></div>`;
     }
   }
 
