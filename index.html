@@ -1004,8 +1004,9 @@ RENDER['collector-c5'] = function(){
   $$('page-collector-c5').innerHTML = header('COLLECTOR · JORDAN REYES','var(--collector)','Coaching & Development',
     'Your active coaching plan, improvement targets, and progress — the collector view of what your supervisor sees.')
   + `<div class="grid g23">
-      ${card('Active coaching plan — opened '+p.opened,
-        `<div style="font-size:13px;font-weight:600;margin-bottom:14px">Focus: ${p.focus}</div>`
+      ${card(p.active===false ? 'Coaching plan — completed ✓' : 'Active coaching plan — opened '+p.opened,
+        (p.active===false ? `<div class="alert green" style="margin-bottom:12px"><div><div class="alert-sig">Plan closed by your supervisor</div><div class="alert-txt">Targets met — nice work. Final state shown below for reference.</div></div></div>` : '')
+        + `<div style="font-size:13px;font-weight:600;margin-bottom:14px">Focus: ${p.focus}</div>`
         + p.targets.map(t=>{const prog=(t.now-t.from)/(t.to-t.from);return `<div style="margin-bottom:18px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:12px;margin-bottom:6px">
             <span style="color:var(--text)">${t.m}</span><span class="num" style="white-space:nowrap"><b>${t.now}</b> → target ${t.to} by ${t.by}</span></div>
@@ -1198,7 +1199,63 @@ function renderS2(){
   const T = WPA.collectors;
   const avg = f => +(T.reduce((s,x)=>s+f(x),0)/T.length).toFixed(2);
   $$('s2meta').textContent = `${c.role} · ${collSupName(c.sup)} · tenure ${c.tenure} mo · queue ${c.queue} accounts`;
+  // ---- auto-generated performance review: metrics vs peers & goal ----
+  const tAvg = {goal:avg(x=>x.pctGoal), q:avg(x=>x.q.score), fpr:avg(x=>x.fpr*100),
+    dtc:avg(x=>x.dtc), stale:avg(x=>x.stale*100), nli:avg(x=>x.nli.overall*100)};
+  const chk = [
+    {k:'Productivity', you:c.pctGoal+'%', team:tAvg.goal.toFixed(0)+'%', ok:c.pctGoal>=100, good:c.pctGoal>=tAvg.goal},
+    {k:'Quality (rubric)', you:''+c.q.score, team:tAvg.q.toFixed(0), ok:c.q.score>=80, good:c.q.score>=tAvg.q},
+    {k:'First-pass', you:(c.fpr*100).toFixed(0)+'%', team:tAvg.fpr.toFixed(0)+'%', ok:c.fpr>=0.70, good:c.fpr*100>=tAvg.fpr},
+    {k:'Days to close', you:c.dtc+'d', team:tAvg.dtc.toFixed(0)+'d', ok:c.dtc<=tAvg.dtc, good:c.dtc<=tAvg.dtc},
+    {k:'Note quality (NLI)', you:(c.nli.overall*100).toFixed(0), team:tAvg.nli.toFixed(0), ok:c.nli.overall>=0.78, good:c.nli.overall*100>=tAvg.nli},
+    {k:'Follow-up hygiene', you:(c.stale*100).toFixed(0)+'% stale', team:tAvg.stale.toFixed(0)+'%', ok:c.stale<=0.05, good:c.stale*100<=tAvg.stale},
+  ];
+  const pass = chk.filter(x=>x.ok).length;
+  const anomHigh = c.anomaly && c.anomaly.sev==='High';
+  let verdict, vcol;
+  if(anomHigh){ verdict='Anomaly flagged — coach now'; vcol='var(--red)'; }
+  else if(pass>=5 && !c.anomaly){ verdict='Exceeding — no intervention needed'; vcol='#059669'; }
+  else if(pass>=4){ verdict='On track — light coaching'; vcol='var(--blue)'; }
+  else if(pass>=2){ verdict='Needs attention'; vcol='var(--amber)'; }
+  else { verdict='At risk — coach now'; vcol='var(--red)'; }
+  const strengths = chk.filter(x=>x.ok && x.good).map(x=>x.k);
+  const focus = chk.filter(x=>!x.ok).map(x=>x.k);
+  const first = c.name.split(' ')[0];
+  let strat;
+  if(pass>=5 && !c.anomaly){
+    strat = `${first} is at or above goal and peers across every measure — <b>no coaching intervention needed</b>. Reinforce current habits, and consider ${first} for peer mentoring or a heavier/complex account mix.`;
+  } else {
+    const cliNote = c.cli>1.1 ? ` Note CLI <b>${c.cli}×</b> (above the team's 1.0): part of any productivity gap is a genuinely harder book — rebalance the queue before pushing volume.`
+      : c.cli<0.9 ? ` Note CLI <b>${c.cli}×</b> (below the team) with high volume — check for cherry-picking of easy accounts and redirect toward complex work.` : '';
+    const anomNote = c.anomaly ? ` <b>ML flag:</b> ${c.anomaly.cat} — ${c.anomaly.desc}` : '';
+    strat = `Prioritize coaching on <b>${focus.slice(0,2).join(' and ')||'consistency'}</b>${strengths.length?`; keep leaning on strengths (${strengths.slice(0,2).join(', ')})`:''}.${cliNote}${anomNote}`;
+  }
+  const review = `<div class="card" style="margin-bottom:12px;border-left:3px solid ${vcol}">
+    <div class="card-head"><div class="card-title">Performance review — ${c.name}</div>
+      <div class="card-note">auto-generated · 30-day metrics vs peers &amp; goal</div></div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap">
+        <span class="pill" style="background:${vcol};color:#fff;font-weight:700">${verdict}</span>
+        <span style="font-size:11.5px;color:var(--text2)">${pass}/6 measures at target · ${c.role} · tenure ${c.tenure} mo · CLI ${c.cli}×</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        ${chk.map(x=>`<div style="border:1px solid var(--border);border-radius:6px;padding:7px 9px">
+          <div class="mini-label" style="margin-bottom:2px">${x.k}</div>
+          <div style="font-size:12px"><b class="num" style="color:${x.good?'#059669':'var(--amber)'}">${x.you}</b> <span style="color:var(--text3);font-size:10px">vs ${x.team} ${x.good?'▲':'▼'}</span></div></div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><div class="mini-label" style="color:#059669;margin-bottom:4px">Strengths</div>
+          <div style="font-size:11.5px;color:var(--text2);line-height:1.5">${strengths.length?strengths.map(s=>'· '+s).join('<br>'):'—'}</div></div>
+        <div><div class="mini-label" style="color:var(--amber);margin-bottom:4px">Focus areas</div>
+          <div style="font-size:11.5px;color:var(--text2);line-height:1.5">${focus.length?focus.map(s=>'· '+s).join('<br>'):'None — all measures at target'}</div></div>
+      </div>
+      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3)">
+        <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 Coaching strategy</div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${strat}</div>
+      </div>
+    </div></div>`;
   $$('s2body').innerHTML = `
+    ${review}
     ${c.anomaly?`<div class="alert ${c.anomaly.sev==='High'?'red':'yellow'}" style="margin-bottom:12px"><div>
       <div class="alert-sig">🤖 Collector Anomaly — ${c.anomaly.cat} · ${c.anomaly.sev}</div>
       <div class="alert-txt">${c.anomaly.desc}</div></div></div>`:''}
@@ -1355,6 +1412,51 @@ function toggleSegRow(i){
 
 RENDER['supervisor-s5'] = function(){
   const S = WPA.staffing;
+  // ---- inventory-trend insight: read the 13-week per-segment weighted-unit trend ----
+  const invChg = WPA.segments.map(r=>{
+    const a=r.invTrend[0], b=r.invTrend[r.invTrend.length-1];
+    return {name:r.name, first:a, last:b, delta:b-a, pct:a?((b-a)/a*100):0};
+  });
+  const totFirst = invChg.reduce((s,o)=>s+o.first,0), totLast = invChg.reduce((s,o)=>s+o.last,0);
+  const totPct = totFirst ? (totLast-totFirst)/totFirst*100 : 0;
+  const grow = invChg.slice().sort((x,y)=>y.pct-x.pct)[0];
+  const shrink = invChg.slice().sort((x,y)=>x.pct-y.pct)[0];
+  const dir = totPct>2 ? 'up' : totPct<-2 ? 'down' : 'flat';
+  const s5insight = (()=>{
+    const head = dir==='up'
+      ? `Weighted inventory is <b style="color:var(--red)">rising</b> — up ${totPct.toFixed(0)}% over 13 weeks (${Math.round(totFirst).toLocaleString()} → ${Math.round(totLast).toLocaleString()} units).`
+      : dir==='down'
+      ? `Weighted inventory is <b style="color:var(--ml,#059669)">easing</b> — down ${Math.abs(totPct).toFixed(0)}% over 13 weeks (${Math.round(totFirst).toLocaleString()} → ${Math.round(totLast).toLocaleString()} units).`
+      : `Weighted inventory is <b>holding steady</b> over 13 weeks (${Math.round(totLast).toLocaleString()} units).`;
+    const driver = `Fastest-growing segment: <b>${grow.name}</b> (${grow.pct>=0?'+':''}${grow.pct.toFixed(0)}%)${shrink.pct<-2?`; <b>${shrink.name}</b> is shrinking (${shrink.pct.toFixed(0)}%)`:''}.`;
+    const rec = dir==='up'
+      ? `<b>Worth noting:</b> a sustained climb pushes the required-FTE line up. At the current pace the Q4 build crosses staffed+1 — start the hire now rather than reacting after backlog forms (see forecast &amp; business case below).`
+      : dir==='down'
+      ? `<b>Worth noting:</b> easing inventory means capacity is opening up — hold hiring and redeploy freed hours to aged/denied accounts before adding FTE.`
+      : `<b>Worth noting:</b> stable inventory means current staffing should hold; watch ${grow.name} for an early shift.`;
+    return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3);font-size:11px;line-height:1.55;color:var(--text2)">
+      <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 What the trend is telling us</div>
+      ${head} ${driver}<br>${rec}</div>`;
+  })();
+  // ---- 90-day FTE forecast insight ----
+  const s5fcInsight = (()=>{
+    const F0=S.forecast, st=S.staffed;
+    const rEnd=F0[F0.length-1].req, rStart=F0[0].req;
+    const trend = rEnd>rStart+0.2?'climbing':rEnd<rStart-0.2?'easing':'holding flat';
+    const cx=F0.findIndex(x=>x.req>st), cx1=F0.findIndex(x=>x.req>st+1);
+    const band=(F0[F0.length-1].hi-F0[F0.length-1].lo).toFixed(1);
+    const line1=`Required FTE is <b style="color:${trend==='climbing'?'var(--red)':'var(--text)'}">${trend}</b> — the model projects <b>${rStart.toFixed(1)} → ${rEnd.toFixed(1)} FTE</b> over the 13-week horizon, against <b>${st}</b> staffed today.`;
+    const cross = cx1>=0 ? `It clears <b>staffed+1 (${st+1})</b> around <b>week ${cx1+1}</b> — the point a single new hire is fully absorbed.`
+      : cx>=0 ? `It already runs above your <b>${st}</b> staffed level; the staffed+1 crossing is projected just past this window.`
+      : `It stays at or below your <b>${st}</b> staffed level across the window.`;
+    const bandS=`Shaded band = model confidence (±${band} FTE by week 13); plan against the upper edge, not the midline.`;
+    const rec=(cx1>=0||cx>=0)
+      ? `<b>Recommendation:</b> with a 9-week hiring lead time, post the requisition ~9 weeks ahead of the crossing (by <b>Jul 13</b>) so coverage lands before the Q4 build — see the business case below.`
+      : `<b>Recommendation:</b> no hire needed this window; revisit if the upper band trends toward ${st+1}.`;
+    return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3);font-size:11px;line-height:1.55;color:var(--text2)">
+      <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 What the forecast is telling us</div>
+      ${line1} ${cross}<br>${bandS} ${rec}</div>`;
+  })();
   $$('page-supervisor-s5').innerHTML = header('SUPERVISOR','var(--supervisor)','Staffing & Capacity',
     'Current FTE vs model-required FTE, workload balance, 90-day demand forecast, and the business case builder.')
   + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
@@ -1365,7 +1467,7 @@ RENDER['supervisor-s5'] = function(){
       ${kpi('Throughput baseline', S.baseline, 'weighted closes / FTE / day · trailing 30d')}
     </div>
     <div class="grid g2">
-      ${card('Inventory trend by segment — 13 weeks (weighted units)', canvas('s5seginv'), 'staffing model input per Gate 9 §5')}
+      ${card('Inventory trend by segment — 13 weeks (weighted units)', canvas('s5seginv')+s5insight, 'staffing model input per Gate 9 §5')}
       ${card('Segment staffing view', `<table class="tbl"><thead><tr><th>Segment</th><th class="r">Weighted units</th>
         <th class="r">Baseline</th><th class="r">Req. FTE</th></tr></thead><tbody>
         ${WPA.segments.map(r=>`<tr><td>${r.name}</td><td class="r">${r.wUnits.toLocaleString()}</td>
@@ -1375,12 +1477,13 @@ RENDER['supervisor-s5'] = function(){
         <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Segmented sum (${WPA.segments.reduce((s,r)=>s+r.reqFTE,0).toFixed(1)}) exceeds the pooled requirement (${S.required}) — that gap is the <b>cost of specialization</b>. Flexible cross-segment pooling saves ~${(WPA.segments.reduce((s,r)=>s+r.reqFTE,0)-S.required).toFixed(1)} FTE.</div>`)}
     </div>
     <div class="grid g2">
-      ${card('90-day FTE demand forecast', canvas('s5fc'), ML('gradient-boosting model')+' with confidence band')}
+      ${card('90-day FTE demand forecast', canvas('s5fc')+s5fcInsight, ML('gradient-boosting model')+' with confidence band')}
       ${card('Workload balance — weighted units per collector', canvas('s5load'), 'balance index '+S.wbi+' (σ/mean) · capacity line at 620')}
     </div>
     <div class="grid g2">
       ${card('Scenario builder — days to work down the queue', `
         <div class="scenario">
+          <div style="font-size:10.5px;color:var(--text2);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)"><b>How to use:</b> drag the slider to set the target number of days to work current inventory down to. Required FTE and the gap vs your staffed level update live — <b>fewer days = more FTE needed</b>, more days = fewer.</div>
           <div style="display:flex;justify-content:space-between;font-size:11.5px"><span>Target days to work down</span><b class="num" id="s5days">30</b></div>
           <input type="range" min="15" max="60" value="30" oninput="s5calc(this.value)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;text-align:center">
@@ -1421,16 +1524,136 @@ function s5calc(days){
   $$('s5gap').style.color = gap>0.5?'var(--red)':gap>0?'var(--amber)':'var(--green)';
 }
 
+/* ---------- mini coaching application (Gate 7 flag rules -> suggested plans) ---------- */
+function suggestPlan(c){
+  const t=[];
+  if(c.pctGoal<100) t.push({m:'% of goal', from:c.pctGoal, now:c.pctGoal, to:100, by:'Aug 15'});
+  if(c.q.score<80)  t.push({m:'Quality score (rubric)', from:Math.round(c.q.score), now:Math.round(c.q.score), to:80, by:'Aug 15'});
+  if(c.fpr<0.70)    t.push({m:'First-pass rate %', from:Math.round(c.fpr*100), now:Math.round(c.fpr*100), to:70, by:'Aug 15'});
+  if(c.nli.overall<0.78) t.push({m:'NLI note quality', from:Math.round(c.nli.overall*100), now:Math.round(c.nli.overall*100), to:78, by:'Aug 15'});
+  if(c.stale>0.05)  t.push({m:'Stale follow-ups % (lower)', from:+(c.stale*100).toFixed(1), now:+(c.stale*100).toFixed(1), to:5, by:'Aug 1'});
+  const focusBits=t.slice(0,2).map(x=>x.m.replace(' (rubric)','').replace(' (lower)',''));
+  return { targets:t.slice(0,3),
+    focus: t.length? focusBits.join(' + ') : 'Sustain current performance',
+    clear: t.length===0 && !c.anomaly };
+}
+function getCoachPlans(){
+  if(WPA._coachPlans) return WPA._coachPlans;
+  const P={};
+  WPA.collectors.forEach(c=>{
+    const sug=suggestPlan(c);
+    P[c.id]={ status: sug.clear?'clear':'suggested', focus:sug.focus, targets:sug.targets,
+      start:'Jul 9', checkin:'Jul 16', note:'' };
+  });
+  // Jordan Reyes (c01) already has a live plan on his Coaching & Development page — reflect it here
+  const mp=WPA.coaching.myPlan;
+  if(mp && mp.active) P['c01']={ status:'active', focus:mp.focus, targets:mp.targets.map(t=>({...t})),
+    start:mp.opened, checkin:'Jul 16', note:mp.coachNote };
+  WPA._coachPlans=P; return P;
+}
+function toggleCoachRow(cid){
+  const d=document.getElementById('cpd-'+cid); if(!d) return;
+  const open=d.style.display==='none';
+  document.querySelectorAll('[id^="cpd-"]').forEach(x=>x.style.display='none');
+  d.style.display=open?'':'none';
+  const car=document.getElementById('cpc-'+cid); if(car) car.textContent=open?'▼':'▶';
+}
+function readPlanInputs(cid){
+  const P=getCoachPlans()[cid];
+  const g=id=>{const el=document.getElementById(id);return el?el.value:null;};
+  const start=g('cp-'+cid+'-start'), checkin=g('cp-'+cid+'-check'), note=g('cp-'+cid+'-note');
+  if(start!=null) P.start=start; if(checkin!=null) P.checkin=checkin; if(note!=null) P.note=note;
+  P.targets.forEach((t,i)=>{
+    const to=g('cp-'+cid+'-to-'+i), by=g('cp-'+cid+'-by-'+i);
+    if(to!=null && to!=='') t.to=+to; if(by!=null && by!=='') t.by=by;
+  });
+  return P;
+}
+function syncPlanDownstream(cid){
+  if(cid!=='c01') return;   // Jordan Reyes is the collector persona in this prototype
+  const P=getCoachPlans()['c01'];
+  WPA.coaching.myPlan = P.status==='active'
+    ? { active:true, opened:P.start, focus:P.focus, targets:P.targets.map(t=>({...t})),
+        coachNote: P.note || 'Plan activated — first check-in '+P.checkin+'.' }
+    : Object.assign({}, WPA.coaching.myPlan, {active:false});
+  delete rendered['collector-c5'];
+}
+function activatePlan(cid){
+  const P=readPlanInputs(cid); P.status='active';
+  const c=WPA.collectors.find(x=>x.id===cid);
+  WPA.coaching.log.unshift({d:P.start, sup:collSupName(c.sup),
+    txt:'Coaching plan activated — '+c.name+': '+P.focus+'. First check-in '+P.checkin+'. Pushed to collector\'s Coaching & Development page.'});
+  syncPlanDownstream(cid);
+  delete rendered['supervisor-s6']; RENDER['supervisor-s6']();
+}
+function savePlan(cid){
+  readPlanInputs(cid);
+  const c=WPA.collectors.find(x=>x.id===cid);
+  WPA.coaching.log.unshift({d:'Jul 9', sup:collSupName(c.sup), txt:'Coaching plan updated — '+c.name+'.'});
+  syncPlanDownstream(cid);
+  delete rendered['supervisor-s6']; RENDER['supervisor-s6']();
+}
+function completePlan(cid){
+  const P=getCoachPlans()[cid]; P.status='clear';
+  const c=WPA.collectors.find(x=>x.id===cid);
+  WPA.coaching.log.unshift({d:'Jul 9', sup:collSupName(c.sup), txt:'Coaching plan closed — '+c.name+': targets met.'});
+  syncPlanDownstream(cid);
+  delete rendered['supervisor-s6']; RENDER['supervisor-s6']();
+}
+function coachRosterHtml(){
+  const P=getCoachPlans();
+  const inp=(id,val,w)=>`<input id="${id}" value="${val}" style="width:${w||70}px;font-family:inherit;font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;color:var(--text)">`;
+  return WPA.collectors.map(c=>{
+    const p=P[c.id];
+    const pill = p.status==='active' ? '<span class="pill amber">Active plan</span>'
+      : p.status==='clear' ? '<span class="pill green">Performing well</span>'
+      : '<span class="pill" style="background:#EFF6FF;color:var(--midblue)">🤖 Suggested</span>';
+    const detail = p.status==='clear'
+      ? `<div style="font-size:11.5px;color:var(--text2);padding:4px 0">${c.name.split(' ')[0]} is at or above target on all coached measures — <b>no intervention needed</b>. Reinforce current habits; consider peer-mentoring or a more complex account mix.</div>`
+      : `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:9px;font-size:11px;color:var(--text2)">
+           <label>Start ${inp('cp-'+c.id+'-start',p.start)}</label>
+           <label>First check-in ${inp('cp-'+c.id+'-check',p.checkin)}</label></div>
+         <table class="tbl" data-nosort="1" style="margin-bottom:9px"><thead><tr><th>Target metric</th><th class="r">Current</th><th class="r">Target</th><th>By</th></tr></thead><tbody>
+           ${p.targets.map((t,i)=>`<tr><td>${t.m}</td><td class="r num">${t.now}</td>
+             <td class="r">${inp('cp-'+c.id+'-to-'+i,t.to,55)}</td><td>${inp('cp-'+c.id+'-by-'+i,t.by,60)}</td></tr>`).join('')}
+         </tbody></table>
+         <div style="margin-bottom:9px"><div class="mini-label" style="margin-bottom:4px">Supervisor note (goes to the collector)</div>
+           <textarea id="cp-${c.id}-note" rows="2" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical">${p.note||''}</textarea></div>
+         <div style="display:flex;gap:8px;flex-wrap:wrap">
+           ${p.status==='suggested'
+             ? `<button onclick="activatePlan('${c.id}')" style="font-family:inherit;font-size:11px;font-weight:600;color:#fff;background:var(--supervisor);border:none;border-radius:6px;padding:6px 14px;cursor:pointer">Put into action</button>`
+             : `<button onclick="savePlan('${c.id}')" style="font-family:inherit;font-size:11px;font-weight:600;color:#fff;background:var(--supervisor);border:none;border-radius:6px;padding:6px 14px;cursor:pointer">Save changes</button>
+                <button onclick="completePlan('${c.id}')" style="font-family:inherit;font-size:11px;font-weight:600;color:var(--supervisor);background:#fff;border:1px solid var(--supervisor);border-radius:6px;padding:6px 14px;cursor:pointer">Mark complete</button>`}
+           ${c.id==='c01'?`<span style="font-size:10px;color:var(--text3);align-self:center">syncs to Jordan's Coaching &amp; Development page</span>`:''}
+         </div>`;
+    return `<tr style="cursor:pointer" onclick="toggleCoachRow('${c.id}')">
+        <td><span id="cpc-${c.id}" style="display:inline-block;width:11px;color:var(--text3);font-size:9px">▶</span> <b>${c.name}</b><br><span style="color:var(--text3);font-size:10px">${c.role} · ${collSupName(c.sup)}</span></td>
+        <td>${pill}${c.anomaly?' <span class="pill purple">anomaly</span>':''}</td>
+        <td style="font-size:11px;max-width:260px">${p.focus}</td>
+        <td class="r num">${p.targets.length||'—'}</td>
+        <td>${p.status!=='clear'?p.start+' → '+ (p.targets[0]?p.targets[0].by:''):'—'}</td></tr>
+      <tr id="cpd-${c.id}" style="display:none;background:var(--surface3)"><td colspan="5" style="padding:12px 16px" onclick="event.stopPropagation()">${detail}</td></tr>`;
+  }).join('');
+}
+
 RENDER['supervisor-s6'] = function(){
   const K = WPA.coaching;
+  const P = getCoachPlans();
+  const nAct=Object.values(P).filter(p=>p.status==='active').length,
+        nSug=Object.values(P).filter(p=>p.status==='suggested').length,
+        nClr=Object.values(P).filter(p=>p.status==='clear').length;
   $$('page-supervisor-s6').innerHTML = header('SUPERVISOR','var(--supervisor)','Coaching Command',
-    'Active coaching plans, ML-generated flag rationale, improvement tracking, and the auto-drafted coaching brief.')
+    'The coaching operation: every collector, their ML-suggested plan, and the tools to activate, edit, and track it — plans flow straight to each collector\'s Coaching & Development page.')
   + `<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('Active flags', Object.values(K.byType).reduce((a,b)=>a+b,0), 'across '+WPA.collectors.filter(c=>c.flags.length).length+' collectors')}
+      ${kpi('Active plans', nAct, 'in flight now')}
+      ${kpi('Suggested plans', nSug, ML('auto-generated')+' · awaiting supervisor activation')}
+      ${kpi('Performing well', nClr, 'no intervention needed')}
       ${kpi('Flag resolution rate', K.resRate+'%', 'resolved ≤ 14 days · benchmark 80%')}
-      ${kpi('Coaching flag rate', Math.round(100*WPA.collectors.filter(c=>c.flags.length).length/WPA.collectors.length)+'%', 'of FTEs · target < 15%')}
-      ${kpi('Suppression window', '7 days', 'same collector-flag combo · high-sev 3d (Gate 7 §7)')}
     </div>
+    <div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">Coaching plans — full roster</div>
+      <div class="card-note">${ML('suggested from Gate 7 flag rules')} · click a collector to review, edit dates/targets, and put into action</div></div>
+      <div class="card-body" style="padding:0"><table class="tbl" data-nosort="1"><thead><tr><th>Collector</th><th>Status</th><th>Focus</th><th class="r">Targets</th><th>Window</th></tr></thead><tbody>
+      ${coachRosterHtml()}</tbody></table></div></div>
     <div class="grid g32">
       <div>
         ${card('Active flags by type', canvas('s6types','chart-short'))}
