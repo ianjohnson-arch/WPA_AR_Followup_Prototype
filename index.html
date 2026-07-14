@@ -2826,10 +2826,11 @@ reg(['followup-date-compliance'],{
  a:'Set the date at the moment of the touch, matched to the specific payer\'s cadence.',
  s:SRC.tl+' + '+SRC.pf});
 reg(['rubric-vs-nli'],{
- d:'How the two quality layers relate.',
- c:'Rubric (current build, Gate 7 §4): binary checks weighted 30/25/30/15. NLI (aspirational, Gate 7 §4.3): continuous 0–1 scoring of note substance, replacing the binary notes component.',
- p:'Clarifies what ships now vs what the roadmap adds — the rubric is GA; NLI requires flo_notes promotion to Required.',
- i:'—', a:'—',
+ d:'How the two note-quality layers relate. A <b>rubric</b> is a fixed scoring guide — a set of defined criteria, each worth a set number of points, applied the same way every time. Our rubric checks whether a note <em>has</em> the required pieces (a note exists, status updated, follow-up date set, aged accounts touched). NLI is a language model that reads the note text itself and scores how <em>well</em> it was written. This tile shows where those two views agree or diverge.',
+ c:'Rubric (current build, Gate 7 §4): binary present/absent checks, weighted 30/25/30/15. NLI (aspirational, Gate 7 §4.3): continuous 0–1 scoring of note substance, replacing the binary notes component. The gap = rubric notes-rate minus NLI note-quality, in points.',
+ p:'Clarifies what ships now vs what the roadmap adds — the rubric is GA today; NLI requires the note field to be promoted to Required before it can score every account.',
+ i:'A gap means the two disagree. The rubric can mark a note "present" (it exists and has the required fields) while NLI scores it low because the wording is thin or generic. A wide rubric-over-NLI gap = notes that check the box but do not actually say much. When the two track closely, your notes are both complete and substantive.',
+ a:'Use the rubric for today\'s compliance coaching and GA reporting. Treat NLI as the quality bar to grow toward: close the gap by improving note substance (specific action, next step, denial reason, named contact), not by adding boilerplate. NLI becomes the authoritative measure once the note field is promoted to Required (Gate 12 PHI controls apply).',
  s:'Source: Gate 7 model spec'});
 reg(['bottleneck-segment'],{
  d:'The FLO segment holding the largest stalled-dollar concentration right now.',
