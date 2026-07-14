@@ -746,7 +746,7 @@ RENDER['collector-c3'] = function(){
     </div>
     <div class="kpi-row" style="grid-template-columns:repeat(2,1fr)">
       ${kpi('Overall NLI note quality', (n.overall*100).toFixed(0), ML('mean of 4 dimensions')+' · scale 0–100 · aspirational model, simulated','+6','up')}
-      <div class="kpi-card" data-info="rubric-vs-nli" style="grid-column:span 1">
+      <div class="kpi" data-info="rubric-vs-nli">
         <div class="kpi-label">Rubric vs NLI — scoring gap</div>
         <div style="margin-top:8px">
           <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:3px"><span>Rubric: notes exist</span><b>${(m.q.notes*100).toFixed(0)}%</b></div>
