@@ -102,7 +102,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* TABLES */
 .tbl{width:100%;border-collapse:collapse;font-size:11.5px}
-.tbl th{text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:7px 9px;border-bottom:1px solid var(--border);background:var(--surface3);white-space:nowrap}
+.tbl th{text-align:left;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:7px 9px;background:var(--surface3);white-space:nowrap;position:sticky;top:0;z-index:3;box-shadow:inset 0 -1px 0 var(--border)}
 .tbl td{padding:7px 9px;border-bottom:1px solid #f1f2f4;vertical-align:top;font-variant-numeric:tabular-nums}
 .tbl tr:hover td{background:var(--surface3)}
 .tbl .r{text-align:right}.tbl th.r{text-align:right}
@@ -230,7 +230,6 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
   <button class="role-btn active" data-role="collector" onclick="switchRole('collector')"><div class="role-icon" style="background:var(--collector)">C</div> Collector</button>
   <button class="role-btn" data-role="supervisor" onclick="switchRole('supervisor')"><div class="role-icon" style="background:var(--supervisor)">S</div> Supervisor / Manager</button>
   <button class="role-btn" data-role="director" onclick="switchRole('director')"><div class="role-icon" style="background:var(--director)">D</div> Director / VP</button>
-  <button class="role-btn" data-role="denial" onclick="switchRole('denial')"><div class="role-icon" style="background:var(--denial)">DM</div> Denial Management</button>
 </div>
 
 <div class="filter-bar">
@@ -270,7 +269,6 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
     <button class="page-btn active" data-pg="s1" onclick="switchPage('supervisor','s1')"><div class="pg-dot" style="background:var(--supervisor)"></div>Team Command Center <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="s2" onclick="switchPage('supervisor','s2')"><div class="pg-dot" style="background:var(--supervisor)"></div>Collector Deep Dive <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="s3" onclick="switchPage('supervisor','s3')"><div class="pg-dot" style="background:var(--supervisor)"></div>Workflow &amp; Throughput <span class="ml-badge">ML</span></button>
-    <button class="page-btn" data-pg="s4" onclick="switchPage('supervisor','s4')"><div class="pg-dot" style="background:var(--supervisor)"></div>Denial Management <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="s5" onclick="switchPage('supervisor','s5')"><div class="pg-dot" style="background:var(--supervisor)"></div>Staffing &amp; Capacity <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="s6" onclick="switchPage('supervisor','s6')"><div class="pg-dot" style="background:var(--supervisor)"></div>Coaching Command <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="s7" onclick="switchPage('supervisor','s7')"><div class="pg-dot" style="background:var(--supervisor)"></div>Payer Intelligence <span class="ml-badge">ML</span></button>
@@ -279,7 +277,6 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
     <div id="page-supervisor-s1" class="sub-panel active"></div>
     <div id="page-supervisor-s2" class="sub-panel"></div>
     <div id="page-supervisor-s3" class="sub-panel"></div>
-    <div id="page-supervisor-s4" class="sub-panel"></div>
     <div id="page-supervisor-s5" class="sub-panel"></div>
     <div id="page-supervisor-s6" class="sub-panel"></div>
     <div id="page-supervisor-s7" class="sub-panel"></div>
@@ -304,23 +301,6 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
     <div id="page-director-d4" class="sub-panel"></div>
     <div id="page-director-d5" class="sub-panel"></div>
     <div id="page-director-d6" class="sub-panel"></div>
-  </div>
-</div>
-
-<!-- ══════════ DENIAL MGMT ══════════ -->
-<div id="role-denial" class="role-panel">
-  <div class="sidebar">
-    <div class="sidebar-header">Denial Mgmt Pages</div>
-    <button class="page-btn active" data-pg="dm1" onclick="switchPage('denial','dm1')"><div class="pg-dot" style="background:var(--denial)"></div>Denial Landscape <span class="ml-badge">ML</span></button>
-    <button class="page-btn" data-pg="dm2" onclick="switchPage('denial','dm2')"><div class="pg-dot" style="background:var(--denial)"></div>Payer Scorecard <span class="ml-badge">ML</span></button>
-    <button class="page-btn" data-pg="dm3" onclick="switchPage('denial','dm3')"><div class="pg-dot" style="background:var(--denial)"></div>Appeal Pipeline</button>
-    <button class="page-btn" data-pg="dm4" onclick="switchPage('denial','dm4')"><div class="pg-dot" style="background:var(--denial)"></div>Prevention Opportunities <span class="ml-badge">ML</span></button>
-  </div>
-  <div class="content">
-    <div id="page-denial-dm1" class="sub-panel active"></div>
-    <div id="page-denial-dm2" class="sub-panel"></div>
-    <div id="page-denial-dm3" class="sub-panel"></div>
-    <div id="page-denial-dm4" class="sub-panel"></div>
   </div>
 </div>
 
@@ -420,7 +400,6 @@ function applyFilters(){
   if(rendered['collector-c1']) buildQueueTable();
   if(rendered['supervisor-s1']) buildHeatGrid();
   if(rendered['supervisor-s3']) buildSegTable();
-  if(rendered['denial-dm1']) buildCarcTable();
 }
 
 /* ============ COLLECTOR ============ */
@@ -1329,37 +1308,6 @@ function buildSegTable(){
       <td>${r.name===WPA.worstSeg?'<span class="pill red">bottleneck</span>':(r.stallRate>12?'<span class="pill amber">watch</span>':'<span class="pill green">flowing</span>')}</td></tr>`).join('')+'</tbody>';
 }
 
-RENDER['supervisor-s4'] = function(){
-  const D = WPA.denials;
-  $$('page-supervisor-s4').innerHTML = header('SUPERVISOR','var(--supervisor)','Denial Management',
-    'Denial landscape, root cause breakdown, appeal pipeline, and ML-driven prevention — supervisor operating view.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('Denial rate', D.rate+'%', 'weekly · target < 8% · benchmark < 10%','+1.1','down')}
-      ${kpi('Open denial dollars', fmt$(D.openDollars), D.count.toLocaleString()+' accounts')}
-      ${kpi('Preventable share', D.prevRate+'%', ML('preventability flag'))}
-      ${kpi('Payer anomalies active', '2', ML('Payer Behavior Anomaly')+' Molina · MA-UHC')}
-    </div>
-    <div class="grid g23">
-      ${card('Denial rate — 26-week trend', canvas('s4trend'), 'spike = Molina CO-197 policy change, Jun 3')}
-      ${card('Root cause breakdown', canvas('s4root'), ML('Root Cause Classifier'))}
-    </div>
-    <div class="grid g2">
-      ${card('Appeal vs upstream — where each root cause should go', canvas('s4split','chart-tall'), 'preventable share by root cause')}
-      ${card('Active payer anomalies', WPA.payers.filter(p=>p.anom).map(p=>
-        `<div class="alert ${p.anom.sev==='High'?'red':'yellow'}"><div><div class="alert-sig">🤖 ${p.name} · since ${p.anom.since}</div>
-        <div class="alert-txt">${p.anom.desc}</div><div class="alert-act">→ Open Payer Intelligence</div></div></div>`).join(''))}
-    </div>`;
-  line('s4trend', D.rateTrend.map((_,i)=>'W'+(i+1)), [
-    {label:'Denial rate %', data:D.rateTrend, borderColor:C.magenta, backgroundColor:C.magenta+'18', fill:true},
-    {label:'Target 8%', data:D.rateTrend.map(()=>8), borderColor:C.slate, borderDash:[5,4], pointRadius:0}]);
-  doughnut('s4root', D.roots.map(r=>r.root), D.roots.map(r=>r.dollars), PAL,
-    {plugins:{legend:{position:'right'}}});
-  bar('s4split', D.roots.map(r=>r.root),
-    [{label:'Preventable (fix upstream)', data:D.roots.map(r=>+(r.prevRate*100).toFixed(0)), backgroundColor:C.ml},
-     {label:'Appeal pathway', data:D.roots.map(r=>+(100-r.prevRate*100).toFixed(0)), backgroundColor:C.amber}],
-    {scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,max:100,grid:{color:C.grid},border:{display:false}}}});
-};
-
 RENDER['supervisor-s5'] = function(){
   const S = WPA.staffing;
   $$('page-supervisor-s5').innerHTML = header('SUPERVISOR','var(--supervisor)','Staffing & Capacity',
@@ -1486,7 +1434,7 @@ RENDER['supervisor-s7'] = function(){
         `<div class="alert ${p.anom.sev==='High'?'red':'yellow'}"><div><div class="alert-sig">${p.name} · sustained since ${p.anom.since}</div>
          <div class="alert-txt">${p.anom.desc}</div>
          <div class="alert-act">→ Anomaly sustained > 30 days = contract-level flag (route to Director)</div></div></div>`).join('')
-        + `<div style="font-size:11px;color:var(--text2);margin-top:6px">Top CARC mix per payer available in Denial Management → Payer Scorecard.</div>`)}
+        + `<div style="font-size:11px;color:var(--text2);margin-top:6px">Top CARC mix per payer is shown in the payer scorecard above.</div>`)}
     </div>`;
   s7trend();
 };
@@ -1691,149 +1639,6 @@ RENDER['director-d6'] = function(){
         <tr><td><b>Combined 12-month impact</b></td><td class="r"><b style="color:var(--green)">~$1.7M</b></td></tr></tbody></table>`)}
       ${card('How these signals fire', `<div style="font-size:11.5px;line-height:1.6;color:var(--text2)">
         Strategic insights are second-order ML: cluster analysis over propensity × balance × touch recency; payer anomalies promoted to contract-level flags only when sustained > 30 days (noise filter); and preventable-denial root causes mapped to the upstream process gap that would eliminate them. Each card carries the dollar value so the leadership conversation starts at impact, not at data.</div>`)}
-    </div>`;
-};
-
-/* ============ DENIAL MANAGEMENT ============ */
-RENDER['denial-dm1'] = function(){
-  const D = WPA.denials;
-  $$('page-denial-dm1').innerHTML = header('DENIAL MANAGEMENT','var(--denial)','Denial Landscape',
-    'Full view of denial volume, dollar impact, CARC/RARC breakdown, and ML root-cause classification.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      ${kpi('Denial rate', D.rate+'%', 'target < 8% · benchmark < 10%','+1.1','down')}
-      ${kpi('Open denial dollars', fmt$(D.openDollars), D.count.toLocaleString()+' denied accounts')}
-      ${kpi('Preventable rate', D.prevRate+'%', ML('preventability flag')+' — consistent w/ ~85% industry finding')}
-      ${kpi('Preventable $ value', fmt$(D.prevDollars), 'balance on ML-flagged preventable denials')}
-      ${kpi('Appeal pipeline', fmt$(WPA.appeals.pipelineVal), WPA.appeals.rows.length+' in flight')}
-    </div>
-    <div class="grid g23">
-      ${card('Denial rate — 26-week trend', canvas('dm1trend'), 'annotated spike = Molina CO-197 policy change (Jun 3)')}
-      ${card('ML root-cause classification', canvas('dm1root'), ML('CARC/RARC → root cause buckets'))}
-    </div>
-    <div class="grid g23">
-      <div class="card tfill"><div class="card-head"><div class="card-title">Top CARC codes — count, dollars, trend</div>
-        <div class="card-note">financial-class filter applies</div></div>
-        <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl" id="dm1carcs"></table></div></div></div>
-      ${card('Denial rate by financial class', canvas('dm1cls','chart-tall'))}
-    </div>`;
-  line('dm1trend', D.rateTrend.map((_,i)=>'W'+(i+1)), [
-    {label:'Denial rate %', data:D.rateTrend, borderColor:C.magenta, backgroundColor:C.magenta+'18', fill:true},
-    {label:'Target 8%', data:D.rateTrend.map(()=>8), borderColor:C.slate, borderDash:[5,4], pointRadius:0}]);
-  doughnut('dm1root', D.roots.map(r=>r.root), D.roots.map(r=>r.dollars),
-    [C.magenta,C.purple,C.blue,C.amber,C.teal,C.slate], {plugins:{legend:{position:'right'}}});
-  buildCarcTable();
-  bar('dm1cls', ['Commercial','Medicare','Medicaid'],
-    [{data:[9.8,8.4,15.1], backgroundColor:[C.blue,C.teal,C.red]}], noLegend);
-};
-function buildCarcTable(){
-  const D = WPA.denials;
-  const tr = t => t==='up'?'<span class="pill red">▲ up</span>':t==='down'?'<span class="pill green">▼ down</span>':'<span class="pill gray">— flat</span>';
-  $$('dm1carcs').innerHTML = `<thead><tr><th>CARC</th><th>Description</th><th>Root cause 🤖</th>
-    <th class="r">Count</th><th class="r">Dollars</th><th>Preventable</th><th>Trend</th></tr></thead><tbody>`+
-    D.carcs.map(c=>`<tr><td><b>${c.code}</b></td><td>${c.desc}</td>
-      <td><span class="pill magenta">${c.root}</span></td>
-      <td class="r">${c.count}</td><td class="r">${fmt$(c.dollars)}</td>
-      <td>${c.prevent?'<span class="pill green">upstream fix</span>':'<span class="pill amber">appeal path</span>'}</td>
-      <td>${tr(c.trend)}</td></tr>`).join('')+'</tbody>';
-}
-
-RENDER['denial-dm2'] = function(){
-  $$('page-denial-dm2').innerHTML = header('DENIAL MANAGEMENT','var(--denial)','Payer Scorecard',
-    'Per-payer denial rate, payment timing, anomaly signals, and CARC code profile.')
-  + `<div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">Payer denial scorecard</div>
-      <div class="card-note">${ML('Payer Behavior Anomaly')} deviation vs own 90-day baseline</div></div>
-      <table class="tbl"><thead><tr><th>Payer</th><th class="r">Denial %</th><th class="r">Pay days</th>
-      <th class="r">Appeal win %</th><th>Top CARCs</th><th>Signal</th></tr></thead><tbody>
-      ${WPA.payers.map(p=>`<tr><td><b>${p.name}</b><br><span style="color:var(--text3);font-size:10px">${p.cls} · ${fmt$(p.arBal)} AR</span></td>
-        <td class="r" style="${p.denRate>14?'color:var(--red);font-weight:700':''}">${p.denRate}%</td>
-        <td class="r">${p.payDays}d</td><td class="r">${p.appealWin}%</td>
-        <td>${p.top3.map(t=>`<span class="pill gray">${t.code} ×${t.n}</span>`).join(' ')}</td>
-        <td>${p.anom?`<span class="pill ${p.anom.sev==='High'?'red':'amber'}">🤖 ${p.anom.sev}</span>`:'<span class="pill green">baseline</span>'}</td></tr>`).join('')}</tbody></table></div>
-    <div class="grid g23">
-      <div class="card"><div class="card-head"><div class="card-title">Weekly denial rate — <span id="dm2name"></span></div>
-        <div><select class="inline-sel" id="dm2sel" onchange="dm2trend()">${WPA.payers.map(p=>`<option ${p.name==='Molina Healthcare'?'selected':''}>${p.name}</option>`).join('')}</select></div></div>
-        <div class="card-body">${canvas('dm2chart')}</div></div>
-      ${card('Systemic-issue reads', `
-        <div class="alert red"><div><div class="alert-sig">Molina — CARC shift = policy change</div>
-        <div class="alert-txt">CO-197 share 11% → 24% in 5 weeks on outpatient imaging. This is a distribution shift, not volume noise — treat as payer policy change: update auth workflow + escalate to payer relations.</div></div></div>
-        <div class="alert yellow"><div><div class="alert-sig">MA-UHC — adjudication drift</div>
-        <div class="alert-txt">Payment timing +7d vs baseline for 4 straight weeks. Watch for correlated CO-16 requests — often precedes documentation-requirement changes.</div></div></div>
-        <div class="alert blue"><div><div class="alert-sig">Where appeals pay best</div>
-        <div class="alert-txt">Highest appeal-win payers: ${WPA.payers.slice().sort((a,b)=>b.appealWin-a.appealWin).slice(0,3).map(p=>p.name+' ('+p.appealWin+'%)').join(', ')} — stack appeal effort there first.</div></div></div>`)}
-    </div>`;
-  dm2trend();
-};
-function dm2trend(){
-  const p = WPA.payers.find(x=>x.name===($$('dm2sel')?$$('dm2sel').value:'Molina Healthcare'));
-  $$('dm2name').textContent = p.name;
-  line('dm2chart', p.trend.map((_,i)=>'W'+(i+1)), [
-    {label:'Denial rate %', data:p.trend, borderColor:p.anom?C.red:C.magenta, backgroundColor:(p.anom?C.red:C.magenta)+'18', fill:true},
-    {label:'Baseline', data:p.trend.map(()=>+(p.trend.slice(0,6).reduce((a,b)=>a+b,0)/6).toFixed(1)), borderColor:C.slate, borderDash:[5,4], pointRadius:0}]);
-}
-
-RENDER['denial-dm3'] = function(){
-  const A = WPA.appeals;
-  const byStage = A.stages.map(s=>({s, n:A.rows.filter(r=>r.stage===s).length, d:A.rows.filter(r=>r.stage===s).reduce((x,r)=>x+r.bal,0)}));
-  const atRisk = A.rows.filter(r=>r.deadline<=10);
-  $$('page-denial-dm3').innerHTML = header('DENIAL MANAGEMENT','var(--denial)','Appeal Pipeline',
-    'Active appeals by status, age, deadline risk, and win/loss tracking by denial type and payer.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      ${kpi('Appeals in flight', A.rows.length, fmt$(A.pipelineVal)+' total value')}
-      ${kpi('At deadline risk', atRisk.length, 'filing/decision deadline ≤ 10 days','+2','down')}
-      ${kpi('Avg cycle time', A.cycle+' days', 'filing → decision')}
-      ${kpi('Appeal success rate', '61%', 'benchmark 60–70%')}
-      ${kpi('Filed this month', A.volMo[A.volMo.length-1], 'trend +'+(A.volMo[5]-A.volMo[4])+' vs last mo')}
-    </div>
-    <div class="grid g3">
-      ${card('Pipeline by stage', canvas('dm3stage','chart-short'))}
-      ${card('Win rate by payer', canvas('dm3payer','chart-short'), 'focus appeal resources at the top')}
-      ${card('Win rate by denial type', canvas('dm3type','chart-short'))}
-    </div>
-    <div class="card"><div class="card-head"><div class="card-title">Active appeals — deadline risk first</div>
-      <div class="card-note">red = deadline ≤ 10 days</div></div>
-      <div class="tbl-viewport vh420"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>CARC</th><th>Root cause</th>
-      <th class="r">Value</th><th>Stage</th><th class="r">Days open</th><th class="r">Deadline</th><th class="r">Exp. win 🤖</th></tr></thead><tbody>
-      ${A.rows.slice().sort((a,b)=>a.deadline-b.deadline).map(r=>`<tr>
-        <td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.carc}</td><td>${r.root}</td>
-        <td class="r">${fmt$full(r.bal)}</td><td><span class="pill blue">${r.stage}</span></td>
-        <td class="r">${r.days}d</td>
-        <td class="r">${r.deadline<=10?`<b style="color:var(--red)">${r.deadline}d</b>`:r.deadline+'d'}</td>
-        <td class="r">${(r.expWin*100).toFixed(0)}%</td></tr>`).join('')}</tbody></table></div></div></div>`;
-  bar('dm3stage', byStage.map(x=>x.s), [{data:byStage.map(x=>x.n), backgroundColor:C.magenta}], noLegend);
-  bar('dm3payer', A.successByPayer.slice().sort((a,b)=>b.sr-a.sr).map(x=>x.p.split(' ')[0]),
-    [{data:A.successByPayer.slice().sort((a,b)=>b.sr-a.sr).map(x=>x.sr), backgroundColor:C.blue}],
-    Object.assign({},noLegend,{scales:{x:{grid:{display:false}},y:{max:100,grid:{color:C.grid},border:{display:false}}}}));
-  bar('dm3type', A.successByType.map(x=>x.t), [{data:A.successByType.map(x=>x.sr), backgroundColor:C.teal}],
-    Object.assign({},noLegend,{scales:{x:{grid:{display:false}},y:{max:100,grid:{color:C.grid},border:{display:false}}}}));
-};
-
-RENDER['denial-dm4'] = function(){
-  const D = WPA.denials;
-  $$('page-denial-dm4').innerHTML = header('DENIAL MANAGEMENT','var(--denial)','Prevention Opportunities',
-    'Which denials could have been avoided, what upstream changes prevent recurrence, and which claims to intercept before submission.')
-  + `<div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('Annualized prevention opportunity', fmt$(D.opportunity*2.2), ML('preventable $ × appeal-success × annual volume'))}
-      ${kpi('Open preventable $', fmt$(D.prevDollars), D.prevRate+'% of denied balance')}
-      ${kpi('Claims flagged pre-submission', D.predRows.length, ML('Denial Prediction Score')+' on queued claims')}
-      ${kpi('Policy-change signals', '1 active', ML('CARC cluster shift detection'))}
-    </div>
-    <div class="alert yellow" style="margin-bottom:12px"><div><div class="alert-sig">🤖 Cluster analysis — payer policy change signal</div>
-      <div class="alert-txt">${D.cluster}</div></div></div>
-    <div class="grid g23">
-      <div class="card"><div class="card-head"><div class="card-title">Top 5 process changes by prevention impact</div>
-        <div class="card-note">${ML('root cause → process-gap mapping')}</div></div>
-        <div class="card-body"><table class="tbl"><thead><tr><th>#</th><th>Upstream fix</th><th>Root cause</th><th class="r">Est. annual impact</th><th style="width:26%"></th></tr></thead><tbody>
-        ${D.processFixes.map((f,i)=>`<tr><td><b>${i+1}</b></td><td>${f.fix}</td>
-          <td><span class="pill magenta">${f.root}</span></td>
-          <td class="r"><b>${fmt$(f.impact)}</b></td>
-          <td>${pbar(f.impact, D.processFixes[0].impact, C.ml)}</td></tr>`).join('')}</tbody></table></div></div>
-      ${card('Intercept before submission', `<div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl">
-        <thead><tr><th>Claim</th><th>Payer</th><th class="r">Risk 🤖</th><th>Suggested fix</th></tr></thead><tbody>
-        ${D.predRows.slice().sort((a,b)=>b.risk-a.risk).map(r=>`<tr><td><b>${r.claim}</b><br><span style="color:var(--text3);font-size:10px">${r.svc}</span></td>
-          <td>${r.payer}</td><td class="r"><b style="color:${r.risk>0.75?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b><br>
-          <span style="font-size:9.5px;color:var(--text3)">${r.codes.join(' · ')}</span></td>
-          <td style="font-size:10.5px">${r.fix}</td></tr>`).join('')}</tbody></table></div></div>`,
-        ML('Denial Prediction Score'),'tfill')}
     </div>`;
 };
 
@@ -2832,6 +2637,69 @@ reg(['rubric-vs-nli'],{
  i:'A gap means the two disagree. The rubric can mark a note "present" (it exists and has the required fields) while NLI scores it low because the wording is thin or generic. A wide rubric-over-NLI gap = notes that check the box but do not actually say much. When the two track closely, your notes are both complete and substantive.',
  a:'Use the rubric for today\'s compliance coaching and GA reporting. Treat NLI as the quality bar to grow toward: close the gap by improving note substance (specific action, next step, denial reason, named contact), not by adding boilerplate. NLI becomes the authoritative measure once the note field is promoted to Required (Gate 12 PHI controls apply).',
  s:'Source: Gate 7 model spec'});
+/* ---------- table column-header definitions ---------- */
+reg(["ar-balance"],{d:"Total open accounts-receivable balance for this payer — dollars still outstanding."});
+reg(["active"],{d:"Count of currently active (open) accounts in this group."});
+reg(["appeal-win-%"],{d:"Share of decided appeals overturned in your favor: won appeals / appeals decided."});
+reg(["avg-daystoclose"],{d:"Average days from account open to resolution/close."});
+reg(["baseline"],{d:"The starting value at the beginning of the measurement window, used as the reference point."});
+reg(["baseline-closes/fte/d"],{d:"Throughput baseline: weighted account closes per FTE per day, trailing 30 days."});
+reg(["benchmark"],{d:"External reference value (HFMA/MGMA national benchmark) to compare performance against."});
+reg(["carc"],{d:"Claim Adjustment Reason Code — the standardized payer code explaining why a claim line was adjusted or denied."});
+reg(["claim"],{d:"The claim / account identifier."});
+reg(["class"],{d:"Financial class of the account (Commercial, Medicare, Medicaid, Self-Pay)."});
+reg(["cohort"],{d:"The group being compared (e.g. coached vs non-coached collectors)."});
+reg(["collector"],{d:"The collector (staff member) this row refers to."});
+reg(["count"],{d:"Number of accounts in this group."});
+reg(["date"],{d:"Date the item was created, flagged, or last updated."});
+reg(["days-open"],{d:"Number of days the appeal/account has been open."});
+reg(["days-stalled"],{d:"Days the account has sat without forward progress."});
+reg(["deadline"],{d:"Days remaining until the filing/appeal deadline. Highlighted red when close."});
+reg(["denial"],{d:"Denial code / denial indicator on the account (CARC if present)."});
+reg(["denial-%"],{d:"Denial rate for this payer: denied claims / submitted claims."});
+reg(["description"],{d:"Plain-language description of the item."});
+reg(["dollars"],{d:"Dollar amount associated with this row."});
+reg(["erv"],{d:"Expected Recovery Value — account balance x propensity to collect. The ML-weighted dollars realistically recoverable."});
+reg(["est-annual-impact"],{d:"Estimated annualized dollar impact if this change is made."});
+reg(["est-stall-date"],{d:"ML-predicted date the account is expected to stall if left untouched."});
+reg(["exp-win"],{d:"ML-predicted probability the appeal will be won."});
+reg(["fix"],{d:"The recommended upstream fix to prevent this denial pattern."});
+reg(["flag"],{d:"The type and severity of the flag raised on this row."});
+reg(["metric"],{d:"The performance metric being measured on this row."});
+reg(["patient"],{d:"Patient name — display only per Gate 12 PHI controls; never used in scoring or sent to ML."});
+reg(["pattern"],{d:"The recurring denial/write-off pattern identified by the model."});
+reg(["pay-days"],{d:"Average days from claim submission to payment for this payer."});
+reg(["payer"],{d:"The insurance payer responsible for the claim."});
+reg(["percentile"],{d:"Where this value sits within the VisiQuate client cohort (higher = better vs peers)."});
+reg(["position"],{d:"Visual position of the value relative to benchmark on a 0-115% scale."});
+reg(["post30d"],{d:"The metric value 30 days after the coaching/flag intervention."});
+reg(["pre"],{d:"The metric value before the coaching/flag intervention."});
+reg(["preventable"],{d:"Whether the denial is ML-flagged as preventable (upstream fix) vs requiring an appeal."});
+reg(["prop"],{d:"Propensity to collect — ML probability (0-100%) that the account will be paid."});
+reg(["recommended-next-action"],{d:"The ML-recommended next best action for this account."});
+reg(["recommended-intervention"],{d:"The suggested action to take now, before the account stalls."});
+reg(["reimb-%"],{d:"Reimbursement rate for this payer: paid / allowed."});
+reg(["req-fte"],{d:"ML-modeled required FTE for this segment, given inventory volume and complexity."});
+reg(["risk"],{d:"ML-predicted denial or stall risk for this row."});
+reg(["root-cause"],{d:"ML-classified root-cause category for the denial (eligibility, auth, coding, timely filing, etc.)."});
+reg(["segment"],{d:"The FLO work segment (SSD-4B) the account belongs to."});
+reg(["share"],{d:"This item's share of the group total, as a percent."});
+reg(["signal"],{d:"ML anomaly signal for this payer vs its own 90-day baseline (High/Amber), or baseline when normal."});
+reg(["stage"],{d:"The account's current stage in the AR / appeal workflow."});
+reg(["stall-risk"],{d:"ML probability the account stalls within 7 days. Green under 40%, amber 40-65%, red over 65%."});
+reg(["stall-flag"],{d:"Why the account is stalled: unbilled, no-touch, denial, or awaiting payer response."});
+reg(["stall-rate"],{d:"Stalled accounts / active accounts in the segment. Target under 5%."});
+reg(["stalled"],{d:"Stalled dollar exposure — total balance on stalled accounts."});
+reg(["status"],{d:"Current status of the item (Active, Resolved, In Review, etc.)."});
+reg(["suggested-fix"],{d:"The recommended fix to intercept this denial before submission."});
+reg(["supervisor"],{d:"The supervisor the collector reports to."});
+reg(["timer"],{d:"Days remaining until the payer's timely-filing deadline (PayFlo Config). Red when 5 or fewer days — file before it expires."});
+reg(["top-carcs"],{d:"The most frequent CARC denial codes for this payer, with counts."});
+reg(["trigger"],{d:"The metric threshold or event that triggered this flag."});
+reg(["upstream-fix"],{d:"The process change upstream of billing that would prevent this denial category."});
+reg(["us"],{d:"Our organization's value for this metric (compared against benchmark)."});
+reg(["value"],{d:"Dollar value of the appeal / account."});
+reg(["weighted-units"],{d:"Complexity-weighted work units — accounts weighted by difficulty, not raw count."});
 reg(['bottleneck-segment'],{
  d:'The FLO segment holding the largest stalled-dollar concentration right now.',
  c:'argmax over segments of Σ stalled balance.',
@@ -3142,13 +3010,6 @@ reg(['page-workflow-throughput'],{
  i:'Start at the red callout (largest single stall pocket) — it is a ready-made work order. Hot heatmap rows = process problems; hot columns = payer problems.',
  a:'Preempting the top 10 predicted stalls by balance each week is the highest-leverage 30 minutes on this dashboard.',
  s:'Sources: RMA + touch log + stall prediction model · nightly'});
-reg(['page-denial-management'],{
- d:'The supervisor\'s denial operating view: rate trend, root causes in dollars, the appeal-vs-prevent split, and active payer anomalies.',
- c:'Scope: all active denials, 26-week trend, anomalies vs each payer\'s own 90-day baseline.',
- p:'Denials are the largest controllable leak — this page decides where effort goes: fight it, or fix what causes it.',
- i:'A CARC mix shift at one payer = policy change (external); broad drift = process slippage (internal).',
- a:'Route preventable roots to their upstream owners; reserve appeal capacity for clinical-judgment denials.',
- s:'Sources: DMA 835 + root-cause classifier + payer anomaly model'});
 reg(['page-staffing-capacity'],{
  d:'The staffing math made visible: staffed vs model-required FTE, workload balance, the 90-day demand forecast, and a scenario builder for the target work-down window.',
  c:'Scope: current team + 13-week forecast. Formula: weighted inventory ÷ (throughput baseline × target days) — Gate 7 §6.',
@@ -3212,35 +3073,6 @@ reg(['page-strategic-insights'],{
  i:'Each card documents its own model and threshold — the machinery is inspectable, not a black box.',
  a:'The combined-impact table is the executive ask: three initiatives, ~$1.7M, owners implied.',
  s:'Sources: cluster analysis + anomaly + root-cause models (simulated)'});
-reg(['page-denial-landscape'],{
- d:'The full denial picture: volume, dollars, rate trend with policy-change annotations, CARC breakdown, and ML root-cause classification.',
- c:'Scope: all active denials, 26 weeks. Preventability flagged per denial; ~85-87% preventable is consistent with industry findings.',
- p:'The denial team\'s home page — what is hitting us, from whom, and why.',
- i:'Dollar-weighted views beat count views: a few med-necessity denials can outweigh many duplicates.',
- a:'The CARC table\'s pathway column is the triage: "upstream fix" rows should shrink over time if prevention is working.',
- s:'Sources: DMA 835 + root-cause classifier'});
-reg(['page-payer-scorecard'],{
- d:'Denial behavior by payer: rates, payment timing, appeal win rates, CARC profiles, and anomaly signals — the evidence base for payer-specific strategy.',
- c:'Scope: all payers, weekly trend per payer vs own 90-day baseline.',
- p:'Where "the payers are getting worse" becomes "Molina\'s CO-197 share doubled on June 3."',
- i:'A distribution shift in the CARC mix is the signature of a policy change; a volume spike is usually noise.',
- a:'Stack appeal effort at the highest-win payers; escalate sustained anomalies to contract discussions.',
- s:'Sources: DMA 835 + payer anomaly model'});
-reg(['page-appeal-pipeline'],{
- d:'The appeal operation: everything in flight by stage, deadline risk first, win rates by payer and denial type, and cycle-time tracking.',
- c:'Scope: active appeals + trailing-12-month decided outcomes.',
- p:'A blown appeal deadline converts a 60% recovery chance to zero — this page exists so that never happens.',
- i:'Red deadlines outrank everything; after those, work by value × expected win.',
- a:'A very high win rate can mean under-appealing — check the selection rate, not just the outcome rate.',
- s:'Sources: DMA 835 + appeal tracking + expected-win model'});
-reg(['page-prevention-opportunities'],{
- d:'Denial management\'s endgame: which denials should never have happened, the five upstream fixes worth the most, and the claims to intercept before they go out the door.',
- c:'Scope: preventable denials + queued-claim predictions. Opportunity = preventable $ × realistic recovery/prevention rates, annualized.',
- p:'Prevention beats appeals roughly 3:1 on ROI — this page is where denial management becomes a prevention program.',
- i:'Each process fix names dollars and an implied owner outside the billing office; the hard part is organizational, not analytical.',
- a:'Instrument each fix after launch so the estimate becomes a measured result.',
- s:'Sources: root-cause classifier + denial prediction model (simulated)'});
-
 /* ── hover tooltip ── */
 let _htTimer = null;
 function showHtip(el){
