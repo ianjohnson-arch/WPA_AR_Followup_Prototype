@@ -1209,18 +1209,23 @@ function renderS2(){
   const T = WPA.collectors;
   const avg = f => +(T.reduce((s,x)=>s+f(x),0)/T.length).toFixed(2);
   $$('s2meta').textContent = `${c.role} · ${collSupName(c.sup)} · tenure ${c.tenure} mo · queue ${c.queue} accounts`;
-  // ---- auto-generated performance review: metrics vs peers & goal ----
+  // ---- consolidated performance review: verdict + all headline metrics vs peers & goal ----
   const tAvg = {goal:avg(x=>x.pctGoal), q:avg(x=>x.q.score), fpr:avg(x=>x.fpr*100),
-    dtc:avg(x=>x.dtc), stale:avg(x=>x.stale*100), nli:avg(x=>x.nli.overall*100)};
+    dtc:avg(x=>x.dtc), stale:avg(x=>x.stale*100), nli:avg(x=>x.nli.overall*100),
+    rec:avg(x=>x.revK*1000/(x.prod30*22))};
+  const recEff = Math.round(c.revK*1000/(c.prod30*22));
   const chk = [
-    {k:'Productivity', you:c.pctGoal+'%', team:tAvg.goal.toFixed(0)+'%', ok:c.pctGoal>=100, good:c.pctGoal>=tAvg.goal},
-    {k:'Quality (rubric)', you:''+c.q.score, team:tAvg.q.toFixed(0), ok:c.q.score>=80, good:c.q.score>=tAvg.q},
-    {k:'First-pass', you:(c.fpr*100).toFixed(0)+'%', team:tAvg.fpr.toFixed(0)+'%', ok:c.fpr>=0.70, good:c.fpr*100>=tAvg.fpr},
-    {k:'Days to close', you:c.dtc+'d', team:tAvg.dtc.toFixed(0)+'d', ok:c.dtc<=tAvg.dtc, good:c.dtc<=tAvg.dtc},
-    {k:'Note quality (NLI)', you:(c.nli.overall*100).toFixed(0), team:tAvg.nli.toFixed(0), ok:c.nli.overall>=0.78, good:c.nli.overall*100>=tAvg.nli},
-    {k:'Follow-up hygiene', you:(c.stale*100).toFixed(0)+'% stale', team:tAvg.stale.toFixed(0)+'%', ok:c.stale<=0.05, good:c.stale*100<=tAvg.stale},
+    {k:'% of goal', you:c.pctGoal+'%', team:tAvg.goal.toFixed(0)+'%', sub:'30-day', ok:c.pctGoal>=100, good:c.pctGoal>=tAvg.goal},
+    {k:'Quality score', you:''+c.q.score, team:tAvg.q.toFixed(0), sub:'rubric 30/25/30/15', ok:c.q.score>=80, good:c.q.score>=tAvg.q},
+    {k:'First-pass', you:(c.fpr*100).toFixed(0)+'%', team:tAvg.fpr.toFixed(0)+'%', sub:'1-touch closes', ok:c.fpr>=0.70, good:c.fpr*100>=tAvg.fpr},
+    {k:'Days to close', you:c.dtc+'d', team:tAvg.dtc.toFixed(0)+'d', sub:'lower is better', ok:c.dtc<=tAvg.dtc, good:c.dtc<=tAvg.dtc},
+    {k:'Note quality (NLI)', you:(c.nli.overall*100).toFixed(0), team:tAvg.nli.toFixed(0), sub:'🤖 4 dimensions', ok:c.nli.overall>=0.78, good:c.nli.overall*100>=tAvg.nli},
+    {k:'Stale follow-ups', you:(c.stale*100).toFixed(0)+'%', team:tAvg.stale.toFixed(0)+'%', sub:'past due w/o touch', ok:c.stale<=0.05, good:c.stale*100<=tAvg.stale},
+    {k:'Complexity load', you:c.cli+'×', team:'1.0×', sub:'🤖 CLI — account-mix difficulty', ok:true, good:null},
+    {k:'Recovery efficiency', you:'$'+recEff, team:'$'+tAvg.rec.toFixed(0), sub:'🤖 per weighted unit', ok:recEff>=tAvg.rec, good:recEff>=tAvg.rec},
   ];
-  const pass = chk.filter(x=>x.ok).length;
+  const core = chk.slice(0,6);
+  const pass = core.filter(x=>x.ok).length;
   const anomHigh = c.anomaly && c.anomaly.sev==='High';
   let verdict, vcol;
   if(anomHigh){ verdict='Anomaly flagged — coach now'; vcol='var(--red)'; }
@@ -1228,8 +1233,8 @@ function renderS2(){
   else if(pass>=4){ verdict='On track — light coaching'; vcol='var(--blue)'; }
   else if(pass>=2){ verdict='Needs attention'; vcol='var(--amber)'; }
   else { verdict='At risk — coach now'; vcol='var(--red)'; }
-  const strengths = chk.filter(x=>x.ok && x.good).map(x=>x.k);
-  const focus = chk.filter(x=>!x.ok).map(x=>x.k);
+  const strengths = core.filter(x=>x.ok && x.good).map(x=>x.k);
+  const focus = core.filter(x=>!x.ok).map(x=>x.k);
   const first = c.name.split(' ')[0];
   let strat;
   if(pass>=5 && !c.anomaly){
@@ -1240,25 +1245,25 @@ function renderS2(){
     const anomNote = c.anomaly ? ` <b>ML flag:</b> ${c.anomaly.cat} — ${c.anomaly.desc}` : '';
     strat = `Prioritize coaching on <b>${focus.slice(0,2).join(' and ')||'consistency'}</b>${strengths.length?`; keep leaning on strengths (${strengths.slice(0,2).join(', ')})`:''}.${cliNote}${anomNote}`;
   }
+  const focusLine = focus.length
+    ? `<span style="color:var(--amber);font-weight:600">Focus areas:</span> ${focus.join(' · ')}`
+    : `<span style="color:#059669;font-weight:600">All six coached measures at target${strengths.length>=5?' — strengths across the board':''}.</span>`;
   const review = `<div class="card" style="margin-bottom:12px;border-left:3px solid ${vcol}">
     <div class="card-head"><div class="card-title">Performance review — ${c.name}</div>
       <div class="card-note">auto-generated · 30-day metrics vs peers &amp; goal</div></div>
     <div class="card-body">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap">
         <span class="pill" style="background:${vcol};color:#fff;font-weight:700">${verdict}</span>
-        <span style="font-size:11.5px;color:var(--text2)">${pass}/6 measures at target · ${c.role} · tenure ${c.tenure} mo · CLI ${c.cli}×</span>
+        <span style="font-size:11.5px;color:var(--text2)">${pass}/6 measures at target · ${c.role} · tenure ${c.tenure} mo · queue ${c.queue} accounts</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-        ${chk.map(x=>`<div style="border:1px solid var(--border);border-radius:6px;padding:7px 9px">
-          <div class="mini-label" style="margin-bottom:2px">${x.k}</div>
-          <div style="font-size:12px"><b class="num" style="color:${x.good?'#059669':'var(--amber)'}">${x.you}</b> <span style="color:var(--text3);font-size:10px">vs ${x.team} ${x.good?'▲':'▼'}</span></div></div>`).join('')}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+        ${chk.map(x=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <div class="kpi-label">${x.k}</div>
+          <div style="font-size:17px;font-weight:700;line-height:1.15" class="num"><span style="color:${x.good===null?'var(--navy)':x.good?'#059669':'var(--amber)'}">${x.you}</span>
+            <span style="color:var(--text3);font-size:10px;font-weight:400">vs ${x.team}${x.good===null?'':x.good?' ▲':' ▼'}</span></div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:2px">${x.sub}</div></div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-        <div><div class="mini-label" style="color:#059669;margin-bottom:4px">Strengths</div>
-          <div style="font-size:11.5px;color:var(--text2);line-height:1.5">${strengths.length?strengths.map(s=>'· '+s).join('<br>'):'—'}</div></div>
-        <div><div class="mini-label" style="color:var(--amber);margin-bottom:4px">Focus areas</div>
-          <div style="font-size:11.5px;color:var(--text2);line-height:1.5">${focus.length?focus.map(s=>'· '+s).join('<br>'):'None — all measures at target'}</div></div>
-      </div>
+      <div style="font-size:11.5px;color:var(--text2);margin-bottom:11px">${focusLine}</div>
       <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3)">
         <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 Coaching strategy</div>
         <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${strat}</div>
@@ -1269,15 +1274,6 @@ function renderS2(){
     ${c.anomaly?`<div class="alert ${c.anomaly.sev==='High'?'red':'yellow'}" style="margin-bottom:12px"><div>
       <div class="alert-sig">🤖 Collector Anomaly — ${c.anomaly.cat} · ${c.anomaly.sev}</div>
       <div class="alert-txt">${c.anomaly.desc}</div></div></div>`:''}
-    <div class="kpi-row" style="grid-template-columns:repeat(7,1fr)">
-      ${kpi('% of goal', c.pctGoal+'%','30-day')}
-      ${kpi('Quality score', c.q.score,'rubric 30/25/30/15')}
-      ${kpi('Complexity load', c.cli+'×', ML('CLI vs team 1.0'))}
-      ${kpi('First-pass', (c.fpr*100).toFixed(0)+'%','')}
-      ${kpi('Days to close', c.dtc,'')}
-      ${kpi('Stale follow-ups', (c.stale*100).toFixed(0)+'%','past due w/o touch')}
-      ${kpi('Recovery efficiency', '$'+Math.round(c.revK*1000/(c.prod30*22)), ML('$ / weighted unit')+' · ERV capture '+Math.round((c.res*0.55+c.fpr*0.45)*100)+'%')}
-    </div>
     <div class="grid g2">
       ${card('Daily adjusted productivity — vs team avg', canvas('s2trend'))}
       ${card('Complexity load index — team distribution', canvas('s2cli'), 'is this a workload story or a behavior story?')}
@@ -1614,6 +1610,31 @@ function completePlan(cid){
   syncPlanDownstream(cid);
   delete rendered['supervisor-s6']; RENDER['supervisor-s6']();
 }
+function draftBrief(c, p){
+  const first = c.name.split(' ')[0];
+  const wins = [];
+  if(c.pctGoal>=100) wins.push('you\'re at '+c.pctGoal+'% of goal');
+  if(c.q.score>=80) wins.push('your quality score ('+Math.round(c.q.score)+') is strong');
+  if(c.fpr>=0.70) wins.push('your first-pass rate ('+Math.round(c.fpr*100)+'%) is above the bar');
+  if(c.nli.overall>=0.78) wins.push('your notes score well ('+Math.round(c.nli.overall*100)+' NLI)');
+  if(c.cli>1.05) wins.push('you\'re carrying a harder-than-average book (CLI '+c.cli+'×) — that\'s recognized');
+  const tips = {
+    '% of goal':'Work the queue top-down — the ranking already puts the highest-value accounts first, so trust it and keep a steady daily pace.',
+    'Quality score (rubric)':'The composite moves fastest with one habit: before closing any touch, set the status, the follow-up date, and a one-line note.',
+    'First-pass rate %':'Try to finish everything an account needs in one touch — status the claim, document the ref #, and set the next step so it doesn\'t boomerang.',
+    'NLI note quality':'Use the 4-part note: what you did, what happens next (with a date), the denial code if there is one, and who you spoke to. Two extra seconds per note.',
+    'Stale follow-ups % (lower)':'Start each morning with a sweep of past-due follow-ups before new work — ten minutes clears most of them.'
+  };
+  const winLine = wins.length ? 'First, the good: '+wins.slice(0,2).join(', and ')+'. ' : '';
+  if(p.status==='clear'){
+    return `Hi ${first} — quick note from coaching review: ${winLine}You're at or above target across the board, so there's no plan needed — just keep doing what you're doing. If you're interested, we'd love to have you peer-mentor or take on some of the more complex accounts. Nice work. — ${collSupName(c.sup)}`;
+  }
+  const focusLines = p.targets.slice(0,3).map(t=>{
+    const tip = tips[t.m] || 'Small, consistent daily improvements get there.';
+    return `<b>${t.m.replace(' (rubric)','').replace(' (lower)','')}</b> — you're at ${t.now}, aiming for ${t.to} by ${t.by}. ${tip}`;
+  });
+  return `Hi ${first} — here's your coaching snapshot. ${winLine}What we're working on together:<br><br>${focusLines.map(l=>'· '+l).join('<br><br>')}<br><br>None of this is a knock — it's the difference between good and great, and the targets are all within reach at your current pace. First check-in ${p.checkin}; bring anything you want to talk through. — ${collSupName(c.sup)}`;
+}
 function coachRosterHtml(){
   const P=getCoachPlans();
   const inp=(id,val,w)=>`<input id="${id}" value="${val}" style="width:${w||70}px;font-family:inherit;font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;color:var(--text)">`;
@@ -1623,7 +1644,10 @@ function coachRosterHtml(){
       : p.status==='clear' ? '<span class="pill green">Performing well</span>'
       : '<span class="pill" style="background:#EFF6FF;color:var(--midblue)">🤖 Suggested</span>';
     const detail = p.status==='clear'
-      ? `<div style="font-size:11.5px;color:var(--text2);padding:4px 0">${c.name.split(' ')[0]} is at or above target on all coached measures — <b>no intervention needed</b>. Reinforce current habits; consider peer-mentoring or a more complex account mix.</div>`
+      ? `<div style="font-size:11.5px;color:var(--text2);padding:4px 0">${c.name.split(' ')[0]} is at or above target on all coached measures — <b>no intervention needed</b>. Reinforce current habits; consider peer-mentoring or a more complex account mix.</div>
+         <div style="margin:9px 0;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--collector,#2E5E9B);border-radius:7px;background:#fff">
+           <div class="mini-label" style="color:var(--midblue);margin-bottom:4px">🤖 Auto-drafted coaching brief — ready to share with ${c.name.split(' ')[0]}</div>
+           <div style="font-size:11.5px;line-height:1.6;color:var(--text2)">${draftBrief(c,p)}</div></div>`
       : `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:9px;font-size:11px;color:var(--text2)">
            <label>Start ${inp('cp-'+c.id+'-start',p.start)}</label>
            <label>First check-in ${inp('cp-'+c.id+'-check',p.checkin)}</label></div>
@@ -1631,6 +1655,9 @@ function coachRosterHtml(){
            ${p.targets.map((t,i)=>`<tr><td>${t.m}</td><td class="r num">${t.now}</td>
              <td class="r">${inp('cp-'+c.id+'-to-'+i,t.to,55)}</td><td>${inp('cp-'+c.id+'-by-'+i,t.by,60)}</td></tr>`).join('')}
          </tbody></table>
+         <div style="margin:9px 0;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--collector,#2E5E9B);border-radius:7px;background:#fff">
+           <div class="mini-label" style="color:var(--midblue);margin-bottom:4px">🤖 Auto-drafted coaching brief — ready to share with ${c.name.split(' ')[0]}</div>
+           <div style="font-size:11.5px;line-height:1.6;color:var(--text2)">${draftBrief(c,p)}</div></div>
          <div style="margin-bottom:9px"><div class="mini-label" style="margin-bottom:4px">Supervisor note (goes to the collector)</div>
            <textarea id="cp-${c.id}-note" rows="2" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;color:var(--text);resize:vertical">${p.note||''}</textarea></div>
          <div style="display:flex;gap:8px;flex-wrap:wrap">
