@@ -111,6 +111,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .sort-caret{font-size:8px;opacity:.8;margin-left:3px}
 .sort-reset{font-size:11px;margin-left:5px;cursor:pointer;opacity:.65;color:var(--midblue)}
 .sort-reset:hover{opacity:1;color:var(--navy)}
+#heatgrid th,#heatgrid td{text-align:center}
+#heatgrid th:first-child,#heatgrid td:first-child{text-align:left}
 .scroll-y{overflow-y:auto;max-height:420px}
 .card.tfill{display:flex;flex-direction:column}
 .card.tfill .card-body{flex:1;display:flex;flex-direction:column;min-height:0}
@@ -1159,12 +1161,20 @@ function buildHeatGrid(){
   T.forEach(c=>{
     const el=$$('sp-'+c.id); if(!el) return;
     if(charts['sp-'+c.id]) charts['sp-'+c.id].destroy();
+    const n=c.series.length, last=c.series[n-1], back14=c.series[Math.max(0,n-14)];
+    const d14=last-back14, d14pct=back14?d14/back14*100:0;
+    const lineCol=c.arch==='declining'?C.red:c.arch==='ramping'?C.ml:C.blue;
     charts['sp-'+c.id]=new Chart(el,{type:'line',data:{labels:c.series.map((_,i)=>i),
-      datasets:[{data:c.series,borderColor:c.arch==='declining'?C.red:c.arch==='ramping'?C.ml:C.blue,borderWidth:1.4,pointRadius:0,pointHoverRadius:3,tension:.35}]},
+      datasets:[{data:c.series,borderColor:lineCol,borderWidth:1.4,
+        pointRadius:c.series.map((_,i)=>i===n-1?2.6:0),pointBackgroundColor:lineCol,pointHoverRadius:3,tension:.35}]},
       options:{responsive:false,interaction:{intersect:false,mode:'index'},
         plugins:{legend:{display:false},tooltip:{enabled:true,displayColors:false,
-          callbacks:{title:(items)=>'Day '+(items[0].dataIndex+1)+' of 22',
-            label:(item)=>'Adj. productivity: '+Number(item.parsed.y).toFixed(1)}}},
+          callbacks:{title:(items)=>items[0].dataIndex===n-1?'Today (day '+n+' of '+n+')':'Day '+(items[0].dataIndex+1)+' of '+n,
+            label:(item)=>'Adj. productivity: '+Number(item.parsed.y).toFixed(1),
+            afterLabel:(item)=>item.dataIndex===n-1
+              ? ['14-day trend: '+(d14>=0?'+':'')+d14.toFixed(1)+' ('+(d14pct>=0?'+':'')+d14pct.toFixed(0)+'%)',
+                 'vs goal '+c.goal+': '+(last-c.goal>=0?'+':'')+(last-c.goal).toFixed(1)]
+              : null}}},
         scales:{x:{display:false},y:{display:false}}}});
   });
 }
