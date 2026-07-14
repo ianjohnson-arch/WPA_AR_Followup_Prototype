@@ -1291,19 +1291,14 @@ function renderS2(){
       backgroundColor:[C.ml,C.teal,C.blue,C.purple]}], noLegend);
 }
 
-/* ---------- s3 Workflow: synthetic stage/class/disposition tags for chart-driven filtering ---------- */
-const S3_STAGES=['Unbilled','Claim Submitted','Awaiting Payer','Follow-up Required','Denied - Pending'];
-const S3_CLASSES=['Commercial','Medicare','Medicaid','Self-Pay'];
-const S3_DISPOS=['Working','Submitted','Needs Attention'];
+/* ---------- s3 Workflow: segment-driven filtering (Segment bottleneck view drives the account tables) ---------- */
 function _s3h(str){let h=0;for(let i=0;i<str.length;i++)h=(h*31+str.charCodeAt(i))>>>0;return h;}
-function s3stage(r){return r.stage||S3_STAGES[_s3h(r.acct)%S3_STAGES.length];}
-function s3cls(r){return S3_CLASSES[_s3h(r.acct+'c')%S3_CLASSES.length];}
-function s3dispo(r){return S3_DISPOS[_s3h(r.acct+'d')%S3_DISPOS.length];}
-function s3match(r){const f=window.__s3filter;if(!f)return true;
-  if(f.type==='stage')return s3stage(r)===f.value;
-  if(f.type==='dispo')return s3dispo(r)===f.value;
-  if(f.type==='stagecls')return s3stage(r)===f.stage&&s3cls(r)===f.cls;
-  return true;}
+function s3seg(r){
+  const q=WPA.queue.find(x=>x.acct===r.acct);
+  if(q&&q.seg) return q.seg;
+  return WPA.segments[_s3h(r.acct+'s')%WPA.segments.length].name;
+}
+function s3match(r){const f=window.__s3filter;return !f || s3seg(r)===f.value;}
 function setS3Filter(f){window.__s3filter=(JSON.stringify(window.__s3filter||null)===JSON.stringify(f))?null:f;delete rendered['supervisor-s3'];RENDER['supervisor-s3']();}
 function clearS3Filter(){window.__s3filter=null;delete rendered['supervisor-s3'];RENDER['supervisor-s3']();}
 
@@ -1316,7 +1311,7 @@ RENDER['supervisor-s3'] = function(){
   const stallView = WPA.stallRows.filter(s3match);
   const chip = fdef ? `<div class="alert blue" style="margin-bottom:12px"><div><div class="alert-sig">Filtered — tables below</div><div class="alert-txt"><b>${fdef.label}</b> &nbsp;·&nbsp; ${predView.length} predicted · ${stallView.length} stalled match &nbsp; <a href="#" onclick="clearS3Filter();return false" style="color:var(--midblue);font-weight:600">× Clear</a></div></div></div>` : '';
   $$('page-supervisor-s3').innerHTML = header('SUPERVISOR','var(--supervisor)','Workflow & Throughput',
-    'Where accounts stall — by stage, segment, payer, and disposition — and what the ML flags as the primary bottleneck. Click a chart element to filter the account tables below.')
+    'Where accounts stall — by stage, segment, payer, and disposition — and what the ML flags as the primary bottleneck. Click a segment row in the bottleneck view to filter the account tables.')
   + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
       ${kpi('Stalled dollar exposure', '$'+stallD+'M', WPA.exec.stallRate+'% of active accounts · target < 5%')}
       ${kpi('Predicted to stall (7d)', WPA.predStall.length, ML('Stall Prediction')+' · '+fmt$(WPA.predStall.reduce((s,r)=>s+r.bal,0))+' at risk')}
@@ -1327,49 +1322,57 @@ RENDER['supervisor-s3'] = function(){
     <div class="alert red" style="margin-bottom:12px"><div><div class="alert-sig">🤖 Largest single stall concentration</div>
       <div class="alert-txt"><b>${fmt$(tc.d)}</b> is stalled in the <b>${tc.stage}</b> stage across <b>${tc.payer}</b> accounts aged <b>${tc.bucket} days</b> — the Gate 2 §5.3 bottleneck read. Next largest: ${WPA.topStallCells.slice(1,3).map(c=>fmt$(c.d)+' · '+c.stage+' / '+c.payer+' / '+c.bucket+'d').join(' — ')}.</div></div></div>
     <div class="grid g2">
-      ${card('AR stage funnel — count & dollars', canvas('s3funnel','chart-tall'), 'click a stage to filter · stall flags: unbilled / response / no-touch / denial')}
-      ${card('Stall $ heatmap — stage × financial class', '<div id="s3heat"></div>', 'click a cell to filter · red intensity scales with $')}
+      ${card('AR stage funnel — count & dollars', canvas('s3funnel','chart-tall'), 'through Resolved · stall flags: unbilled / response / no-touch / denial')}
+      ${card('Stall $ heatmap — stage × financial class', '<div id="s3heat"></div>', 'cell = stalled balance · red intensity scales with $')}
     </div>
     <div class="grid g2">
       ${card('FLO disposition flow — where the worklist sits', canvas('s3dispo','chart-short'),
-        'click a bar to filter · '+D.closedMTD.toLocaleString()+' closed MTD')}
+        'Working → Submitted → Denied → Needs Attention · '+D.closedMTD.toLocaleString()+' closed MTD')}
       ${card('Stage velocity trend — avg days in stage', canvas('s3vel','chart-short'), 'benchmark: Awaiting Payer 14d')}
     </div>
     <div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">Segment bottleneck view</div>
-      <div class="card-note">FLO primary segment (SSD-4B) · click a row to expand its disposition breakdown</div></div>
+      <div class="card-note">FLO primary segment (SSD-4B) · click a row to filter the account tables below · ▶ expands the disposition breakdown</div></div>
       <div class="card-body"><table class="tbl" id="segtbl" data-nosort="1"></table></div></div>
     ${chip}
-    <div class="card"><div class="card-head"><div class="card-title">Predicted stalls — act before they stall</div>
-      <div class="card-note">${ML('Stall Prediction Model')} ranked by risk × balance${fdef?' · filtered':''}</div></div>
-      <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th class="r">Balance</th>
-      <th class="r">Stall risk</th><th>Est. stall date</th><th>Collector</th><th>Recommended intervention</th></tr></thead><tbody>
-      ${predView.slice(0,15).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td class="r">${fmt$full(r.bal)}</td>
-        <td class="r"><b style="color:${r.risk>0.8?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b></td>
-        <td>${r.estDate}</td><td>${r.coll}</td><td>${r.rec}</td></tr>`).join('')||`<tr><td colspan="7" style="color:var(--text3);padding:12px">No predicted-stall accounts match this filter.</td></tr>`}</tbody></table></div></div></div>
-    <div style="height:12px"></div>
-    <div class="card"><div class="card-head"><div class="card-title">Stall alert queue — currently stalled, top by balance</div>
-      <div class="card-note">named stall flags per Gate 2 §5.2${fdef?' · filtered':''}</div></div>
-      <div class="tbl-viewport vh380"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Account</th><th>Payer</th><th>Stage</th><th>Stall flag</th>
-      <th class="r">Days stalled</th><th class="r">Balance</th><th>Collector</th><th>Supervisor</th></tr></thead><tbody>
-      ${stallView.slice(0,14).map(r=>`<tr><td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.stage}</td>
-        <td><span class="pill red" style="font-family:monospace;font-size:9px">${r.flag}</span></td>
-        <td class="r">${r.days}d</td><td class="r">${fmt$full(r.bal)}</td><td>${r.coll}</td><td>${r.sup}</td></tr>`).join('')||`<tr><td colspan="8" style="color:var(--text3);padding:12px">No currently-stalled accounts match this filter.</td></tr>`}</tbody></table></div></div></div>`;
+    <div class="card"><div class="card-head"><div class="card-title">Stall work queue — at risk & already stalled</div>
+      <div class="card-note">${ML('Stall Prediction Model')} · at-risk first (by risk × balance), then stalled (top by balance) · named flags per Gate 2 §5.2${fdef?' · filtered':''}</div></div>
+      <div class="tbl-viewport vh420"><div class="tbl-scroll"><table class="tbl"><thead><tr>
+      <th>Status</th><th>Account</th><th>Payer</th><th>Stage</th><th class="r">Stall risk</th><th>Est. stall date</th><th>Stall flag</th>
+      <th class="r">Days stalled</th><th class="r">Balance</th><th>Collector</th><th>Supervisor</th><th>Recommended intervention</th></tr></thead><tbody>
+      ${(()=>{
+        const supOf = name => { const cc=WPA.collectors.find(x=>x.name===name); return cc?collSupName(cc.sup):'—'; };
+        const atRisk = predView.slice().sort((a,b)=>b.risk*b.bal-a.risk*a.bal).map(r=>({
+          st:'risk', acct:r.acct, payer:r.payer, stage:'—', risk:r.risk, est:r.estDate, flag:null,
+          days:null, bal:r.bal, coll:r.coll, sup:supOf(r.coll), rec:r.rec }));
+        const stalled = stallView.slice().sort((a,b)=>b.bal-a.bal).map(r=>({
+          st:'stalled', acct:r.acct, payer:r.payer, stage:r.stage, risk:null, est:'—', flag:r.flag,
+          days:r.days, bal:r.bal, coll:r.coll, sup:r.sup, rec:'—' }));
+        const rows = atRisk.concat(stalled);
+        if(!rows.length) return `<tr><td colspan="12" style="color:var(--text3);padding:12px">No accounts match this filter.</td></tr>`;
+        return rows.map(r=>`<tr>
+          <td>${r.st==='risk'?'<span class="pill amber">AT RISK</span>':'<span class="pill red">STALLED</span>'}</td>
+          <td><b>${r.acct}</b><br>${pfLink(r.acct,1)}</td><td>${r.payer}</td><td>${r.stage}</td>
+          <td class="r">${r.risk!=null?`<b style="color:${r.risk>0.8?C.red:C.amber}">${(r.risk*100).toFixed(0)}%</b>`:'—'}</td>
+          <td>${r.est}</td>
+          <td>${r.flag?`<span class="pill red" style="font-family:monospace;font-size:9px">${r.flag}</span>`:'—'}</td>
+          <td class="r">${r.days!=null?r.days+'d':'—'}</td>
+          <td class="r">${fmt$full(r.bal)}</td><td>${r.coll}</td><td>${r.sup}</td>
+          <td style="max-width:200px">${r.rec}</td></tr>`).join('');
+      })()}</tbody></table></div></div></div>`;
   mkChart('s3funnel',{type:'bar',data:{labels:f.map(x=>x.stage),
     datasets:[{label:'Accounts',data:f.map(x=>x.n),backgroundColor:f.map(x=>x.stage.startsWith('Resolved')?C.ml:C.blue),borderRadius:4},
               {label:'Stalled $ (K)',data:f.map(x=>x.stallD/1000),backgroundColor:C.red+'AA',borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      onClick:(e,els)=>{if(els&&els.length){const st=f[els[0].index].stage;setS3Filter({type:'stage',value:st,label:'Stage · '+st});}},
       scales:{x:{grid:{color:C.grid},border:{display:false}},y:{grid:{display:false}}},
       plugins:{tooltip:{callbacks:{afterBody:(items)=>{const s=f[items[0].dataIndex];return `Stage dollars: ${fmt$(s.d)} · stalled: ${fmt$(s.stallD)}`;}}}}}});
   // stall heatmap as colored table — cells clickable to filter by stage + class
   const H = WPA.heat, hmax = Math.max(...H.vals.flat());
   $$('s3heat').innerHTML = `<table class="tbl"><thead><tr><th>Stage</th>${H.classes.map(c=>`<th class="r">${c}</th>`).join('')}</tr></thead><tbody>`+
     H.stages.map((s,i)=>`<tr><td style="font-size:10.5px"><b>${s}</b></td>${H.vals[i].map((v,j)=>
-      `<td class="r" style="cursor:pointer" onclick="setS3Filter({type:'stagecls',stage:'${s}',cls:'${H.classes[j]}',label:'${s} · ${H.classes[j]}'})"><span class="heat-cell num" style="${heatColor(v,hmax,'220,38,38')};display:inline-block;min-width:60px">${v?fmt$(v):'—'}</span></td>`).join('')}</tr>`).join('')+'</tbody></table>';
+      `<td class="r"><span class="heat-cell num" style="${heatColor(v,hmax,'220,38,38')};display:inline-block;min-width:60px">${v?fmt$(v):'—'}</span></td>`).join('')}</tr>`).join('')+'</tbody></table>';
   bar('s3dispo', Object.keys(D.counts), [{data:Object.values(D.counts),
     backgroundColor:[C.blue,C.teal,C.magenta,C.amber]}],
-    Object.assign({},noLegend,{onClick:(e,els)=>{if(els&&els.length){const dp=Object.keys(D.counts)[els[0].index];setS3Filter({type:'dispo',value:dp,label:'Disposition · '+dp});}},
-      plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:c=>'Balance: '+fmt$(D.dollars[c.label]||0)}}}}));
+    Object.assign({},noLegend,{plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:c=>'Balance: '+fmt$(D.dollars[c.label]||0)}}}}));
   line('s3vel', ['-9w','-8w','-7w','-6w','-5w','-4w','-3w','-2w','-1w','now'],
     Object.keys(WPA.velocity).map((s,i)=>({label:s, data:WPA.velocity[s], borderColor:PAL[i]})));
   buildSegTable();
@@ -1384,8 +1387,9 @@ function buildSegTable(){
     <th class="r">Baseline (closes/FTE/d)</th><th></th></tr></thead><tbody>`;
   rows.forEach((r,i)=>{
     const statusPill = r.name===WPA.worstSeg?'<span class="pill red">bottleneck</span>':(r.stallRate>12?'<span class="pill amber">watch</span>':'<span class="pill green">flowing</span>');
-    html += `<tr class="seg-parent" style="cursor:pointer" onclick="toggleSegRow(${i})" title="Click to expand disposition breakdown">
-      <td><span class="seg-caret" id="segcar-${i}" style="display:inline-block;width:11px;color:var(--text3);font-size:9px">▶</span> <b>${r.name}</b></td>
+    const isFilt = window.__s3filter && window.__s3filter.value===r.name;
+    html += `<tr class="seg-parent" style="cursor:pointer;${isFilt?'background:#EFF6FF':''}" onclick="setS3Filter({type:'segment',value:'${r.name}',label:'Segment · ${r.name}'})" title="Click to filter the account tables to this segment">
+      <td><span class="seg-caret" id="segcar-${i}" style="display:inline-block;width:14px;color:var(--text3);font-size:9px;cursor:pointer;padding:2px" onclick="event.stopPropagation();toggleSegRow(${i})" title="Expand disposition breakdown">▶</span> <b>${r.name}</b>${isFilt?' <span class="pill" style="background:var(--midblue);color:#fff">filtering</span>':''}</td>
       <td class="r">${r.n.toLocaleString()}</td><td class="r">${r.wUnits.toLocaleString()}</td>
       <td class="r">${fmt$(r.bal)}</td>
       <td class="r" style="${r.name===WPA.worstSeg?'color:var(--red);font-weight:700':''}">${fmt$(r.stallD)}</td>
