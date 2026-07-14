@@ -57,7 +57,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* LAYOUT */
 .role-panel{display:none}
 .role-panel.active{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - 140px)}
-.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:140px;align-self:start;max-height:calc(100vh - 140px);overflow-y:auto}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:140px;align-self:start;height:calc(100vh - 140px);overflow-y:auto}
 .sidebar-header{font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:6px 18px 4px}
 .page-btn{width:100%;text-align:left;padding:9px 18px;font-size:12.5px;color:var(--text2);border:none;background:none;cursor:pointer;display:flex;align-items:center;gap:9px}
 .page-btn:hover{background:var(--surface2);color:var(--text)}
@@ -109,6 +109,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tbl th.th-sortable{cursor:pointer;user-select:none}
 .tbl th.th-sortable:hover{color:var(--navy)}
 .sort-caret{font-size:8px;opacity:.8;margin-left:3px}
+.sort-reset{font-size:11px;margin-left:5px;cursor:pointer;opacity:.65;color:var(--midblue)}
+.sort-reset:hover{opacity:1;color:var(--navy)}
 .scroll-y{overflow-y:auto;max-height:420px}
 .card.tfill{display:flex;flex-direction:column}
 .card.tfill .card-body{flex:1;display:flex;flex-direction:column;min-height:0}
@@ -2929,14 +2931,37 @@ function parseSortNum(t){
   if(suf==='k') v*=1e3; else if(suf==='m') v*=1e6; else if(suf==='b') v*=1e9;
   return v;
 }
+function clearSortIndicators(hr){
+  if(!hr) return;
+  Array.from(hr.cells).forEach(c=>{
+    c.dataset.sortDir='';
+    const car=c.querySelector('.sort-caret'); if(car) car.remove();
+    const rb=c.querySelector('.sort-reset'); if(rb) rb.remove();
+  });
+}
+function refitAfterSort(table){
+  const vp = table.closest('.tbl-viewport');
+  if(vp){ delete vp.dataset.flipped; const bar=vp.nextElementSibling; if(bar&&bar.dataset) delete bar.dataset.sig; fitViewport(vp); }
+}
+function resetTableSort(table){
+  if(!table || !table.tBodies.length) return;
+  const tbody = table.tBodies[0];
+  const rows = Array.from(tbody.rows);
+  rows.sort((a,b)=>(+a.dataset.origIdx||0)-(+b.dataset.origIdx||0));   // back to original order
+  rows.forEach(r=>{ r.style.display=''; tbody.appendChild(r); });
+  clearSortIndicators(table.tHead && table.tHead.rows[0]);
+  refitAfterSort(table);
+}
 function sortTableByColumn(th, idx){
   const table = th.closest('table.tbl'); if(!table || !table.tBodies.length) return;
   const tbody = table.tBodies[0];
   const rows = Array.from(tbody.rows);
   if(rows.length < 2) return;
+  rows.forEach((r,i)=>{ if(r.dataset.origIdx===undefined) r.dataset.origIdx=i; });  // capture original order
+  // third click on the same column resets to original order
+  if(th.dataset.sortDir==='desc'){ resetTableSort(table); return; }
   const dir = th.dataset.sortDir==='asc' ? 'desc' : 'asc';
-  // reset indicators across the header row
-  Array.from(th.parentElement.cells).forEach(c=>{ c.dataset.sortDir=''; const car=c.querySelector('.sort-caret'); if(car) car.remove(); });
+  clearSortIndicators(th.parentElement);
   th.dataset.sortDir = dir;
   // decide numeric vs text by sampling the column
   const nums = rows.map(r=> r.cells[idx] ? parseSortNum(r.cells[idx].textContent) : null);
@@ -2954,12 +2979,18 @@ function sortTableByColumn(th, idx){
   rows.forEach(r=>{ r.style.display=''; tbody.appendChild(r); });   // apply order, clear any fit-hiding
   const caret = document.createElement('span'); caret.className='sort-caret'; caret.textContent = dir==='asc'?'▲':'▼';
   th.appendChild(caret);
-  const vp = table.closest('.tbl-viewport');                        // re-fit if inside a fitted viewport
-  if(vp){ delete vp.dataset.flipped; const bar=vp.nextElementSibling; if(bar&&bar.dataset) delete bar.dataset.sig; fitViewport(vp); }
+  const reset = document.createElement('span'); reset.className='sort-reset'; reset.textContent='↺';
+  reset.title = 'Reset to original order';
+  reset.addEventListener('click', (e)=>{ e.stopPropagation(); resetTableSort(table); });
+  th.appendChild(reset);
+  refitAfterSort(table);
 }
 function makeSortable(){
   document.querySelectorAll('table.tbl > thead').forEach(thead=>{
     const hr = thead.rows[0]; if(!hr) return;
+    const table = thead.parentElement;
+    const tb = table.tBodies[0];
+    if(tb) Array.from(tb.rows).forEach((r,i)=>{ if(r.dataset.origIdx===undefined) r.dataset.origIdx=i; });
     Array.from(hr.cells).forEach((th,idx)=>{
       if(th.dataset.sortable) return;
       th.dataset.sortable = '1';
