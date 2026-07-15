@@ -56,7 +56,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* LAYOUT */
 .role-panel{display:none}
-.role-panel.active{display:grid;grid-template-columns:232px 1fr;min-height:calc(100vh - 140px)}
+.role-panel.active{display:grid;grid-template-columns:256px 1fr;min-height:calc(100vh - 140px)}
 .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:140px;align-self:start;height:calc(100vh - 140px);overflow-y:auto}
 .sidebar-header{font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:6px 18px 4px}
 .page-btn{width:100%;text-align:left;padding:9px 18px;font-size:12.5px;color:var(--text2);border:none;background:none;cursor:pointer;display:flex;align-items:center;gap:9px}
@@ -289,7 +289,7 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 <div id="role-director" class="role-panel">
   <div class="sidebar">
     <div class="sidebar-header">Director / VP Pages</div>
-    <button class="page-btn active" data-pg="d0" onclick="switchPage('director','d0')"><div class="pg-dot" style="background:var(--director)"></div>Automation Opportunity <span class="ml-badge">NEW</span></button>
+    <button class="page-btn active" data-pg="d0" onclick="switchPage('director','d0')"><div class="pg-dot" style="background:var(--director)"></div><span style="white-space:nowrap">Automation Opportunity</span> <span class="ml-badge">NEW</span></button>
     <button class="page-btn" data-pg="d1" onclick="switchPage('director','d1')"><div class="pg-dot" style="background:var(--director)"></div>Executive Summary <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="d2" onclick="switchPage('director','d2')"><div class="pg-dot" style="background:var(--director)"></div>Financial Performance</button>
     <button class="page-btn" data-pg="d3" onclick="switchPage('director','d3')"><div class="pg-dot" style="background:var(--director)"></div>Operational Intelligence <span class="ml-badge">ML</span></button>
@@ -1977,7 +1977,13 @@ const SRC = {
 
 /* ---------- Director D0 — Automation Opportunity ---------- */
 reg(['automation-scenario'],{d:'The adoption dial. ~61% of all work is automatable by action type (fixed); this slider sets how much of that automatable work you assume actually goes touchless. It drives every projected figure on the page. FLO has no automation today — projections are modeled estimates.'});
-reg(['page-automation-opportunity'],{d:'Director/VP landing page sizing the automation upsell: how much AR follow-up work is manual today vs. bot-automatable, and the modeled capacity, timeliness, and dollar upside. FLO does no automation today — projected figures are estimates driven by the scenario slider.'});
+reg(['page-automation-opportunity'],{
+ d:'Separates the AR follow-up work your team does today into two kinds — routine, rules-based work a bot could handle (claim status checks, portal lookups, clean rebills, follow-up routing) and judgment work that needs a person (appeals, complex and clinical denials, payer negotiation) — then models what automating the routine portion would give back in staff capacity, cycle time, and cash.',
+ c:'Work is classified as automatable vs. manual by action / reason type. The scenario slider sets how much of the automatable work is assumed to run touchless; every projected figure scales from that setting.',
+ p:'Gives leadership one clear, honest picture of where effort goes now and what automation could unlock — grounded in the team\'s real volumes rather than anecdotes.',
+ i:'Read the manual-vs-automatable split first, then the projected capacity, timeliness, and dollar gains at the chosen scenario. The adoption meters read 0% today because FLO has no automation yet — that gap is the potential, not a current result.',
+ a:'Use the slider to walk conservative vs. aggressive scenarios. Focus automation where the breakdown shows a high automatable share at high volume; keep judgment work with your staff.',
+ s:'Modeled estimate on synthetic demo data. FLO automation is a future capability — nothing here reflects live automated performance.'});
 reg(['big-picture'],{d:'ML-synthesized narrative of the current all-manual state vs. the automation opportunity at the selected scenario, with a suggested starting point. Rewrites as you move the slider.',s:'Synthesized from the automation model — simulated.'});
 reg(['automatable-share'],{d:'Share of total touches in bot-eligible action types (status checks, portal lookups, clean rebills, follow-up routing).',c:'<code>Σ(work-type volume share × automatable %)</code> across work types. Static — does not move with the slider.'});
 reg(['fte-capacity-freed'],{d:'Estimated full-time-equivalent staff capacity returned if the touchless work were automated at the selected scenario.',c:'<code>touchless touches/yr × min per touch ÷ 1,800 productive hrs/FTE/yr</code>. Estimate.'});
