@@ -289,7 +289,8 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 <div id="role-director" class="role-panel">
   <div class="sidebar">
     <div class="sidebar-header">Director / VP Pages</div>
-    <button class="page-btn active" data-pg="d1" onclick="switchPage('director','d1')"><div class="pg-dot" style="background:var(--director)"></div>Executive Summary <span class="ml-badge">ML</span></button>
+    <button class="page-btn active" data-pg="d0" onclick="switchPage('director','d0')"><div class="pg-dot" style="background:var(--director)"></div>Automation Opportunity <span class="ml-badge">NEW</span></button>
+    <button class="page-btn" data-pg="d1" onclick="switchPage('director','d1')"><div class="pg-dot" style="background:var(--director)"></div>Executive Summary <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="d2" onclick="switchPage('director','d2')"><div class="pg-dot" style="background:var(--director)"></div>Financial Performance</button>
     <button class="page-btn" data-pg="d3" onclick="switchPage('director','d3')"><div class="pg-dot" style="background:var(--director)"></div>Operational Intelligence <span class="ml-badge">ML</span></button>
     <button class="page-btn" data-pg="d4" onclick="switchPage('director','d4')"><div class="pg-dot" style="background:var(--director)"></div>Benchmarking</button>
@@ -297,7 +298,8 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
     <button class="page-btn" data-pg="d6" onclick="switchPage('director','d6')"><div class="pg-dot" style="background:var(--director)"></div>Strategic Insights <span class="ml-badge">ML</span></button>
   </div>
   <div class="content">
-    <div id="page-director-d1" class="sub-panel active"></div>
+    <div id="page-director-d0" class="sub-panel active"></div>
+    <div id="page-director-d1" class="sub-panel"></div>
     <div id="page-director-d2" class="sub-panel"></div>
     <div id="page-director-d3" class="sub-panel"></div>
     <div id="page-director-d4" class="sub-panel"></div>
@@ -1604,6 +1606,137 @@ function s7trend(){
 }
 
 /* ============ DIRECTOR ============ */
+/* ============ Director D0 — Automation Opportunity ============ */
+function autoModel(){
+  const T=WPA.collectors, FTE=T.length;
+  const avg=f=>T.reduce((s,c)=>s+f(c),0)/T.length;
+  const touchesFTEday=Math.round(avg(c=>c.claimsDay));
+  const tpc=+avg(c=>c.tpc).toFixed(1);
+  const acctsFTEday=Math.max(1,Math.round(touchesFTEday/tpc));
+  const fpr=avg(c=>c.fpr), dtc=+avg(c=>c.dtc).toFixed(1);
+  const WORK=[
+    {label:'Claim status check', share:0.24, auto:0.92},
+    {label:'Portal eligibility / lookup', share:0.14, auto:0.85},
+    {label:'Clean rebill / resubmit', share:0.12, auto:0.80},
+    {label:'Follow-up reminder / routing', share:0.16, auto:0.95},
+    {label:'Denial appeal', share:0.14, auto:0.10},
+    {label:'Complex / clinical denial', share:0.10, auto:0.05},
+    {label:'Payer negotiation / escalation', share:0.10, auto:0.00},
+  ];
+  const PAYER=WPA.payers.map(p=>({label:p.name, share:p.arBal,
+    auto: p.cls==='Commercial'?0.70:p.cls==='Medicare'?0.62:p.cls==='Medicaid'?0.5:0.55}));
+  const psum=PAYER.reduce((s,x)=>s+x.share,0); PAYER.forEach(x=>x.share/=psum);
+  const REASON=[
+    {label:'Claim status (no denial)', share:0.30, auto:0.90},
+    {label:'Eligibility / COB', share:0.14, auto:0.72},
+    {label:'Coding correction (CO-16/CO-11)', share:0.14, auto:0.60},
+    {label:'Auth / medical-necessity (CO-197)', share:0.16, auto:0.15},
+    {label:'Timely filing (CO-29)', share:0.08, auto:0.40},
+    {label:'Contractual / underpayment (CO-45)', share:0.10, auto:0.50},
+    {label:'Other / uncategorized', share:0.08, auto:0.45},
+  ];
+  const automatableShare=WORK.reduce((s,w)=>s+w.share*w.auto,0);
+  const level=(window.__autoLevel==null?40:window.__autoLevel)/100;
+  const touchlessShare=automatableShare*level;
+  const totalTouchesDay=touchesFTEday*FTE, annualTouches=totalTouchesDay*250;
+  const autoTouchesYr=Math.round(annualTouches*automatableShare);
+  const touchlessYr=Math.round(annualTouches*touchlessShare);
+  const MIN=4.5, HRS_FTE=1800, COST_FTE=75000, COLL_FTE=118000;
+  const hoursYr=touchlessYr*MIN/60, fteFreed=hoursYr/HRS_FTE;
+  const costFreed=fteFreed*COST_FTE, collLift=fteFreed*COLL_FTE*0.6, annualValue=costFreed+collLift;
+  const projTpc=+(tpc-(tpc-1.0)*touchlessShare).toFixed(1);
+  const projFpr=fpr+(1-fpr)*touchlessShare;
+  const projDtc=+(dtc*(1-touchlessShare*0.6)).toFixed(1);
+  const capMult=1/(1-touchlessShare);
+  const projAcctsFTE=Math.round(acctsFTEday*capMult), projTouchFTE=Math.round(touchesFTEday*capMult);
+  return {FTE,touchesFTEday,acctsFTEday,tpc,fpr,dtc,WORK,PAYER,REASON,automatableShare,levelPct:level*100,
+    touchlessShare,autoTouchesYr,touchlessYr,hoursYr,fteFreed,costFreed,collLift,annualValue,
+    projTpc,projFpr,projDtc,projAcctsFTE,projTouchFTE,daysSaved:+(dtc-projDtc).toFixed(1),MIN};
+}
+function setAutoLevel(v){window.__autoLevel=+v;delete rendered['director-d0'];RENDER['director-d0']();}
+function setAutoCut(dim){window.__autoCut=dim;delete rendered['director-d0'];RENDER['director-d0']();}
+RENDER['director-d0'] = function(){
+  const m=autoModel(), lvl=Math.round(m.levelPct);
+  const pctf=(x)=>Math.round(x*100)+'%';
+  const cut=window.__autoCut||'type';
+  const cutData=cut==='payer'?m.PAYER:cut==='reason'?m.REASON:m.WORK;
+  const cutBtn=(k,lab)=>`<button onclick="setAutoCut('${k}')" style="font-family:inherit;font-size:10.5px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 10px;cursor:pointer;${cut===k?'background:var(--director);color:#fff;border-color:var(--director)':'background:#fff;color:var(--text2)'}">${lab}</button>`;
+  const ba=(label,cur,proj,fmt,lowerBetter)=>{
+    const better = lowerBetter? proj<cur : proj>cur;
+    return `<tr><td>${label}</td><td class="r num">${fmt(cur)}</td>
+      <td class="r num"><b style="color:${better?'#059669':'var(--text)'}">${fmt(proj)}</b></td>
+      <td class="r num" style="color:${better?'#059669':'var(--text3)'}">${(lowerBetter?(cur-proj>=0?'-':'+'):(proj-cur>=0?'+':''))}${fmt(Math.abs(proj-cur)).replace(/[^0-9.]/g,'')}${typeof cur==='number'&&fmt(cur).includes('%')?' pts':''}</td></tr>`;
+  };
+  $$('page-director-d0').innerHTML = header('DIRECTOR / VP','var(--director)','Automation Opportunity',
+    'Manual work today vs. what bots could take on — capacity, timeliness, and outcome upside. FLO automation is a future capability; projected figures are modeled estimates.')
+  + `<div class="card" style="margin-bottom:12px"><div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div><div class="mini-label">Automation scenario</div>
+        <div style="font-size:11.5px;color:var(--text2)">Assume <b id="autoLvlLbl">${lvl}%</b> of automatable work goes touchless</div></div>
+      <input type="range" min="0" max="100" value="${lvl}" style="flex:1;min-width:220px;accent-color:var(--director)"
+        oninput="document.getElementById('autoLvlLbl').textContent=this.value+'%'" onchange="setAutoLevel(this.value)">
+      <div style="font-size:10.5px;color:var(--text3);max-width:230px">${pctf(m.automatableShare)} of all work is automatable by type; the slider sets how much of that you actually turn touchless.</div>
+    </div></div>
+    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      ${kpi('Automatable share', pctf(m.automatableShare), 'of touches — status, lookups, rebills, routing')}
+      ${kpi('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), 'of '+m.FTE+' FTE · at '+lvl+'% touchless','','up')}
+      ${kpi('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
+      ${kpi('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.','','up')}
+      ${kpi('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.','','up')}
+    </div>
+    <div class="grid g2">
+      ${card('Manual vs. automatable — where the work is', pctBar(m)+`<div style="font-size:10.5px;color:var(--text3);margin-top:8px">Automatable = bot-eligible action types. Manual = appeals, complex/clinical denials, negotiation.</div>`, ML('classified by action / reason type'))}
+      ${card('Throughput per FTE — effective capacity', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current (manual)</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
+        ${ba('Touches per FTE / day', m.touchesFTEday, m.projTouchFTE, x=>Math.round(x)+'')}
+        ${ba('Accounts worked per FTE / day', m.acctsFTEday, m.projAcctsFTE, x=>Math.round(x)+'')}
+      </tbody></table><div style="font-size:10.5px;color:var(--text3);margin-top:8px">Same headcount clears more once bots absorb touchless volume.</div>`,'effective capacity multiple')}
+    </div>
+    <div class="grid g2">
+      ${card('Efficiency & timeliness — before / after', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
+        ${ba('Avg touches per account to resolution', m.tpc, m.projTpc, x=>(+x).toFixed(1), true)}
+        ${ba('First-pass resolution rate', m.fpr, m.projFpr, x=>Math.round(x*100)+'%')}
+        ${ba('Days follow-up → resolution', m.dtc, m.projDtc, x=>(+x).toFixed(1)+'d', true)}
+      </tbody></table>`, 'less rework, faster cash')}
+      ${card('Automation adoption — today vs opportunity', `
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">FLO does no automation today, so both meters sit at <b>0%</b>. The bar shows the reachable target at the current scenario.</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>% work auto-generated / auto-routed</span><b class="num">0% → ${pctf(Math.min(0.99,m.touchlessShare*1.15))}</b></div>
+        ${pbar(m.touchlessShare*115,100,C.director||C.purple)}
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin:10px 0 3px"><span>% completed without human touch (STP)</span><b class="num">0% → ${pctf(m.touchlessShare)}</b></div>
+        ${pbar(m.touchlessShare*100,100,C.ml)}`, 'straight-through processing')}
+    </div>
+    <div class="card"><div class="card-head"><div class="card-title">Touchless resolution — where automation lands vs. where humans still dominate</div>
+      <div class="card-note">projected touchless % at ${lvl}% scenario · current touchless is 0% (no bots yet)</div></div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px">${cutBtn('type','By work type')}${cutBtn('payer','By payer')}${cutBtn('reason','By reason code')}</div>
+        <table class="tbl"><thead><tr><th>${cut==='payer'?'Payer':cut==='reason'?'Reason code':'Work type'}</th>
+          <th class="r">Share of work</th><th class="r">Automatable</th><th>Automatable →</th><th class="r">Proj. touchless</th><th>Dominant</th></tr></thead><tbody>
+        ${cutData.slice().sort((a,b)=>b.auto-a.auto).map(w=>`<tr>
+          <td>${w.label}</td><td class="r num">${Math.round(w.share*100)}%</td>
+          <td class="r num">${Math.round(w.auto*100)}%</td>
+          <td style="min-width:120px">${pbar(w.auto*100,100,w.auto>=0.5?C.ml:C.amber)}</td>
+          <td class="r num">${Math.round(w.auto*m.levelPct)}%</td>
+          <td>${w.auto>=0.5?'<span class="pill green">Automatable</span>':'<span class="pill amber">Manual</span>'}</td></tr>`).join('')}
+        </tbody></table></div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Operational & financial impact — estimate</div>
+      <div class="card-note">at ${lvl}% touchless · illustrative model, not a commitment</div></div>
+      <div class="card-body"><table class="tbl"><tbody>
+        <tr><td>Automatable touches / year</td><td class="r num">${m.autoTouchesYr.toLocaleString()}</td></tr>
+        <tr><td>Touchless touches / year (at ${lvl}%)</td><td class="r num">${m.touchlessYr.toLocaleString()}</td></tr>
+        <tr><td>Minutes saved per touch</td><td class="r num">${m.MIN}</td></tr>
+        <tr><td>Hours reclaimed / year</td><td class="r num">${Math.round(m.hoursYr).toLocaleString()}</td></tr>
+        <tr><td>FTE-equivalents freed</td><td class="r num"><b>${m.fteFreed.toFixed(1)}</b> of ${m.FTE}</td></tr>
+        <tr><td>Loaded labor cost freed</td><td class="r num">${fmt$(m.costFreed)} / yr</td></tr>
+        <tr><td>Collections lift (freed capacity redeployed to complex work)</td><td class="r num">${fmt$(m.collLift)} / yr</td></tr>
+        <tr style="border-top:2px solid var(--border)"><td><b>Total estimated annual opportunity</b></td><td class="r num"><b style="color:#059669">${fmt$(m.annualValue)} / yr</b></td></tr>
+      </tbody></table>
+      <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Assumptions: ${m.MIN} min/touch, 1,800 productive hrs/FTE/yr, $75K loaded cost/FTE, $118K collections/FTE (60% redeploy). Adjust with the scenario slider above.</div></div></div>`;
+};
+function pctBar(m){
+  const auto=Math.round(m.automatableShare*100), man=100-auto;
+  return `<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;font-size:10.5px;font-weight:700;color:#fff;margin-bottom:6px">
+    <div style="width:${auto}%;background:var(--ml,#059669);display:flex;align-items:center;justify-content:center">${auto}% automatable</div>
+    <div style="width:${man}%;background:var(--slate,#64748B);display:flex;align-items:center;justify-content:center">${man}% manual</div></div>`;
+}
+
 RENDER['director-d1'] = function(){
   const E = WPA.exec;
   $$('page-director-d1').innerHTML = header('DIRECTOR / VP','var(--director)','Executive Summary',
