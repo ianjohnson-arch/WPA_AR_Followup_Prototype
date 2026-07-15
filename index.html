@@ -1625,27 +1625,43 @@ function autoModel(){
   ];
   if(!window.__autoOn) window.__autoOn={status:true,portal:true,rebill:true,routing:true};
   const maturity=(window.__autoMaturity==null?85:window.__autoMaturity)/100;
-  const WORK=BASE.map(w=>({...w, eligible:w.auto>=0.5, on: w.auto>=0.5 && !!window.__autoOn[w.id]}));
+  const HASBOTS=!!window.__autoHasBots;
+  const SEED={status:0.25, routing:0.30, portal:0.10, rebill:0.15};   // existing-bot baseline when a client has bots
+  const WORK=BASE.map(w=>{
+    const eligible=w.auto>=0.5;
+    const on = eligible && !!window.__autoOn[w.id];
+    const cur = HASBOTS ? Math.min(w.auto, SEED[w.id]||0) : 0;   // already automated today
+    const target = on ? w.auto*maturity : 0;
+    const achieved = Math.max(cur, target);                     // existing bots persist even if not re-selected
+    return {...w, eligible, on, cur, achieved, lift: Math.max(0, achieved-cur)};
+  });
   const eligibleN=WORK.filter(w=>w.eligible).length, enabledN=WORK.filter(w=>w.on).length;
-  const automatableShare=BASE.reduce((s,w)=>s+w.share*w.auto,0);
-  const touchlessShare=WORK.reduce((s,w)=>s+(w.on? w.share*w.auto*maturity : 0),0);
+  const automatableShare=BASE.reduce((s,w)=>s+w.share*w.auto,0);            // ceiling
+  const curShare=WORK.reduce((s,w)=>s+w.share*w.cur,0);                     // automated today
+  const projShare=WORK.reduce((s,w)=>s+w.share*w.achieved,0);              // automated after
+  const liftShare=Math.max(0, projShare-curShare);                         // incremental (the project value)
   const totalTouchesDay=touchesFTEday*FTE, annualTouches=totalTouchesDay*250;
   const autoTouchesYr=Math.round(annualTouches*automatableShare);
-  const touchlessYr=Math.round(annualTouches*touchlessShare);
+  const curAutomatedYr=Math.round(annualTouches*curShare);
+  const projAutomatedYr=Math.round(annualTouches*projShare);
+  const liftYr=Math.round(annualTouches*liftShare);
   const MIN=4.5, HRS_FTE=1800, COST_FTE=75000, COLL_FTE=118000;
-  const hoursYr=touchlessYr*MIN/60, fteFreed=hoursYr/HRS_FTE;
+  const hoursYr=liftYr*MIN/60, fteFreed=hoursYr/HRS_FTE;                    // freed = incremental lift
   const costFreed=fteFreed*COST_FTE, collLift=fteFreed*COLL_FTE*0.6, annualValue=costFreed+collLift;
-  const projTpc=+(tpc-(tpc-1.0)*touchlessShare).toFixed(1);
-  const projFpr=fpr+(1-fpr)*touchlessShare;
-  const projDtc=+(dtc*(1-touchlessShare*0.6)).toFixed(1);
-  const capMult=1/(1-Math.min(0.9,touchlessShare));
+  // operational effects reflect the incremental change from today (today's metrics already include existing bots)
+  const projTpc=+(tpc-(tpc-1.0)*liftShare).toFixed(1);
+  const projFpr=fpr+(1-fpr)*liftShare;
+  const projDtc=+(dtc*(1-liftShare*0.6)).toFixed(1);
+  const capMult=1/(1-Math.min(0.9,liftShare));
   const projAcctsFTE=Math.round(acctsFTEday*capMult), projTouchFTE=Math.round(touchesFTEday*capMult);
   return {FTE,touchesFTEday,acctsFTEday,tpc,fpr,dtc,WORK,automatableShare,maturityPct:Math.round(maturity*100),
-    eligibleN,enabledN,touchlessShare,autoTouchesYr,touchlessYr,hoursYr,fteFreed,costFreed,collLift,annualValue,
-    projTpc,projFpr,projDtc,projAcctsFTE,projTouchFTE,daysSaved:+(dtc-projDtc).toFixed(1),MIN,annualTouches};
+    eligibleN,enabledN,HASBOTS,curShare,projShare,liftShare,autoTouchesYr,curAutomatedYr,projAutomatedYr,liftYr,
+    hoursYr,fteFreed,costFreed,collLift,annualValue,projTpc,projFpr,projDtc,projAcctsFTE,projTouchFTE,
+    daysSaved:+(dtc-projDtc).toFixed(1),MIN,annualTouches};
 }
 function setMaturity(v){window.__autoMaturity=+v;delete rendered['director-d0'];RENDER['director-d0']();}
 function toggleWork(id){window.__autoOn=window.__autoOn||{};window.__autoOn[id]=!window.__autoOn[id];delete rendered['director-d0'];RENDER['director-d0']();}
+function setHasBots(){window.__autoHasBots=!window.__autoHasBots;delete rendered['director-d0'];RENDER['director-d0']();}
 function setPhase(p){
   const sets={quick:['routing','status'], all:['status','portal','rebill','routing'], clear:[]};
   const on={}; (sets[p]||[]).forEach(id=>on[id]=true); window.__autoOn=on;
@@ -1653,19 +1669,22 @@ function setPhase(p){
 }
 RENDER['director-d0'] = function(){
   const m=autoModel(), mat=m.maturityPct, onN=m.enabledN, eligN=m.eligibleN;
-  const annual=Math.round(m.annualTouches);
+  const annual=Math.round(m.annualTouches), curPct=Math.round(m.curShare*100), projPct=Math.round(m.projShare*100);
   const scen = onN+' of '+eligN+' types · '+mat+'% maturity';
   const topAuto=m.WORK.filter(w=>w.eligible).sort((a,b)=>b.share*b.auto-a.share*a.auto).slice(0,2).map(w=>w.label);
   const pctf=(x)=>Math.round(x*100)+'%';
+  const curState = m.HASBOTS
+    ? `Today ≈<b>${curPct}%</b> of the work already runs through <b>existing bots</b> (${m.curAutomatedYr.toLocaleString()} touches/yr); the rest is manual. The average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.`
+    : `Today the AR follow-up operation is <b>100% manual</b> — about <b>${annual.toLocaleString()} touches a year</b>, every one human-driven. Nothing is auto-generated or touchless; the average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.`;
   const narrInner=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface3)">
-        <div class="mini-label" style="margin-bottom:4px">Current state — fully manual</div>
-        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Today the AR follow-up operation is <b>100% manual</b> — about <b>${annual.toLocaleString()} touches a year</b>, every one human-driven. Nothing is auto-generated or touchless; the average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.</div></div>
+        <div class="mini-label" style="margin-bottom:4px">Current state${m.HASBOTS?' — some bots live':' — fully manual'}</div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${curState}</div></div>
       <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3)">
         <div class="mini-label" style="color:#059669;margin-bottom:4px">The opportunity — ${scen}</div>
-        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Up to <b>${Math.round(m.automatableShare*100)}%</b> of work is bot-eligible. With the currently selected work types, automation would free <b>≈ ${m.fteFreed.toFixed(1)} FTE</b> (${fmt$(m.annualValue)}/yr), cut <b>${m.daysSaved} days</b> off resolution, and let the same team clear <b>${m.projAcctsFTE} accounts/FTE/day</b> vs ${m.acctsFTEday} today.</div></div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Up to <b>${Math.round(m.automatableShare*100)}%</b> of work is bot-eligible. With the currently selected types, automation would free an <b>additional ≈ ${m.fteFreed.toFixed(1)} FTE</b> (${fmt$(m.annualValue)}/yr) beyond what's automated today, cut <b>${m.daysSaved} days</b> off resolution, and let the same team clear <b>${m.projAcctsFTE} accounts/FTE/day</b> vs ${m.acctsFTEday} today.</div></div>
     </div>
-    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Appeals, complex/clinical denials, and payer negotiation stay human. <span style="color:var(--text3)">Toggle work types in the table below (or use the phase presets) to model the rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
+    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Appeals, complex/clinical denials, and payer negotiation stay human. <span style="color:var(--text3)">Toggle work types below (or use the phase presets) to model rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
     <div style="font-size:10px;color:var(--text3);margin-top:8px">${ML('narrative synthesized from the automation model')}</div>`;
   const kpiTile=(l,v,sub)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px"><div class="kpi-label">${l}</div><div style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1" class="num">${v}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
   const ba=(label,cur,proj,fmt,lowerBetter)=>{
@@ -1680,10 +1699,12 @@ RENDER['director-d0'] = function(){
   + `<div class="card" style="margin-bottom:12px">
       <div class="card-head" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
         <div class="card-title">🤖 Big picture — current state vs. opportunity</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:360px;justify-content:flex-end">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:420px;justify-content:flex-end">
+          <button onclick="setHasBots()" title="Demo: simulate a client that already runs some automation" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid ${m.HASBOTS?'var(--director)':'var(--border)'};border-radius:6px;padding:3px 9px;cursor:pointer;background:${m.HASBOTS?'var(--director)':'#fff'};color:${m.HASBOTS?'#fff':'var(--text2)'}">${m.HASBOTS?'Existing bots: on':'Client has bots'}</button>
+          <div style="width:1px;height:18px;background:var(--border)"></div>
           <div style="display:flex;gap:6px">${phaseBtn('quick','Quick wins')}${phaseBtn('all','All automatable')}${phaseBtn('clear','Clear')}</div>
           <div class="kpi-label" style="white-space:nowrap;margin:0" title="How touchless the automations you have turned on are — accounts for ramp-up and edge cases">Maturity</div>
-          <input type="range" min="0" max="100" value="${mat}" style="min-width:110px;max-width:180px;accent-color:var(--director)"
+          <input type="range" min="0" max="100" value="${mat}" style="min-width:100px;max-width:160px;accent-color:var(--director)"
             oninput="document.getElementById('autoMatLbl').textContent=this.value+'%'" onchange="setMaturity(this.value)">
           <div style="font-size:12px;color:var(--text2);white-space:nowrap"><b id="autoMatLbl">${mat}%</b></div>
         </div>
@@ -1693,7 +1714,7 @@ RENDER['director-d0'] = function(){
         <div style="height:1px;background:var(--border);margin:14px 0"></div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
           ${kpiTile('Automatable share', pctf(m.automatableShare), 'ceiling — status, lookups, rebills, routing')}
-          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), 'of '+m.FTE+' FTE · '+onN+'/'+eligN+' types on')}
+          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), onN+'/'+eligN+' types on'+(m.HASBOTS?' · +'+curPct+'% already live':' · incremental'))}
           ${kpiTile('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
           ${kpiTile('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.')}
           ${kpiTile('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.')}
@@ -1702,7 +1723,7 @@ RENDER['director-d0'] = function(){
   + `
     <div class="grid g2">
       ${card('Manual vs. automatable — where the work is', pctBar(m)+`<div style="font-size:10.5px;color:var(--text3);margin-top:8px">Automatable = bot-eligible action types (the ceiling). Manual = appeals, complex/clinical denials, negotiation.</div>`, ML('classified by action / reason type'))}
-      ${card('Throughput per FTE — effective capacity', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current (manual)</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
+      ${card('Throughput per FTE — effective capacity', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
         ${ba('Touches per FTE / day', m.touchesFTEday, m.projTouchFTE, x=>Math.round(x)+'')}
         ${ba('Accounts worked per FTE / day', m.acctsFTEday, m.projAcctsFTE, x=>Math.round(x)+'')}
       </tbody></table><div style="font-size:10.5px;color:var(--text3);margin-top:8px">Same headcount clears more once bots absorb touchless volume.</div>`,'effective capacity multiple')}
@@ -1714,64 +1735,68 @@ RENDER['director-d0'] = function(){
         ${ba('Days follow-up → resolution', m.dtc, m.projDtc, x=>(+x).toFixed(1)+'d', true)}
       </tbody></table>`, 'less rework, faster cash')}
       ${card('Automation adoption — today vs opportunity', (()=>{
-        const stp=m.touchlessShare, auto=Math.min(0.99,m.touchlessShare*1.15);
+        const stp=m.projShare, auto=Math.min(0.99,m.projShare*1.15), curX=m.curShare;
         const leg=(clr,pct,label)=>`<span style="display:flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${clr};flex:none"></span><span style="font-size:11px;color:var(--text2)"><b class="num" style="color:var(--navy)">${pctf(pct)}</b> ${label}</span></span>`;
-        return `<div style="font-size:11px;color:var(--text2);margin-bottom:10px">Nothing is automated today — <b>0%</b>. The bar shows what's <b>reachable with the enabled work types</b> (${scen}). Every touchless item is also auto-routed, so touchless nests inside auto-routing.</div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px"><span>Today 0%</span><span>reachable with current selection &nbsp;→</span></div>
-        <div style="display:flex;height:26px;border-radius:7px;overflow:hidden;background:#E8EAEE">
+        return `<div style="font-size:11px;color:var(--text2);margin-bottom:10px">${m.HASBOTS?`Existing bots already automate <b>${curPct}%</b> of work today.`:'Nothing is automated today — <b>0%</b>.'} The bar shows what's <b>reachable with the enabled work types</b> (${scen}). Touchless nests inside auto-routing.</div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px"><span>Today ${curPct}%</span><span>reachable ${projPct}% &nbsp;→</span></div>
+        <div style="position:relative;display:flex;height:26px;border-radius:7px;overflow:hidden;background:#E8EAEE">
           <div style="width:${stp*100}%;background:var(--ml,#059669)" title="Touchless (STP)"></div>
           <div style="width:${(auto-stp)*100}%;background:#C4B5FD" title="Auto-routed only"></div>
+          ${m.HASBOTS?`<div style="position:absolute;left:${curX*100}%;top:-2px;bottom:-2px;width:2px;background:var(--navy)" title="Automated today"></div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:11px">
           ${leg('var(--ml,#059669)',stp,'completed without human touch (STP) — fully hands-off')}
-          ${leg('#C4B5FD',auto,'auto-generated / auto-routed — no manual prioritization (includes the STP portion)')}
+          ${leg('#C4B5FD',auto,'auto-generated / auto-routed — no manual prioritization (includes STP)')}
           ${leg('#E8EAEE',1-auto,'still manually prioritized')}
+          ${m.HASBOTS?`<span style="font-size:10.5px;color:var(--text3)">▏ navy marker = automated today (${curPct}%); everything right of it is the opportunity.</span>`:''}
         </div>`;
       })(), 'straight-through processing nests inside auto-routing')}
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Automatable work by type — toggle what you would automate</div>
-      <div class="card-note">automation is applied by work type (payer- and reason-agnostic) · toggle types or use the presets above · ${mat}% maturity · current touchless 0% (no bots yet)</div></div>
+      <div class="card-note">automation is applied by work type (payer- and reason-agnostic) · toggle types or use the presets above · ${mat}% maturity${m.HASBOTS?' · existing bots folded in':' · current automation 0% (no bots yet)'}</div></div>
       <div class="card-body">
         ${(()=>{
-          const annual=m.annualTouches, mt=m.maturityPct/100, MIN=m.MIN;
-          const splitBar=(auto)=>{const a=Math.round(auto*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:120px;margin-top:4px"><div style="width:${a}%;background:var(--ml,#059669)"></div><div style="width:${100-a}%;background:#D8DCE2"></div></div>`;};
+          const annual=m.annualTouches, MIN=m.MIN;
+          const splitBar=(auto)=>{const a=Math.round(auto*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:110px;margin-top:4px"><div style="width:${a}%;background:var(--ml,#059669)"></div><div style="width:${100-a}%;background:#D8DCE2"></div></div>`;};
           const tag=(auto)=> auto>=0.70?'<span class="pill green">Mostly automatable</span>':auto>=0.30?'<span class="pill" style="background:#EFF6FF;color:var(--midblue)">Mixed</span>':'<span class="pill amber">Mostly manual</span>';
           const toggle=(w)=> w.eligible
-            ? `<button onclick="toggleWork('${w.id}')" title="Automate this work type" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml,#059669)':'#CBD2DA'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:#fff;transition:all .1s"></span></button>`
+            ? `<button onclick="toggleWork('${w.id}')" title="Automate this work type" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml,#059669)':'#CBD2DA'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:#fff"></span></button>`
             : `<span style="font-size:9px;color:var(--text3)">n/a</span>`;
           const rows=m.WORK.slice().sort((a,b)=>b.auto-a.auto).map(w=>{
-            const vol=annual*w.share, hrs=vol*MIN/60;
-            const tl=w.on? vol*w.auto*mt : 0, hf=tl*MIN/60, fte=hf/1800;
-            const dim = w.eligible && !w.on;
+            const vol=annual*w.share, curP=Math.round(w.cur*100), achP=Math.round(w.achieved*100);
+            const manToday=vol*(1-w.cur), lt=vol*w.lift, hf=lt*MIN/60, fte=hf/1800;
+            const dim = w.eligible && !w.on && w.lift===0;
             return `<tr style="${dim?'opacity:.55':''}">
               <td style="text-align:center">${toggle(w)}</td>
-              <td><b>${w.label}</b></td>
-              <td><div style="font-size:11.5px"><b>${Math.round(w.auto*100)}%</b> auto · ${Math.round((1-w.auto)*100)}% manual</div>${splitBar(w.auto)}<div style="margin-top:5px">${tag(w.auto)}</div></td>
-              <td class="r"><b class="num">${Math.round(vol).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touches/yr · ≈ ${Math.round(hrs).toLocaleString()} hrs</div></td>
-              <td class="r">${w.on?`<b class="num" style="color:#059669">${Math.round(tl).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:`<span style="color:var(--text3)">—</span>`}</td></tr>`;}).join('');
-          const totVol=annual, totHrs=annual*MIN/60;
-          return `<table class="tbl"><thead><tr><th style="width:44px">Auto</th><th>Work type</th><th>Automatable vs manual</th>
-            <th class="r">Manual today (100% now)</th><th class="r">Freed (${onN}/${eligN} on · ${mat}% maturity)</th></tr></thead><tbody>${rows}
+              <td><b>${w.label}</b>${!w.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
+              <td>${splitBar(w.auto)}<div style="margin-top:5px">${tag(w.auto)}</div></td>
+              <td class="r"><b class="num">${curP}%</b> auto · ${100-curP}% manual<div style="font-size:10px;color:var(--text3)">≈ ${Math.round(manToday).toLocaleString()} manual touches/yr</div></td>
+              <td class="r"><b class="num" style="color:${achP>curP?'#059669':'var(--text)'}">${achP}%</b> auto · ${100-achP}% manual</td>
+              <td class="r">${w.lift>0?`<b class="num" style="color:#059669">+${Math.round(lt).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:`<span style="color:var(--text3)">—</span>`}</td></tr>`;}).join('');
+          return `<table class="tbl"><thead><tr><th style="width:44px">Auto</th><th>Work type</th><th>Automatable ceiling</th>
+            <th class="r">Today</th><th class="r">At scenario</th><th class="r">Lift (new · ${mat}% maturity)</th></tr></thead><tbody>${rows}
             <tr style="border-top:2px solid var(--border)"><td></td><td><b>Total</b></td><td></td>
-              <td class="r"><b class="num">${Math.round(totVol).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touches/yr · ≈ ${Math.round(totHrs).toLocaleString()} hrs</div></td>
-              <td class="r"><b class="num" style="color:#059669">${Math.round(m.touchlessYr).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(m.hoursYr).toLocaleString()} hrs · ${m.fteFreed.toFixed(1)} FTE</div></td></tr>
+              <td class="r"><b class="num">${curPct}%</b> auto<div style="font-size:10px;color:var(--text3)">${m.curAutomatedYr.toLocaleString()} touches/yr</div></td>
+              <td class="r"><b class="num" style="color:#059669">${projPct}%</b> auto<div style="font-size:10px;color:var(--text3)">${m.projAutomatedYr.toLocaleString()} touches/yr</div></td>
+              <td class="r"><b class="num" style="color:#059669">+${m.liftYr.toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(m.hoursYr).toLocaleString()} hrs · ${m.fteFreed.toFixed(1)} FTE</div></td></tr>
           </tbody></table>`;
         })()}
-        <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Toggle a work type on/off to model rollout in chunks. Green = automatable share, grey = stays manual. Total ties to the FTE capacity freed above.</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Today = what runs through bots now (0% unless the client has existing automation). At scenario = after the enabled types automate. <b>Lift</b> is the new, incremental capacity your project buys — it never double-counts existing bots. Total lift ties to the FTE freed above.</div>
       </div></div>
     <div class="card"><div class="card-head"><div class="card-title">Operational & financial impact — estimate</div>
       <div class="card-note">${scen} · illustrative model, not a commitment</div></div>
       <div class="card-body"><table class="tbl"><tbody>
         <tr><td>Automatable touches / year (ceiling)</td><td class="r num">${m.autoTouchesYr.toLocaleString()}</td></tr>
-        <tr><td>Touchless touches / year (enabled types)</td><td class="r num">${m.touchlessYr.toLocaleString()}</td></tr>
+        ${m.HASBOTS?`<tr><td>Already automated today (existing bots)</td><td class="r num">${m.curAutomatedYr.toLocaleString()} · ${curPct}%</td></tr>`:''}
+        <tr><td><b>Additional touchless / year (the lift)</b></td><td class="r num"><b>${m.liftYr.toLocaleString()}</b></td></tr>
         <tr><td>Minutes saved per touch</td><td class="r num">${m.MIN}</td></tr>
         <tr><td>Hours reclaimed / year</td><td class="r num">${Math.round(m.hoursYr).toLocaleString()}</td></tr>
-        <tr><td>FTE-equivalents freed</td><td class="r num"><b>${m.fteFreed.toFixed(1)}</b> of ${m.FTE}</td></tr>
+        <tr><td>FTE-equivalents freed (incremental)</td><td class="r num"><b>${m.fteFreed.toFixed(1)}</b> of ${m.FTE}</td></tr>
         <tr><td>Loaded labor cost freed</td><td class="r num">${fmt$(m.costFreed)} / yr</td></tr>
         <tr><td>Collections lift (freed capacity redeployed to complex work)</td><td class="r num">${fmt$(m.collLift)} / yr</td></tr>
-        <tr style="border-top:2px solid var(--border)"><td><b>Total estimated annual opportunity</b></td><td class="r num"><b style="color:#059669">${fmt$(m.annualValue)} / yr</b></td></tr>
+        <tr style="border-top:2px solid var(--border)"><td><b>Total estimated annual opportunity (incremental)</b></td><td class="r num"><b style="color:#059669">${fmt$(m.annualValue)} / yr</b></td></tr>
       </tbody></table>
-      <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Assumptions: ${m.MIN} min/touch, 1,800 productive hrs/FTE/yr, $75K loaded cost/FTE, $118K collections/FTE (60% redeploy). Model the rollout with the toggles and maturity slider above.</div></div></div>`;
+      <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Assumptions: ${m.MIN} min/touch, 1,800 productive hrs/FTE/yr, $75K loaded cost/FTE, $118K collections/FTE (60% redeploy). Values are the <b>incremental</b> gain beyond what's automated today.</div></div></div>`;
 };
 function pctBar(m){
   const auto=Math.round(m.automatableShare*100), man=100-auto;
