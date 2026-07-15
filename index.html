@@ -1757,6 +1757,28 @@ function pctBar(m){
     <div style="width:${man}%;background:var(--slate,#64748B);display:flex;align-items:center;justify-content:center">${man}% manual</div></div>`;
 }
 
+let _sptip;
+function sparkTip(ctx){
+  const t=ctx.tooltip;
+  if(!_sptip){ _sptip=document.createElement('div'); _sptip.id='sptip';
+    _sptip.style.cssText='position:fixed;z-index:400;pointer-events:none;background:var(--navy);color:#fff;border-radius:7px;padding:7px 10px;font-size:10.5px;line-height:1.45;box-shadow:0 6px 20px rgba(27,42,74,.30);max-width:250px;opacity:0;transition:opacity .08s';
+    document.body.appendChild(_sptip); }
+  if(!t||t.opacity===0){ _sptip.style.opacity='0'; return; }
+  const title=(t.title||[]).join(' ');
+  const body=(t.body||[]).flatMap(b=>b.lines||[]);
+  const after=(t.afterBody||[]);
+  _sptip.innerHTML=(title?`<div style="font-weight:700;margin-bottom:2px">${title}</div>`:'')
+    + body.map(l=>`<div>${l}</div>`).join('')
+    + after.map(l=>`<div style="opacity:.85;margin-top:2px">${l}</div>`).join('');
+  const r=ctx.chart.canvas.getBoundingClientRect();
+  _sptip.style.opacity='1';
+  const w=_sptip.offsetWidth||220, h=_sptip.offsetHeight||40;
+  let x=r.left+t.caretX+10, y=r.top+t.caretY-h-8;
+  if(x+w>window.innerWidth-8) x=window.innerWidth-w-8;
+  if(x<8) x=8;
+  if(y<8) y=r.top+t.caretY+12;
+  _sptip.style.left=x+'px'; _sptip.style.top=y+'px';
+}
 RENDER['director-d1'] = function(){
   const E = WPA.exec;
   $$('page-director-d1').innerHTML = header('DIRECTOR / VP','var(--director)','Executive Summary',
@@ -1765,7 +1787,7 @@ RENDER['director-d1'] = function(){
       `<div class="kpi"><div class="kpi-label"><span class="rag ${s.status}"></span>${s.kpi}</div>
        <div class="kpi-val" style="font-size:19px">${s.val}</div>
        <div class="kpi-sub">target ${s.target} · bench ${s.bench}</div>
-       <canvas id="d1sp${i}" width="168" height="34" style="margin-top:6px"></canvas></div>`).join('')}</div>
+       <div style="position:relative;height:32px;margin-top:6px"><canvas id="d1sp${i}"></canvas></div>${(()=>{const sp=s.spark,f0=sp[0],l0=sp[sp.length-1];const g=s.dir==='down-good'?l0<f0:l0>f0;const t=parseFloat((s.bench||'').replace(/[^0-9.]/g,''));const ht=!isNaN(t);const met=ht?(s.dir==='down-good'?l0<=t:l0>=t):null;return `<div style="font-size:10px;margin-top:4px;color:${g?'#059669':'var(--amber)'}">${g?'▲':'▼'} ${g?'improving':'softening'} vs 6 mo${ht?` · <span style="color:${met?'#059669':'var(--text3)'}">${met?'on target':'off target'}</span>`:''}</div>`;})()}</div>`).join('')}</div>
     <div class="grid g23">
       ${card('Revenue waterfall — this quarter ($M)', canvas('d1wf','chart-tall'), 'billed → collected: where revenue goes and what is recoverable')}
       <div>
@@ -1801,8 +1823,8 @@ RENDER['director-d1'] = function(){
       pointRadius:sp.map((_,j)=>j===n-1?3:0), pointBackgroundColor:col, pointBorderColor:'#fff', pointBorderWidth:1, pointHoverRadius:3.5, order:1}];
     if(hasT) ds.push({label:'Target', data:sp.map(()=>tnum), borderColor:C.slate+'88', borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false, order:2});
     mkChart('d1sp'+i,{type:'line', data:{labels:sp.map((_,j)=>j), datasets:ds},
-      options:{responsive:false, interaction:{intersect:false, mode:'index'}, layout:{padding:{top:3,bottom:1,left:1,right:1}},
-        plugins:{legend:{display:false}, tooltip:{enabled:true, displayColors:false,
+      options:{responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'}, layout:{padding:{top:3,bottom:1,left:1,right:1}},
+        plugins:{legend:{display:false}, tooltip:{enabled:false, external:sparkTip, displayColors:false,
           callbacks:{
             title:(it)=>{const j=it[0].dataIndex; return j===n-1?'Now':(n-1-j)+' mo ago';},
             label:(it)=> it.dataset.label==='Target' ? ('Target '+fmtv(tnum)) : (s.kpi+': '+fmtv(it.parsed.y)),
