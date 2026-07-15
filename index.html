@@ -1657,6 +1657,19 @@ function setAutoLevel(v){window.__autoLevel=+v;delete rendered['director-d0'];RE
 function setAutoCut(dim){window.__autoCut=dim;delete rendered['director-d0'];RENDER['director-d0']();}
 RENDER['director-d0'] = function(){
   const m=autoModel(), lvl=Math.round(m.levelPct);
+  const annual=Math.round(m.touchesFTEday*m.FTE*250);
+  const topAuto=m.WORK.slice().filter(w=>w.auto>=0.5).sort((a,b)=>b.share*b.auto-a.share*a.auto).slice(0,2).map(w=>w.label);
+  const narr=card('🤖 Big picture — current state vs. opportunity',
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface3)">
+        <div class="mini-label" style="margin-bottom:4px">Current state — fully manual</div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Today the AR follow-up operation is <b>100% manual</b> — about <b>${annual.toLocaleString()} touches a year</b>, every one human-driven. Nothing is auto-generated or touchless; the average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.</div></div>
+      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3)">
+        <div class="mini-label" style="color:#059669;margin-bottom:4px">The opportunity — at ${lvl}% touchless</div>
+        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)"><b>${Math.round(m.automatableShare*100)}%</b> of that work is bot-eligible. Automating it would free <b>&asymp; ${m.fteFreed.toFixed(1)} FTE</b> (${fmt$(m.annualValue)}/yr), cut <b>${m.daysSaved} days</b> off resolution, and let the same team clear <b>${m.projAcctsFTE} accounts/FTE/day</b> vs ${m.acctsFTEday} today.</div></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Appeals, complex/clinical denials, and payer negotiation stay human. <span style="color:var(--text3)">Drag the scenario slider to size the return at different adoption levels.</span></div>`,
+    ML('narrative synthesized from the automation model'));
   const pctf=(x)=>Math.round(x*100)+'%';
   const cut=window.__autoCut||'type';
   const cutData=cut==='payer'?m.PAYER:cut==='reason'?m.REASON:m.WORK;
@@ -1676,6 +1689,7 @@ RENDER['director-d0'] = function(){
         oninput="document.getElementById('autoLvlLbl').textContent=this.value+'%'" onchange="setAutoLevel(this.value)">
       <div style="font-size:10.5px;color:var(--text3);max-width:230px">${pctf(m.automatableShare)} of all work is automatable by type; the slider sets how much of that you actually turn touchless.</div>
     </div></div>
+    ${narr}
     <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
       ${kpi('Automatable share', pctf(m.automatableShare), 'of touches — status, lookups, rebills, routing')}
       ${kpi('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), 'of '+m.FTE+' FTE · at '+lvl+'% touchless','','up')}
@@ -1954,6 +1968,21 @@ const SRC = {
   ml:'Source: ML model output — simulated in this prototype',
   mix:'Source: RMA + DMA + touch log, joined on account number'
 };
+
+/* ---------- Director D0 — Automation Opportunity ---------- */
+reg(['page-automation-opportunity'],{d:'Director/VP landing page sizing the automation upsell: how much AR follow-up work is manual today vs. bot-automatable, and the modeled capacity, timeliness, and dollar upside. FLO does no automation today — projected figures are estimates driven by the scenario slider.'});
+reg(['big-picture'],{d:'ML-synthesized narrative of the current all-manual state vs. the automation opportunity at the selected scenario, with a suggested starting point. Rewrites as you move the slider.',s:'Synthesized from the automation model — simulated.'});
+reg(['automatable-share'],{d:'Share of total touches in bot-eligible action types (status checks, portal lookups, clean rebills, follow-up routing).',c:'<code>Σ(work-type volume share × automatable %)</code> across work types. Static — does not move with the slider.'});
+reg(['fte-capacity-freed'],{d:'Estimated full-time-equivalent staff capacity returned if the touchless work were automated at the selected scenario.',c:'<code>touchless touches/yr × min per touch ÷ 1,800 productive hrs/FTE/yr</code>. Estimate.'});
+reg(['hours-reclaimed-/-yr'],{d:'Estimated staff hours per year freed by automating touchless work at the selected scenario.',c:'<code>touchless touches/yr × 4.5 min ÷ 60</code>. Estimate.'});
+reg(['projected-annual-value'],{d:'Modeled annual dollar opportunity: loaded labor cost freed plus a collections lift from redeploying freed capacity to complex work.',c:'<code>FTE freed × $75K + FTE freed × $118K × 60%</code>. Illustrative, not a commitment.'});
+reg(['cycletime-reduction'],{d:'Estimated reduction in days from follow-up start to resolution when touchless work resolves near-instantly.',c:'Current avg days − projected avg days. Projected days <code>= current × (1 − touchless share × 0.6)</code>.'});
+reg(['manual-vs-automatable'],{d:'Split of total work into bot-eligible (automatable) vs. human-required (appeals, complex/clinical denials, negotiation), classified by action / reason type.'});
+reg(['throughput-per-fte'],{d:'Raw output per FTE per day today vs. the effective capacity the same headcount reaches once bots absorb touchless volume.',c:'Projected <code>= current ÷ (1 − touchless share)</code>.'});
+reg(['efficiency-timeliness'],{d:'Before/after on rework and cycle: avg touches per account, first-pass resolution rate, and days to resolution — current (manual) vs. projected with automation.'});
+reg(['automation-adoption'],{d:'Straight-through-processing meters: % of work auto-generated/auto-routed and % completed with no human touch. Both sit at 0% today (no bots); the bar shows the reachable target at the current scenario.'});
+reg(['touchless-resolution'],{d:'Where automation would land vs. where humans still dominate — automatable % and projected touchless % by work type, payer, or reason code. Current touchless is 0% until bots are live.'});
+reg(['operational-financial-impact'],{d:'The estimate model behind the headline: automatable touches → hours → FTE-equivalents → cost freed + collections lift = total annual opportunity. Illustrative; tune with the scenario slider.'});
 
 /* ---------- shared core KPIs ---------- */
 reg(['days-in-ar'],{
