@@ -1659,8 +1659,7 @@ RENDER['director-d0'] = function(){
   const m=autoModel(), lvl=Math.round(m.levelPct);
   const annual=Math.round(m.touchesFTEday*m.FTE*250);
   const topAuto=m.WORK.slice().filter(w=>w.auto>=0.5).sort((a,b)=>b.share*b.auto-a.share*a.auto).slice(0,2).map(w=>w.label);
-  const narr=card('🤖 Big picture — current state vs. opportunity',
-    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  const narrInner=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface3)">
         <div class="mini-label" style="margin-bottom:4px">Current state — fully manual</div>
         <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Today the AR follow-up operation is <b>100% manual</b> — about <b>${annual.toLocaleString()} touches a year</b>, every one human-driven. Nothing is auto-generated or touchless; the average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.</div></div>
@@ -1668,8 +1667,8 @@ RENDER['director-d0'] = function(){
         <div class="mini-label" style="color:#059669;margin-bottom:4px">The opportunity — at ${lvl}% touchless</div>
         <div style="font-size:11.5px;line-height:1.55;color:var(--text2)"><b>${Math.round(m.automatableShare*100)}%</b> of that work is bot-eligible. Automating it would free <b>&asymp; ${m.fteFreed.toFixed(1)} FTE</b> (${fmt$(m.annualValue)}/yr), cut <b>${m.daysSaved} days</b> off resolution, and let the same team clear <b>${m.projAcctsFTE} accounts/FTE/day</b> vs ${m.acctsFTEday} today.</div></div>
     </div>
-    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Appeals, complex/clinical denials, and payer negotiation stay human. <span style="color:var(--text3)">Drag the scenario slider to size the return at different adoption levels.</span></div>`,
-    ML('narrative synthesized from the automation model'));
+    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Appeals, complex/clinical denials, and payer negotiation stay human. <span style="color:var(--text3)">Drag the scenario slider to size the return at different adoption levels.</span></div>\n    <div style="font-size:10px;color:var(--text3);margin-top:8px">${ML('narrative synthesized from the automation model')}</div>`;
+  const kpiTile=(l,v,sub)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px"><div class="kpi-label">${l}</div><div style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1" class="num">${v}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
   const pctf=(x)=>Math.round(x*100)+'%';
   const cut=window.__autoCut||'type';
   const cutData=cut==='payer'?m.PAYER:cut==='reason'?m.REASON:m.WORK;
@@ -1682,21 +1681,28 @@ RENDER['director-d0'] = function(){
   };
   $$('page-director-d0').innerHTML = header('DIRECTOR / VP','var(--director)','Automation Opportunity',
     'Manual work today vs. what bots could take on — capacity, timeliness, and outcome upside. FLO automation is a future capability; projected figures are modeled estimates.')
-  + `<div class="card" style="margin-bottom:12px"><div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div><div class="mini-label">Automation scenario</div>
-        <div style="font-size:11.5px;color:var(--text2)">Assume <b id="autoLvlLbl">${lvl}%</b> of automatable work goes touchless</div></div>
-      <input type="range" min="0" max="100" value="${lvl}" style="flex:1;min-width:220px;accent-color:var(--director)"
-        oninput="document.getElementById('autoLvlLbl').textContent=this.value+'%'" onchange="setAutoLevel(this.value)">
-      <div style="font-size:10.5px;color:var(--text3);max-width:230px">${pctf(m.automatableShare)} of all work is automatable by type; the slider sets how much of that you actually turn touchless.</div>
-    </div></div>
-    ${narr}
-    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      ${kpi('Automatable share', pctf(m.automatableShare), 'of touches — status, lookups, rebills, routing')}
-      ${kpi('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), 'of '+m.FTE+' FTE · at '+lvl+'% touchless','','up')}
-      ${kpi('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
-      ${kpi('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.','','up')}
-      ${kpi('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.','','up')}
-    </div>
+  + `<div class="card" style="margin-bottom:12px">
+      <div class="card-head" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div class="card-title">🤖 Big picture — current state vs. opportunity</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:300px;justify-content:flex-end">
+          <div class="kpi-label" style="white-space:nowrap;margin:0">Automation scenario</div>
+          <input type="range" min="0" max="100" value="${lvl}" style="flex:1;min-width:150px;max-width:280px;accent-color:var(--director)"
+            oninput="document.getElementById('autoLvlLbl').textContent=this.value+'%'" onchange="setAutoLevel(this.value)">
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap"><b id="autoLvlLbl">${lvl}%</b> touchless</div>
+        </div>
+      </div>
+      <div class="card-body">
+        ${narrInner}
+        <div style="height:1px;background:var(--border);margin:14px 0"></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          ${kpiTile('Automatable share', pctf(m.automatableShare), 'of touches — status, lookups, rebills, routing')}
+          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), 'of '+m.FTE+' FTE · at '+lvl+'% touchless')}
+          ${kpiTile('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
+          ${kpiTile('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.')}
+          ${kpiTile('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.')}
+        </div>
+      </div></div>`
+  + `
     <div class="grid g2">
       ${card('Manual vs. automatable — where the work is', pctBar(m)+`<div style="font-size:10.5px;color:var(--text3);margin-top:8px">Automatable = bot-eligible action types. Manual = appeals, complex/clinical denials, negotiation.</div>`, ML('classified by action / reason type'))}
       ${card('Throughput per FTE — effective capacity', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current (manual)</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
@@ -1970,6 +1976,7 @@ const SRC = {
 };
 
 /* ---------- Director D0 — Automation Opportunity ---------- */
+reg(['automation-scenario'],{d:'The adoption dial. ~61% of all work is automatable by action type (fixed); this slider sets how much of that automatable work you assume actually goes touchless. It drives every projected figure on the page. FLO has no automation today — projections are modeled estimates.'});
 reg(['page-automation-opportunity'],{d:'Director/VP landing page sizing the automation upsell: how much AR follow-up work is manual today vs. bot-automatable, and the modeled capacity, timeliness, and dollar upside. FLO does no automation today — projected figures are estimates driven by the scenario slider.'});
 reg(['big-picture'],{d:'ML-synthesized narrative of the current all-manual state vs. the automation opportunity at the selected scenario, with a suggested starting point. Rewrites as you move the slider.',s:'Synthesized from the automation model — simulated.'});
 reg(['automatable-share'],{d:'Share of total touches in bot-eligible action types (status checks, portal lookups, clean rebills, follow-up routing).',c:'<code>Σ(work-type volume share × automatable %)</code> across work types. Static — does not move with the slider.'});
