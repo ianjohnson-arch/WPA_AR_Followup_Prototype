@@ -28,7 +28,7 @@
   --text:#1a1a1a;--text2:#6b7280;--text3:#9ca3af;
   --red:#DC2626;--amber:#D97706;--green:#059669;
   --red-bg:#FEF2F2;--amber-bg:#FFFBEB;--green-bg:#F0FDF4;--blue-bg:#EFF6FF;
-  --divider:#f1f2f4;--row-sel:#D6E4F3;--t-collector:#2E5E9B;--t-supervisor:#1B2A4A;--t-director:#5B21B6;--t-ml:#059669;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
+  --divider:#f1f2f4;--row-sel:#D6E4F3;--t-collector:#2E5E9B;--t-supervisor:#1B2A4A;--t-director:#5B21B6;--t-ml:#059669;--t-denial:#BE185D;--purple-bg:#F3E8FF;--magenta-bg:#FDF2F8;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
 }
 html[data-theme="dark"]{
   --navy:#BBD0F5;--midblue:#7FA8DC;
@@ -36,7 +36,7 @@ html[data-theme="dark"]{
   --text:#E6EBF4;--text2:#98A6BA;--text3:#5F6E85;
   --red:#F87171;--amber:#FBBF24;--green:#34D399;
   --red-bg:#3B1A1E;--amber-bg:#3A2C10;--green-bg:#0F2E22;--blue-bg:#16283F;
-  --divider:#252E3D;--row-sel:#24334A;--t-collector:#8FB6E8;--t-supervisor:#BBD0F5;--t-director:#C4A9F5;--t-ml:#34D399;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
+  --divider:#252E3D;--row-sel:#24334A;--t-collector:#8FB6E8;--t-supervisor:#BBD0F5;--t-director:#C4A9F5;--t-ml:#34D399;--t-denial:#F9A8D4;--purple-bg:#2A1F3D;--magenta-bg:#3A1A2A;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
   color-scheme:dark;
 }
 html[data-theme="dark"] .role-bar,html[data-theme="dark"] .top-nav{filter:none}
@@ -147,8 +147,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .pill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap}
 .pill.red{background:var(--red-bg);color:var(--red)}.pill.amber{background:var(--amber-bg);color:var(--amber)}
 .pill.green{background:var(--green-bg);color:var(--green)}.pill.blue{background:var(--blue-bg);color:var(--midblue)}
-.pill.gray{background:var(--surface2);color:var(--text2)}.pill.purple{background:#F3E8FF;color:var(--director)}
-.pill.magenta{background:#FDF2F8;color:var(--denial)}
+.pill.gray{background:var(--surface2);color:var(--text2)}.pill.purple{background:var(--purple-bg);color:var(--t-director)}
+.pill.magenta{background:var(--magenta-bg);color:var(--t-denial)}
 
 /* ALERTS */
 .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;border:1px solid;margin-bottom:8px}
@@ -186,7 +186,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* INSIGHT CARDS */
 .insight{border:1px solid var(--insight-border);background:var(--insight-bg);border-radius:10px;padding:14px}
-.insight-val{font-size:19px;font-weight:700;color:var(--director);font-variant-numeric:tabular-nums}
+.insight-val{font-size:19px;font-weight:700;color:var(--t-director);font-variant-numeric:tabular-nums}
 .insight-t{font-size:13px;font-weight:700;color:var(--navy);margin:4px 0 6px}
 .insight-txt{font-size:11.5px;color:var(--text2);line-height:1.5}
 
@@ -1260,7 +1260,7 @@ function renderS2(){
       </div>
       <div style="font-size:11.5px;color:var(--text2);margin-bottom:11px">${focusLine}</div>
       <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3)">
-        <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 Coaching strategy</div>
+        <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:4px">🤖 Coaching strategy</div>
         <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${strat}</div>
       </div>
     </div></div>`;
@@ -1440,7 +1440,7 @@ RENDER['supervisor-s5'] = function(){
       ? `<b>Worth noting:</b> easing inventory means capacity is opening up — hold hiring and redeploy freed hours to aged/denied accounts before adding FTE.`
       : `<b>Worth noting:</b> stable inventory means current staffing should hold; watch ${grow.name} for an early shift.`;
     return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3);font-size:11px;line-height:1.55;color:var(--text2)">
-      <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 What the trend is telling us</div>
+      <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:4px">🤖 What the trend is telling us</div>
       ${head} ${driver}<br>${rec}</div>`;
   })();
   // ---- 90-day FTE forecast insight ----
@@ -1459,7 +1459,7 @@ RENDER['supervisor-s5'] = function(){
       ? `<b>Recommendation:</b> with a 9-week hiring lead time, post the requisition ~9 weeks ahead of the crossing (by <b>Jul 13</b>) so coverage lands before the Q4 build — see the business case below.`
       : `<b>Recommendation:</b> no hire needed this window; revisit if the upper band trends toward ${st+1}.`;
     return `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--supervisor);border-radius:7px;background:var(--surface3);font-size:11px;line-height:1.55;color:var(--text2)">
-      <div class="mini-label" style="color:var(--supervisor);margin-bottom:4px">🤖 What the forecast is telling us</div>
+      <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:4px">🤖 What the forecast is telling us</div>
       ${line1} ${cross}<br>${bandS} ${rec}</div>`;
   })();
   $$('page-supervisor-s5').innerHTML = header('SUPERVISOR','var(--supervisor)','Staffing & Capacity',
@@ -1558,7 +1558,7 @@ function toggleCoachRow(cid){
   if(open){
     const c=WPA.collectors.find(x=>x.id===cid), b=coachBrief(c);   // generated on demand, never stored
     d.innerHTML=`<td colspan="8" style="padding:12px 16px" onclick="event.stopPropagation()">
-      <div class="mini-label" style="color:var(--supervisor);margin-bottom:5px">🤖 Auto-drafted coaching brief — generated now from this collector's snapshot &amp; flags · not stored</div>
+      <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:5px">🤖 Auto-drafted coaching brief — generated now from this collector's snapshot &amp; flags · not stored</div>
       <div style="font-size:12px;line-height:1.55;margin-bottom:10px">${b.opening}</div>
       <div class="mini-label" style="margin-bottom:4px">Evidence</div>
       ${b.evidence.map(e=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid var(--divider)">· ${e}</div>`).join('')}
