@@ -3620,7 +3620,7 @@ const TOURS=[
   steps:[
     {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'Overnight findings, waiting at 8 AM',
      text:'The nightly ML run surfaces what changed while everyone slept: anomalies, emerging risks, and items needing a decision. Each alert links straight to the page where the supervisor can act on it.'},
-    {role:'supervisor',pg:'s1',cardTitle:'Collector heat map',title:'The whole team in one scan',
+    {role:'supervisor',pg:'s1',sel:'.tbl-viewport',cardTitle:'Collector heat map',title:'The whole team in one scan',
      text:'Every collector, every key metric, color-coded. Complexity-adjusted productivity means comparisons are fair even when account mixes differ. Trouble shows up as color before it shows up in month-end numbers.'},
     {role:'supervisor',pg:'s2',cardTitle:'Performance review',title:'Drill into one person, with context',
      text:'The Collector Deep Dive compares an individual against peers and goals, with an auto-drafted performance summary and suggested coaching focus. Prep for a 1:1 drops from an hour of spreadsheet work to a two-minute read.'},
@@ -3636,7 +3636,7 @@ const TOURS=[
   id:'executive', name:'The executive story', color:'var(--director)', icon:'D',
   desc:'The leadership pitch: headline KPIs, the automation opportunity quantified, and staffing as an investment case.',
   steps:[
-    {role:'director',pg:'d1',sel:'.kpi-row',title:'The health of the operation, at a glance',
+    {role:'director',pg:'d1',sel:'.grid',title:'The health of the operation, at a glance',
      text:'Collections, AR days, denial rate, and cost to collect, each with trend sparklines and benchmark context. This is the page a VP checks between meetings.'},
     {role:'director',pg:'d0',cardTitle:'Big picture',title:'How much of our work could a bot do?',
      text:'Every account touch is classified by work type. The model separates truly manual work from work that fits automation, using honest, work-type-level estimates. Today’s automation level starts at zero because current Flo does not automate; this is the opportunity, not a claim.'},
@@ -3674,13 +3674,18 @@ function tourEls(){
   return {ring,pop};
 }
 
+function tourVisible(e){
+  if(!e) return false;
+  const r=e.getBoundingClientRect();
+  return r.width>60 && r.height>36;
+}
 function tourTarget(st){
   const pgEl=document.getElementById('page-'+st.role+'-'+st.pg);
   if(!pgEl) return document.body;
-  if(st.sel){const e=pgEl.querySelector(st.sel)||document.querySelector(st.sel); if(e) return e;}
+  if(st.sel){const e=pgEl.querySelector(st.sel); if(tourVisible(e)) return e;}
   if(st.cardTitle){
     const t=[...pgEl.querySelectorAll('.card-title')].find(x=>x.textContent.toLowerCase().includes(st.cardTitle.toLowerCase()));
-    if(t) return t.closest('.card')||t;
+    if(t){const c=t.closest('.card'); if(tourVisible(c)) return c; if(tourVisible(t)) return t;}
   }
   return pgEl;
 }
@@ -3713,16 +3718,22 @@ function tourPlace(){
   pop.style.top=Math.max(12,top)+'px'; pop.style.left=left+'px';
 }
 
+let tourTimer=null, tourSeq=0;
 function tourGo(i){
   TI=i;
   const st=TA.steps[TI];
+  const seq=++tourSeq;                    // invalidate any pending placement from a prior step
+  if(tourTimer){clearTimeout(tourTimer);tourTimer=null;}
   tourRenderPop();
   switchRole(st.role); switchPage(st.role,st.pg);
-  setTimeout(function(){
+  tourTimer=setTimeout(function(){
+    if(seq!==tourSeq||!TA) return;
     const el=tourTarget(st);
-    try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
-    setTimeout(tourPlace,380);
-  },120);
+    try{el.scrollIntoView({block:'center',behavior:'auto'});}catch(e){}
+    tourPlace();
+    // settle once more after layout/scroll finishes
+    tourTimer=setTimeout(function(){if(seq===tourSeq&&TA)tourPlace();},250);
+  },150);
 }
 
 window.tourStep=function(d){
@@ -3761,12 +3772,9 @@ window.tourChooserClose=function(){
   const c=document.getElementById('tour-chooser'); if(c)c.style.display='none';
 };
 
-/* keep spotlight glued to target on scroll/resize */
-function tourTrack(){
-  if(TA) tourPlace();
-  tourRAF=requestAnimationFrame(tourTrack);
-}
-tourRAF=requestAnimationFrame(tourTrack);
+/* keep spotlight glued to target on scroll/resize (event-driven, no RAF loop) */
+window.addEventListener('scroll',function(){if(TA)tourPlace();},{passive:true,capture:true});
+window.addEventListener('resize',function(){if(TA)tourPlace();});
 
 document.addEventListener('keydown',function(e){
   if(!TA){
