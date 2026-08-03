@@ -3646,20 +3646,22 @@ const TOURS=[
   dot:'var(--orange)', tag:'Start here',
   desc:'The whole product in one thread: one collector\u2019s work becomes team capacity, becomes a staffing decision, becomes the KPI leadership reports. Best first tour.',
   steps:[
-    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'It starts with one touch',
-     text:'Everything WPA knows begins here: one collector working one account. Each touch is scored for how hard the account was, how well it was documented, and whether it moved. Nothing above this page exists without it.'},
-    {role:'collector',pg:'c3',sel:'.kpi-row',title:'The touch has a quality, not just a count',
+    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'Where a collector\u2019s day starts',
+     text:'Jordan does not choose what to work. Her 564 accounts are ranked by expected recovery value times urgency, scored overnight. Worth noting what this table already is: an output of the scoring, not the raw material. To see the raw material, open one of these accounts.'},
+    {role:'collector',pg:'c4',pre:function(){selectC4Account('ACC-106919');},cardTitle:'Account timeline',title:'This is the atom: one touch',
+     text:'Every touch, denial, payment and note on a single account. This is what WPA actually measures: how hard the account was, how well the work was documented, and whether it moved. Everything at every altitude above is built by aggregating these.'},
+    {role:'collector',pg:'c3',sel:'.kpi-row',title:'A touch has a quality, not just a count',
      text:'A touch is not a tick mark. An NLI model scores every note on four dimensions, so a documented, actionable touch is distinguishable from a keystroke. This is what stops productivity from becoming a race to the highest number.'},
-    {role:'supervisor',pg:'s1',sel:'.tbl-viewport',cardTitle:'Collector heat map',title:'Individual work becomes team health',
-     text:'Aggregate those scored touches across fourteen people and the supervisor\u2019s morning scan appears. Chris Dunn shows amber here purely because of what his touches did, not because anyone filed a report about him.'},
+    {role:'supervisor',pg:'s1',sel:'.tbl-viewport',cardTitle:'Collector heat map',title:'Aggregate the touches and a team appears',
+     text:'Roll those scored touches up across fourteen people and you get the supervisor\u2019s morning scan. Chris Dunn shows amber here purely because of what his touches did, not because anyone filed a report about him.'},
     {role:'supervisor',pg:'s2',cardTitle:'Performance review',title:'Drill back down to one person',
-     text:'The chain runs downward too. From the flag on the heat map, straight into Chris\u2019s own numbers against peers and goal, with the anomaly explained and his account mix checked for whether the work is genuinely harder.'},
+     text:'The chain runs downward too. From the flag on the heat map straight into Chris\u2019s own numbers against peers and goal, with the anomaly explained and his account mix checked for whether the work is genuinely harder.'},
     {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'A number becomes a conversation',
      text:'The signal turns into a coaching opportunity with the evidence already attached. Read-only by design: WPA surfaces what to talk about, the supervisor owns the conversation, and the flag closes itself when the metric recovers.'},
     {role:'supervisor',pg:'s5',sel:'.kpi-row',title:'Team capacity becomes a staffing question',
-     text:'Now aggregate again. Every collector\u2019s real throughput, weighted for complexity, is what tells you how many people the inventory in front of you actually requires. This is the same touch data, two altitudes up.'},
+     text:'Aggregate again. Every collector\u2019s real throughput, weighted for complexity, is what tells you how many people the inventory in front of you actually requires. Same touch data, two altitudes up.'},
     {role:'director',pg:'d1',sel:'.grid',title:'And staffing becomes the KPI leadership reports',
-     text:'AR days, collection rate, and cost to collect are downstream of everything you just saw. When one of these misses target, the chain you climbed is the path back down to the behaviour behind it.'},
+     text:'AR days, collection rate and cost to collect are downstream of everything you just saw. When one of these misses target, the chain you climbed is the path back down to the behaviour behind it.'},
     {role:'director',pg:'d0',cardTitle:'Big picture',title:'Which reframes the whole question',
      text:'Once you can see the work at touch level, you can ask what a bot should be doing instead. Same foundation, final altitude: from one person\u2019s Tuesday to a capital decision about capacity.'}
   ]
@@ -3794,6 +3796,7 @@ function tourGo(i){
   if(tourTimer){clearTimeout(tourTimer);tourTimer=null;}
   tourRenderPop();
   switchRole(st.role); switchPage(st.role,st.pg);
+  if(st.pre){ try{ st.pre(); }catch(e){} }
   tourTimer=setTimeout(function(){
     if(seq!==tourSeq||!TA) return;
     const el=tourTarget(st);
