@@ -28,7 +28,7 @@
   --text:#1a1a1a;--text2:#6b7280;--text3:#9ca3af;
   --red:#DC2626;--amber:#D97706;--green:#059669;
   --red-bg:#FEF2F2;--amber-bg:#FFFBEB;--green-bg:#F0FDF4;--blue-bg:#EFF6FF;
-  --divider:#f1f2f4;--row-sel:#D6E4F3;--t-collector:#2E5E9B;--t-supervisor:#1B2A4A;--t-director:#5B21B6;--t-ml:#059669;--t-denial:#BE185D;--purple-bg:#F3E8FF;--magenta-bg:#FDF2F8;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
+  --divider:#f1f2f4;--row-sel:#D6E4F3;--t-collector:#2E5E9B;--t-supervisor:#1B2A4A;--t-director:#5B21B6;--t-ml:#059669;--t-denial:#BE185D;--t-orange-tour:#C2410C;--purple-bg:#F3E8FF;--magenta-bg:#FDF2F8;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
 }
 html[data-theme="dark"]{
   --navy:#BBD0F5;--midblue:#7FA8DC;
@@ -36,7 +36,7 @@ html[data-theme="dark"]{
   --text:#E6EBF4;--text2:#98A6BA;--text3:#5F6E85;
   --red:#F87171;--amber:#FBBF24;--green:#34D399;
   --red-bg:#3B1A1E;--amber-bg:#3A2C10;--green-bg:#0F2E22;--blue-bg:#16283F;
-  --divider:#252E3D;--row-sel:#24334A;--t-collector:#8FB6E8;--t-supervisor:#BBD0F5;--t-director:#C4A9F5;--t-ml:#34D399;--t-denial:#F9A8D4;--purple-bg:#2A1F3D;--magenta-bg:#3A1A2A;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
+  --divider:#252E3D;--row-sel:#24334A;--t-collector:#8FB6E8;--t-supervisor:#BBD0F5;--t-director:#C4A9F5;--t-ml:#34D399;--t-denial:#F9A8D4;--t-orange-tour:#FDBA74;--purple-bg:#2A1F3D;--magenta-bg:#3A1A2A;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
   color-scheme:dark;
 }
 html[data-theme="dark"] .role-bar,html[data-theme="dark"] .top-nav{filter:none}
@@ -3604,9 +3604,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
 #tour-launch{margin-left:14px;padding:6px 13px;border-radius:7px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.10);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 #tour-launch:hover{background:rgba(255,255,255,.20)}
 #tour-chooser{position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center}
-#tour-chooser .tc-box{background:var(--surface);border-radius:14px;max-width:660px;width:92%;padding:26px 28px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+#tour-chooser .tc-box{background:var(--surface);border-radius:14px;max-width:660px;width:92%;padding:26px 28px;max-height:88vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.35)}
 #tour-chooser h2{font-size:18px;color:var(--navy);margin:0 0 4px}
 #tour-chooser .tc-sub{font-size:12.5px;color:var(--text2);margin-bottom:16px}
+#tour-chooser .tc-frame{font-size:12px;line-height:1.55;color:var(--text2);background:var(--surface3);border:1px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:14px}
+#tour-chooser .tc-frame b{color:var(--text);font-weight:700}
+.tc-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:4px;background:var(--orange);color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;vertical-align:1px}
 .tc-item{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:border-color .12s,background .12s}
 .tc-item:hover{border-color:var(--midblue);background:var(--surface3)}
 .tc-dot{width:26px;height:26px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;margin-top:1px}
@@ -3638,6 +3641,29 @@ const ROLE_COLORS={collector:'var(--collector)',supervisor:'var(--supervisor)',d
 /* Each step: role, pg, then ONE of sel (CSS selector, searched inside the page first, then document)
    or cardTitle (matches a .card whose .card-title contains the text). Fallback = whole page panel. */
 const TOURS=[
+{
+  id:'cascade', name:'Follow one collector up the chain', color:'var(--t-orange-tour)', icon:'\u2191',
+  dot:'var(--orange)', tag:'Start here',
+  desc:'The whole product in one thread: one collector\u2019s work becomes team capacity, becomes a staffing decision, becomes the KPI leadership reports. Best first tour.',
+  steps:[
+    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'It starts with one touch',
+     text:'Everything WPA knows begins here: one collector working one account. Each touch is scored for how hard the account was, how well it was documented, and whether it moved. Nothing above this page exists without it.'},
+    {role:'collector',pg:'c3',sel:'.kpi-row',title:'The touch has a quality, not just a count',
+     text:'A touch is not a tick mark. An NLI model scores every note on four dimensions, so a documented, actionable touch is distinguishable from a keystroke. This is what stops productivity from becoming a race to the highest number.'},
+    {role:'supervisor',pg:'s1',sel:'.tbl-viewport',cardTitle:'Collector heat map',title:'Individual work becomes team health',
+     text:'Aggregate those scored touches across fourteen people and the supervisor\u2019s morning scan appears. Chris Dunn shows amber here purely because of what his touches did, not because anyone filed a report about him.'},
+    {role:'supervisor',pg:'s2',cardTitle:'Performance review',title:'Drill back down to one person',
+     text:'The chain runs downward too. From the flag on the heat map, straight into Chris\u2019s own numbers against peers and goal, with the anomaly explained and his account mix checked for whether the work is genuinely harder.'},
+    {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'A number becomes a conversation',
+     text:'The signal turns into a coaching opportunity with the evidence already attached. Read-only by design: WPA surfaces what to talk about, the supervisor owns the conversation, and the flag closes itself when the metric recovers.'},
+    {role:'supervisor',pg:'s5',sel:'.kpi-row',title:'Team capacity becomes a staffing question',
+     text:'Now aggregate again. Every collector\u2019s real throughput, weighted for complexity, is what tells you how many people the inventory in front of you actually requires. This is the same touch data, two altitudes up.'},
+    {role:'director',pg:'d1',sel:'.grid',title:'And staffing becomes the KPI leadership reports',
+     text:'AR days, collection rate, and cost to collect are downstream of everything you just saw. When one of these misses target, the chain you climbed is the path back down to the behaviour behind it.'},
+    {role:'director',pg:'d0',cardTitle:'Big picture',title:'Which reframes the whole question',
+     text:'Once you can see the work at touch level, you can ask what a bot should be doing instead. Same foundation, final altitude: from one person\u2019s Tuesday to a capital decision about capacity.'}
+  ]
+},
 {
   id:'collector', name:'A day as a Collector', dot:'var(--collector)', color:'var(--t-collector)', icon:'C',
   desc:'Start the morning in an ML-prioritized queue, work an account end to end, and see how quality and self-development stay visible.',
@@ -3801,10 +3827,11 @@ window.tourChooserOpen=function(){
   if(c){c.style.display='flex';return;}
   c=document.createElement('div'); c.id='tour-chooser';
   c.innerHTML='<div class="tc-box"><h2>Guided demo</h2>'
-    +'<div class="tc-sub">Pick a scenario. Each tour drives the live dashboard and walks through a real user’s workflow, step by step.</div>'
+    +'<div class="tc-frame">WPA is one chain of evidence seen at four altitudes. A <b>touch</b> becomes a <b>collector’s</b> performance, which becomes a <b>team’s</b> capacity, which becomes the <b>staffing and KPI</b> decisions leadership owns — and it traces back down again, from a missed target to the behaviour behind it.</div>'
+    +'<div class="tc-sub">Pick a scenario. Each tour drives the live dashboard step by step.</div>'
     +TOURS.map(t=>'<div class="tc-item" onclick="tourStart(\''+t.id+'\')">'
       +'<div class="tc-dot" style="background:'+(t.dot||t.color)+'">'+t.icon+'</div>'
-      +'<div><div class="tc-name">'+t.name+'</div><div class="tc-desc">'+t.desc+'</div>'
+      +'<div><div class="tc-name">'+t.name+(t.tag?' <span class="tc-tag">'+t.tag+'</span>':'')+'</div><div class="tc-desc">'+t.desc+'</div>'
       +'<div class="tc-steps">'+t.steps.length+' steps</div></div></div>').join('')
     +'<button class="tc-close" onclick="tourChooserClose()">Close</button></div>';
   c.addEventListener('click',function(e){if(e.target===c)tourChooserClose();});
