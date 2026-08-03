@@ -3658,6 +3658,8 @@ const TOURS=[
      text:'The chain runs downward too. From the flag on the heat map straight into Chris\u2019s own numbers against peers and goal, with the anomaly explained and his account mix checked for whether the work is genuinely harder.'},
     {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'A number becomes a conversation',
      text:'The signal turns into a coaching opportunity with the evidence already attached. Read-only by design: WPA surfaces what to talk about, the supervisor owns the conversation, and the flag closes itself when the metric recovers.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Segment bottleneck view',title:'People are one constraint. Flow is the other.',
+     text:'Even a healthy team can be pointed at the wrong wall. The funnel shows where dollars sit by stage, and this view shows which segments are jammed. Whether the answer is reassignment, coaching, or headcount is exactly what the next altitude decides.'},
     {role:'supervisor',pg:'s5',sel:'.kpi-row',title:'Team capacity becomes a staffing question',
      text:'Aggregate again. Every collector\u2019s real throughput, weighted for complexity, is what tells you how many people the inventory in front of you actually requires. Same touch data, two altitudes up.'},
     {role:'director',pg:'d1',sel:'.grid',title:'And staffing becomes the KPI leadership reports',
@@ -3676,11 +3678,13 @@ const TOURS=[
      text:'PayFlo segments define the universe of accounts assigned to this collector. Each tile shows count, expected recovery, and at-risk accounts. Clicking a tile filters the whole page to that segment.'},
     {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'Work top-down. The ranking is the strategy.',
      text:'Every account is ranked by expected recovery value times urgency, scored nightly by ML. Urgent flags appear as blue action links. No cherry-picking, no guesswork: the highest-value next touch is always at the top.'},
-    {role:'collector',pg:'c4',title:'One account, the whole story',
+    {role:'collector',pg:'c2',cardTitle:'Performance radar',title:'Measured fairly, against your own mix',
+     text:'Productivity here is complexity-adjusted: a hard account counts as hard before anyone is compared to anyone. The radar shows five dimensions against the team average, so a collector holding the tough queue is never punished by a raw count.'},
+    {role:'collector',pg:'c4',pre:function(){selectC4Account('ACC-106919');},cardTitle:'Account timeline',title:'One account, the whole story',
      text:'The Account Deep Dive shows the full timeline (every touch, denial, and payment), plus ranked next-best actions with the reasoning behind each. The collector never has to reconstruct history from notes.'},
     {role:'collector',pg:'c3',sel:'.kpi-row',title:'Quality is measured, not guessed',
      text:'An NLI model scores every note on four dimensions: action documented, next step specified, denial reason referenced, and payer contact named. Collectors see their own scores daily, so quality feedback is continuous rather than an annual surprise.'},
-    {role:'collector',pg:'c5',title:'Self-development, always on',
+    {role:'collector',pg:'c5',cardTitle:'My active coaching flags',title:'Self-development, always on',
      text:'Opportunities surface here automatically from the nightly analytics run: what is going well, where the data suggests focus, and examples of what good looks like. Read-only and judgment-free; flags resolve themselves when behavior changes.'}
   ]
 },
@@ -3714,24 +3718,54 @@ const TOURS=[
      text:'Each work type (status checks, portal work, rebills, routing) can be toggled independently, with its own automation ceiling, and a maturity slider sets how far along the rollout is. The scenario updates live, including credit for any bots the client already runs.'},
     {role:'director',pg:'d0',cardTitle:'Operational & financial impact',title:'The impact, in FTEs and dollars',
      text:'Hours freed per year, FTE capacity released, and the collections lift if that capacity is redeployed to complex accounts. This is the slide leadership asks for, generated from the same data the floor works from.'},
-    {role:'director',pg:'d5',title:'Staffing as an investment case',
-     text:'Staffed versus model-required FTE, the cost of the current gap, and the add-one-FTE business case with payback, using assignment-based attributed collections. Headcount conversations move from anecdotes to arithmetic.'},
-    {role:'director',pg:'d6',title:'Where the strategy comes from',
+    {role:'director',pg:'d5',cardTitle:'Required vs staffed FTE',title:'The staffing gap, forecast forward',
+     text:'Required versus staffed FTE with a 90-day demand forecast, so the gap is visible before it becomes a backlog. The model reads inventory, complexity, and real throughput — not a ratio someone remembered from a conference.'},
+    {role:'director',pg:'d5',cardTitle:'Business case',title:'The add-one-FTE case, with payback',
+     text:'Labor cost against assignment-based attributed collections, priced per added FTE with the payback period on the page. The headcount request arrives at finance already quantified — arithmetic, not anecdote.'},
+    {role:'director',pg:'d6',cardTitle:'How these signals fire',title:'Where the strategy comes from',
      text:'Second-order ML signals: payer policy-change detection, root-cause-to-process-gap mapping, and combined dollar impact of the top initiatives. The nightly run does not just report the business; it suggests where to point it.'}
   ]
 },
 {
-  id:'ml', name:'Where is the ML?', dot:'var(--ml)', color:'var(--t-ml)', icon:'ML',
-  desc:'A quick cross-persona pass over the nightly machine-learning layer: one scoring run, surfaced three different ways.',
+  id:'flow', name:'Where the work gets stuck', dot:'var(--supervisor)', color:'var(--t-supervisor)', icon:'\u2933',
+  desc:'The throughput story: which stage holds the dollars, which segments are jammed, whether it is getting slower, and what to unstick today.',
   steps:[
-    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'For the collector: the queue IS the model',
-     text:'Propensity-to-collect and stall-risk scores run nightly across every account and become the queue order. The collector never sees a model; they just see the right account on top.'},
-    {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'For the supervisor: findings, not dashboards to dig through',
-     text:'Because every user’s data universe is pre-scoped, the nightly run can evaluate everything and push findings to the person who owns them. The supervisor reads alerts; the hunting was done overnight.'},
-    {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'Coaching signals with a lifecycle',
-     text:'NLI note-quality scoring and behavior-anomaly detection open coaching flags automatically, and resolve or expire them the same way. The analytics layer stays read-only: it observes and suggests, humans decide.'},
-    {role:'director',pg:'d0',cardTitle:'Big picture',title:'For leadership: ML that prices the roadmap',
-     text:'The same touch-level data that ranks queues also quantifies the automation opportunity in hours, FTEs, and dollars. One data foundation, three altitudes: work it, manage it, invest in it.'}
+    {role:'supervisor',pg:'s3',cardTitle:'AR stage funnel',title:'Where the dollars actually sit',
+     text:'Start with the funnel, by count and by dollars. A team can look busy while the money pools in one stage. This answers the first throughput question: is the constraint at the front of the process or the back?'},
+    {role:'supervisor',pg:'s3',cardTitle:'Stall $ heatmap',title:'Stage times financial class — the real hotspot',
+     text:'A single stage rarely fails uniformly. This grid crosses stage against financial class so the exposure has an address: Medicaid awaiting response is a different problem from commercial denials, and they need different fixes.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Segment bottleneck view',title:'Which queues are jammed',
+     text:'Segments define who works what. When one segment backs up, the cause is usually its rule or its capacity, not the people in it. Click a row to filter the page and see the accounts behind the number.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Stage velocity trend',title:'Is it getting slower?',
+     text:'A snapshot tells you where work sits; the trend tells you whether you are losing ground. Average days in stage over time separates a one-week spike from structural decay that needs a process change.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Stall work queue',title:'What to unstick today',
+     text:'The model flags accounts likely to stall before they do, alongside those already stalled, with days idle, balance and owner. This is the worklist that turns the whole analysis into action this afternoon.'},
+    {role:'director',pg:'d3',cardTitle:'Stall exposure by stage',title:'The same story at the executive altitude',
+     text:'Leadership sees the dollar exposure by stage without the account detail. When this number moves, the supervisor pages you just walked are where the explanation lives.'},
+    {role:'director',pg:'d5',cardTitle:'Throughput baseline trend',title:'Unstuck work is reclaimed capacity',
+     text:'Throughput and staffing are the same conversation. Closes per FTE per day is the baseline the staffing model runs on, so clearing bottlenecks and adding headcount are two levers on one number \u2014 and the cheaper one is usually flow.'}
+  ]
+},
+{
+  id:'ml', name:'Where is the ML?', dot:'var(--ml)', color:'var(--t-ml)', icon:'ML',
+  desc:'A walk through the signal registry: one nightly scoring run, twelve signals, each surfaced where its owner already works.',
+  steps:[
+    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'Propensity to Collect + Next Best Action',
+     text:'Two signals power this one table: a nightly propensity score on every account sets the order, and the Next Best Action engine writes the recommendation column. The collector never sees a model — just the right account on top with the right move beside it.'},
+    {role:'collector',pg:'c3',sel:'.kpi-row',title:'NLI Note Quality',
+     text:'A language-inference model scores every note on four dimensions: action documented, next step specified, denial reason referenced, contact named. Continuous quality measurement on all of the work, not a monthly spot check — and note text never leaves your environment.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Stall work queue',title:'Stall Prediction',
+     text:'A model flags accounts likely to sit idle before they actually stall, so reassignment happens while the claim is still recoverable. This is prevention priced in days, not a report about last month.'},
+    {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'Anomaly Detection — collectors and payers',
+     text:'Two detectors feed this stream: collector behaviour versus their own 30-day baseline, and payer behaviour versus a 90-day rolling norm. Because every user\u2019s universe is pre-scoped, the nightly run can evaluate everything and push findings to whoever owns them.'},
+    {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'Coaching Brief Auto-Draft',
+     text:'Select any collector and a brief assembles itself from their current data: strengths, active signals, evidence, talking points. Generated on demand, never stored — the model prepares the conversation, the human has it.'},
+    {role:'director',pg:'d5',cardTitle:'Required vs staffed FTE',title:'Staffing Demand Forecast',
+     text:'A 90-day FTE demand forecast built from inventory trend, complexity mix, and observed throughput. The same signal that ranks one account also tells you how many people next quarter\u2019s work requires.'},
+    {role:'director',pg:'d1',cardTitle:'Period forecast',title:'Revenue Forecast',
+     text:'Expected collections with a range and a probability of hitting target — built from propensity scores across the open queue, not a straight-line projection. When the probability moves, the queue explains why.'},
+    {role:'director',pg:'d0',cardTitle:'Big picture',title:'The Work-Type Automation Model',
+     text:'Twelve signals, one nightly run, one foundation. The final signal classifies every touch by work type and prices the bot opportunity in FTEs and dollars — the same data that ran the floor this morning, now shaping next year\u2019s roadmap.'}
   ]
 }];
 
