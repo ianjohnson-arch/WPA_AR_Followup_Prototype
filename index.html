@@ -28,7 +28,7 @@
   --text:#1a1a1a;--text2:#6b7280;--text3:#9ca3af;
   --red:#DC2626;--amber:#D97706;--green:#059669;
   --red-bg:#FEF2F2;--amber-bg:#FFFBEB;--green-bg:#F0FDF4;--blue-bg:#EFF6FF;
-  --divider:#f1f2f4;--row-sel:#D6E4F3;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
+  --divider:#f1f2f4;--row-sel:#D6E4F3;--t-collector:#2E5E9B;--t-supervisor:#1B2A4A;--t-director:#5B21B6;--t-ml:#059669;--ml-chip-text:#065F46;--ml-chip-bg:#D1FAE5;--ml-chip-border:#A7F3D0;--blue-border:#BFDBFE;--green-border:#A7F3D0;--insight-border:#E9D5FF;--insight-bg:#FDFAFF;
 }
 html[data-theme="dark"]{
   --navy:#BBD0F5;--midblue:#7FA8DC;
@@ -36,7 +36,7 @@ html[data-theme="dark"]{
   --text:#E6EBF4;--text2:#98A6BA;--text3:#5F6E85;
   --red:#F87171;--amber:#FBBF24;--green:#34D399;
   --red-bg:#3B1A1E;--amber-bg:#3A2C10;--green-bg:#0F2E22;--blue-bg:#16283F;
-  --divider:#252E3D;--row-sel:#24334A;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
+  --divider:#252E3D;--row-sel:#24334A;--t-collector:#8FB6E8;--t-supervisor:#BBD0F5;--t-director:#C4A9F5;--t-ml:#34D399;--ml-chip-text:#6EE7B7;--ml-chip-bg:#0F2E22;--ml-chip-border:#1D4E3A;--blue-border:#2A4468;--green-border:#1D4E3A;--insight-border:#3A2D52;--insight-bg:#1E1B2C;
   color-scheme:dark;
 }
 html[data-theme="dark"] .role-bar,html[data-theme="dark"] .top-nav{filter:none}
@@ -3639,7 +3639,7 @@ const ROLE_COLORS={collector:'var(--collector)',supervisor:'var(--supervisor)',d
    or cardTitle (matches a .card whose .card-title contains the text). Fallback = whole page panel. */
 const TOURS=[
 {
-  id:'collector', name:'A day as a Collector', color:'var(--collector)', icon:'C',
+  id:'collector', name:'A day as a Collector', dot:'var(--collector)', color:'var(--t-collector)', icon:'C',
   desc:'Start the morning in an ML-prioritized queue, work an account end to end, and see how quality and self-development stay visible.',
   steps:[
     {role:'collector',pg:'c1',sel:'.kpi-row',title:'The morning picture in five numbers',
@@ -3657,7 +3657,7 @@ const TOURS=[
   ]
 },
 {
-  id:'supervisor', name:'Supervisor morning huddle', color:'var(--supervisor)', icon:'S',
+  id:'supervisor', name:'Supervisor morning huddle', dot:'var(--supervisor)', color:'var(--t-supervisor)', icon:'S',
   desc:'Run the 8 AM team scan: overnight ML alerts, the heat map, one collector deep dive, stalled work, and a coaching brief.',
   steps:[
     {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'Overnight findings, waiting at 8 AM',
@@ -3675,7 +3675,7 @@ const TOURS=[
   ]
 },
 {
-  id:'executive', name:'The executive story', color:'var(--director)', icon:'D',
+  id:'executive', name:'The executive story', dot:'var(--director)', color:'var(--t-director)', icon:'D',
   desc:'The leadership pitch: headline KPIs, the automation opportunity quantified, and staffing as an investment case.',
   steps:[
     {role:'director',pg:'d1',sel:'.grid',title:'The health of the operation, at a glance',
@@ -3693,7 +3693,7 @@ const TOURS=[
   ]
 },
 {
-  id:'ml', name:'Where is the ML?', color:'var(--ml)', icon:'ML',
+  id:'ml', name:'Where is the ML?', dot:'var(--ml)', color:'var(--t-ml)', icon:'ML',
   desc:'A quick cross-persona pass over the nightly machine-learning layer: one scoring run, surfaced three different ways.',
   steps:[
     {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'For the collector: the queue IS the model',
@@ -3803,7 +3803,7 @@ window.tourChooserOpen=function(){
   c.innerHTML='<div class="tc-box"><h2>Guided demo</h2>'
     +'<div class="tc-sub">Pick a scenario. Each tour drives the live dashboard and walks through a real user’s workflow, step by step.</div>'
     +TOURS.map(t=>'<div class="tc-item" onclick="tourStart(\''+t.id+'\')">'
-      +'<div class="tc-dot" style="background:'+t.color+'">'+t.icon+'</div>'
+      +'<div class="tc-dot" style="background:'+(t.dot||t.color)+'">'+t.icon+'</div>'
       +'<div><div class="tc-name">'+t.name+'</div><div class="tc-desc">'+t.desc+'</div>'
       +'<div class="tc-steps">'+t.steps.length+' steps</div></div></div>').join('')
     +'<button class="tc-close" onclick="tourChooserClose()">Close</button></div>';
