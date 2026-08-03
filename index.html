@@ -3650,7 +3650,7 @@ const TOURS=[
     {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'Where a collector\u2019s day starts',
      text:'Jordan does not choose what to work. Her 564 accounts are ranked by expected recovery value times urgency, scored overnight. Worth noting what this table already is: an output of the scoring, not the raw material. To see the raw material, open one of these accounts.'},
     {role:'collector',pg:'c4',pre:function(){selectC4Account('ACC-106919');},cardTitle:'Account timeline',title:'This is the atom: one touch',
-     text:'Every touch, denial, payment and note on a single account. This is what WPA actually measures: how hard the account was, how well the work was documented, and whether it moved. Everything at every altitude above is built by aggregating these.'},
+     text:'Click any row in that queue and you land here. Every touch, denial, payment and note on a single account. This is what WPA actually measures: how hard the account was, how well the work was documented, and whether it moved. Everything at every altitude above is built by aggregating these.'},
     {role:'collector',pg:'c3',sel:'.kpi-row',title:'A touch has a quality, not just a count',
      text:'A touch is not a tick mark. An NLI model scores every note on four dimensions, so a documented, actionable touch is distinguishable from a keystroke. This is what stops productivity from becoming a race to the highest number.'},
     {role:'supervisor',pg:'s1',sel:'.tbl-viewport',cardTitle:'Collector heat map',title:'Aggregate the touches and a team appears',
@@ -3824,6 +3824,25 @@ function tourPlace(){
 }
 
 let tourTimer=null, tourSeq=0;
+/* bottom edge of whatever sticky chrome is on screen (top nav + role bar + filter bar) */
+function tourChromeBottom(){
+  let b=0;
+  ['.top-nav','.role-bar','.filter-bar'].forEach(function(sel){
+    const e=document.querySelector(sel); if(!e) return;
+    const cs=getComputedStyle(e);
+    if((cs.position!=='sticky'&&cs.position!=='fixed')||cs.display==='none') return;
+    b=Math.max(b, e.getBoundingClientRect().bottom);
+  });
+  return b||0;
+}
+/* Scroll only when the target's top is off screen, and align that top just under the
+   sticky chrome. Never centre: a card taller than the viewport would lose its top edge. */
+function tourScroll(el){
+  const chrome=tourChromeBottom(), pad=16, vh=innerHeight;
+  const r=el.getBoundingClientRect();
+  if(r.top >= chrome-2 && r.top <= vh-140) return;      // already usable: leave the page alone
+  window.scrollTo({top:Math.max(0, window.scrollY + r.top - chrome - pad), behavior:'auto'});
+}
 function tourGo(i){
   TI=i;
   const st=TA.steps[TI];
@@ -3835,7 +3854,7 @@ function tourGo(i){
   tourTimer=setTimeout(function(){
     if(seq!==tourSeq||!TA) return;
     const el=tourTarget(st);
-    try{el.scrollIntoView({block:'center',behavior:'auto'});}catch(e){}
+    try{tourScroll(el);}catch(e){}
     tourPlace();
     // settle once more after layout/scroll finishes
     tourTimer=setTimeout(function(){if(seq===tourSeq&&TA)tourPlace();},250);
@@ -3858,6 +3877,7 @@ window.tourExit=function(){
 window.tourStart=function(id){
   tourChooserClose();
   TA=TOURS.find(t=>t.id===id); if(!TA) return;
+  window.scrollTo({top:0,behavior:'auto'});   // a tour always opens at the top of the page
   tourGo(0);
 };
 window.tourChooserOpen=function(){
