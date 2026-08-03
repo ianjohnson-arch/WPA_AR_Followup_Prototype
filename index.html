@@ -3685,6 +3685,17 @@ function tourTarget(st){
   return pgEl;
 }
 
+function tourRenderPop(){
+  if(!TA) return;
+  const st=TA.steps[TI], {pop}=tourEls();
+  pop.innerHTML='<div class="tp-tour" style="color:'+TA.color+'">'+TA.name+'</div>'
+    +'<div class="tp-title">'+st.title+'</div>'
+    +'<div class="tp-text">'+st.text+'</div>'
+    +'<div class="tp-bar"><button class="tp-exit" onclick="tourExit()">Exit tour</button>'
+    +'<span class="tp-count">Step '+(TI+1)+' of '+TA.steps.length+'</span>'
+    +'<span><button class="tp-back" onclick="tourStep(-1)"'+(TI===0?' disabled':'')+'>Back</button> '
+    +'<button class="tp-next" onclick="tourStep(1)">'+(TI===TA.steps.length-1?'Finish':'Next')+'</button></span></div>';
+}
 function tourPlace(){
   if(!TA) return;
   const st=TA.steps[TI], el=tourTarget(st), {ring,pop}=tourEls();
@@ -3693,13 +3704,6 @@ function tourPlace(){
   ring.style.display='block';
   ring.style.top=(r.top-pad)+'px'; ring.style.left=(r.left-pad)+'px';
   ring.style.width=(r.width+pad*2)+'px'; ring.style.height=(r.height+pad*2)+'px';
-  pop.innerHTML='<div class="tp-tour" style="color:'+TA.color+'">'+TA.name+'</div>'
-    +'<div class="tp-title">'+st.title+'</div>'
-    +'<div class="tp-text">'+st.text+'</div>'
-    +'<div class="tp-bar"><button class="tp-exit" onclick="tourExit()">Exit tour</button>'
-    +'<span class="tp-count">Step '+(TI+1)+' of '+TA.steps.length+'</span>'
-    +'<span><button class="tp-back" onclick="tourStep(-1)"'+(TI===0?' disabled':'')+'>Back</button> '
-    +'<button class="tp-next" onclick="tourStep(1)">'+(TI===TA.steps.length-1?'Finish':'Next')+'</button></span></div>';
   pop.style.display='block';
   const pw=pop.offsetWidth, ph=pop.offsetHeight, vw=innerWidth, vh=innerHeight;
   let top=r.bottom+14, left=r.left;
@@ -3712,6 +3716,7 @@ function tourPlace(){
 function tourGo(i){
   TI=i;
   const st=TA.steps[TI];
+  tourRenderPop();
   switchRole(st.role); switchPage(st.role,st.pg);
   setTimeout(function(){
     const el=tourTarget(st);
