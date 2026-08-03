@@ -3557,5 +3557,233 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 </script>
+<style>
+/* ===== Guided demo (tour) ===== */
+#tour-launch{margin-left:14px;padding:6px 13px;border-radius:7px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.10);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+#tour-launch:hover{background:rgba(255,255,255,.20)}
+#tour-chooser{position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center}
+#tour-chooser .tc-box{background:#fff;border-radius:14px;max-width:660px;width:92%;padding:26px 28px;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+#tour-chooser h2{font-size:18px;color:var(--navy);margin:0 0 4px}
+#tour-chooser .tc-sub{font-size:12.5px;color:var(--text2);margin-bottom:16px}
+.tc-item{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:border-color .12s,background .12s}
+.tc-item:hover{border-color:var(--midblue);background:#F8FAFF}
+.tc-dot{width:26px;height:26px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;margin-top:1px}
+.tc-name{font-size:13.5px;font-weight:700;color:var(--text)}
+.tc-desc{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.45}
+.tc-steps{font-size:10.5px;color:var(--text3);margin-top:3px}
+.tc-close{margin-top:6px;background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit;padding:6px 2px}
+.tc-close:hover{color:var(--text)}
+#tour-ring{position:fixed;z-index:2600;border:2px solid #E8681A;border-radius:12px;box-shadow:0 0 0 9999px rgba(15,23,42,.55),0 0 22px rgba(232,104,26,.45);pointer-events:none;transition:top .28s ease,left .28s ease,width .28s ease,height .28s ease}
+#tour-pop{position:fixed;z-index:2601;width:360px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.4);padding:16px 18px 14px;font-family:inherit}
+#tour-pop .tp-tour{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+#tour-pop .tp-title{font-size:14.5px;font-weight:700;color:var(--navy);margin-bottom:6px;line-height:1.3}
+#tour-pop .tp-text{font-size:12.5px;color:var(--text);line-height:1.55;margin-bottom:12px}
+#tour-pop .tp-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#tour-pop .tp-count{font-size:11px;color:var(--text3)}
+#tour-pop button{font-family:inherit;font-size:12px;border-radius:7px;cursor:pointer;padding:6px 13px}
+#tour-pop .tp-next{background:var(--navy);color:#fff;border:1px solid var(--navy);font-weight:600}
+#tour-pop .tp-next:hover{background:#25355C}
+#tour-pop .tp-back{background:#fff;color:var(--text2);border:1px solid var(--border)}
+#tour-pop .tp-back:disabled{opacity:.4;cursor:default}
+#tour-pop .tp-exit{background:none;border:none;color:var(--text3);font-size:11.5px;padding:6px 4px}
+#tour-pop .tp-exit:hover{color:var(--text)}
+</style>
+<script>
+/* ===================== GUIDED DEMO TOURS ===================== */
+(function(){
+const ROLE_COLORS={collector:'var(--collector)',supervisor:'var(--supervisor)',director:'var(--director)'};
+
+/* Each step: role, pg, then ONE of sel (CSS selector, searched inside the page first, then document)
+   or cardTitle (matches a .card whose .card-title contains the text). Fallback = whole page panel. */
+const TOURS=[
+{
+  id:'collector', name:'A day as a Collector', color:'var(--collector)', icon:'C',
+  desc:'Start the morning in an ML-prioritized queue, work an account end to end, and see how quality and self-development stay visible.',
+  steps:[
+    {role:'collector',pg:'c1',sel:'.kpi-row',title:'The morning picture in five numbers',
+     text:'Jordan opens the day knowing exactly what matters: queue size, progress against goal, the expected recovery value sitting in the queue, and any timely-filing deadlines within 3 days that were auto-elevated overnight.'},
+    {role:'collector',pg:'c1',sel:'#c1segs-card',title:'My segments — the work, organized',
+     text:'PayFlo segments define the universe of accounts assigned to this collector. Each tile shows count, expected recovery, and at-risk accounts. Clicking a tile filters the whole page to that segment.'},
+    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'Work top-down. The ranking is the strategy.',
+     text:'Every account is ranked by expected recovery value times urgency, scored nightly by ML. Urgent flags appear as blue action links. No cherry-picking, no guesswork: the highest-value next touch is always at the top.'},
+    {role:'collector',pg:'c4',title:'One account, the whole story',
+     text:'The Account Deep Dive shows the full timeline (every touch, denial, and payment), plus ranked next-best actions with the reasoning behind each. The collector never has to reconstruct history from notes.'},
+    {role:'collector',pg:'c3',sel:'.kpi-row',title:'Quality is measured, not guessed',
+     text:'An NLI model scores every note on four dimensions: action documented, next step specified, denial reason referenced, and payer contact named. Collectors see their own scores daily, so quality feedback is continuous rather than an annual surprise.'},
+    {role:'collector',pg:'c5',title:'Self-development, always on',
+     text:'Opportunities surface here automatically from the nightly analytics run: what is going well, where the data suggests focus, and examples of what good looks like. Read-only and judgment-free; flags resolve themselves when behavior changes.'}
+  ]
+},
+{
+  id:'supervisor', name:'Supervisor morning huddle', color:'var(--supervisor)', icon:'S',
+  desc:'Run the 8 AM team scan: overnight ML alerts, the heat map, one collector deep dive, stalled work, and a coaching brief.',
+  steps:[
+    {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'Overnight findings, waiting at 8 AM',
+     text:'The nightly ML run surfaces what changed while everyone slept: anomalies, emerging risks, and items needing a decision. Each alert links straight to the page where the supervisor can act on it.'},
+    {role:'supervisor',pg:'s1',cardTitle:'Collector heat map',title:'The whole team in one scan',
+     text:'Every collector, every key metric, color-coded. Complexity-adjusted productivity means comparisons are fair even when account mixes differ. Trouble shows up as color before it shows up in month-end numbers.'},
+    {role:'supervisor',pg:'s2',cardTitle:'Performance review',title:'Drill into one person, with context',
+     text:'The Collector Deep Dive compares an individual against peers and goals, with an auto-drafted performance summary and suggested coaching focus. Prep for a 1:1 drops from an hour of spreadsheet work to a two-minute read.'},
+    {role:'supervisor',pg:'s3',cardTitle:'Stall work queue',title:'Catch stalls before they age',
+     text:'The stall model flags accounts likely to sit idle 14+ days before they actually stall, so the supervisor can reassign or escalate while the claim is still recoverable, not after it hits the 120+ bucket.'},
+    {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'Coaching runs on evidence',
+     text:'The full roster with active flags and signals, including who is clear. Selecting anyone generates an on-demand coaching brief built from their actual data. Nothing to author or maintain; flags open and resolve automatically as behavior changes.'},
+    {role:'supervisor',pg:'s7',cardTitle:'Payer scorecard',title:'When the problem is the payer, prove it',
+     text:'Per-payer denial rates, payment timing, and anomaly detection against each payer’s own 90-day baseline. When a payer quietly changes behavior, the supervisor sees it in days and escalates with evidence.'}
+  ]
+},
+{
+  id:'executive', name:'The executive story', color:'var(--director)', icon:'D',
+  desc:'The leadership pitch: headline KPIs, the automation opportunity quantified, and staffing as an investment case.',
+  steps:[
+    {role:'director',pg:'d1',sel:'.kpi-row',title:'The health of the operation, at a glance',
+     text:'Collections, AR days, denial rate, and cost to collect, each with trend sparklines and benchmark context. This is the page a VP checks between meetings.'},
+    {role:'director',pg:'d0',cardTitle:'Big picture',title:'How much of our work could a bot do?',
+     text:'Every account touch is classified by work type. The model separates truly manual work from work that fits automation, using honest, work-type-level estimates. Today’s automation level starts at zero because current Flo does not automate; this is the opportunity, not a claim.'},
+    {role:'director',pg:'d0',cardTitle:'Automatable work by type',title:'Automate in chunks, not with a magic wand',
+     text:'Each work type (status checks, portal work, rebills, routing) can be toggled independently, with its own automation ceiling, and a maturity slider sets how far along the rollout is. The scenario updates live, including credit for any bots the client already runs.'},
+    {role:'director',pg:'d0',cardTitle:'Operational & financial impact',title:'The impact, in FTEs and dollars',
+     text:'Hours freed per year, FTE capacity released, and the collections lift if that capacity is redeployed to complex accounts. This is the slide leadership asks for, generated from the same data the floor works from.'},
+    {role:'director',pg:'d5',title:'Staffing as an investment case',
+     text:'Staffed versus model-required FTE, the cost of the current gap, and the add-one-FTE business case with payback, using assignment-based attributed collections. Headcount conversations move from anecdotes to arithmetic.'},
+    {role:'director',pg:'d6',title:'Where the strategy comes from',
+     text:'Second-order ML signals: payer policy-change detection, root-cause-to-process-gap mapping, and combined dollar impact of the top initiatives. The nightly run does not just report the business; it suggests where to point it.'}
+  ]
+},
+{
+  id:'ml', name:'Where is the ML?', color:'var(--ml)', icon:'ML',
+  desc:'A quick cross-persona pass over the nightly machine-learning layer: one scoring run, surfaced three different ways.',
+  steps:[
+    {role:'collector',pg:'c1',cardTitle:'Prioritized queue',title:'For the collector: the queue IS the model',
+     text:'Propensity-to-collect and stall-risk scores run nightly across every account and become the queue order. The collector never sees a model; they just see the right account on top.'},
+    {role:'supervisor',pg:'s1',cardTitle:'ML alert feed',title:'For the supervisor: findings, not dashboards to dig through',
+     text:'Because every user’s data universe is pre-scoped, the nightly run can evaluate everything and push findings to the person who owns them. The supervisor reads alerts; the hunting was done overnight.'},
+    {role:'supervisor',pg:'s6',cardTitle:'Team roster',title:'Coaching signals with a lifecycle',
+     text:'NLI note-quality scoring and behavior-anomaly detection open coaching flags automatically, and resolve or expire them the same way. The analytics layer stays read-only: it observes and suggests, humans decide.'},
+    {role:'director',pg:'d0',cardTitle:'Big picture',title:'For leadership: ML that prices the roadmap',
+     text:'The same touch-level data that ranks queues also quantifies the automation opportunity in hours, FTEs, and dollars. One data foundation, three altitudes: work it, manage it, invest in it.'}
+  ]
+}];
+
+let TA=null, TI=0, tourRAF=null;
+
+function tourEls(){
+  let ring=document.getElementById('tour-ring'), pop=document.getElementById('tour-pop');
+  if(!ring){ring=document.createElement('div');ring.id='tour-ring';document.body.appendChild(ring);}
+  if(!pop){pop=document.createElement('div');pop.id='tour-pop';document.body.appendChild(pop);}
+  return {ring,pop};
+}
+
+function tourTarget(st){
+  const pgEl=document.getElementById('page-'+st.role+'-'+st.pg);
+  if(!pgEl) return document.body;
+  if(st.sel){const e=pgEl.querySelector(st.sel)||document.querySelector(st.sel); if(e) return e;}
+  if(st.cardTitle){
+    const t=[...pgEl.querySelectorAll('.card-title')].find(x=>x.textContent.toLowerCase().includes(st.cardTitle.toLowerCase()));
+    if(t) return t.closest('.card')||t;
+  }
+  return pgEl;
+}
+
+function tourPlace(){
+  if(!TA) return;
+  const st=TA.steps[TI], el=tourTarget(st), {ring,pop}=tourEls();
+  const r=el.getBoundingClientRect();
+  const pad=6;
+  ring.style.display='block';
+  ring.style.top=(r.top-pad)+'px'; ring.style.left=(r.left-pad)+'px';
+  ring.style.width=(r.width+pad*2)+'px'; ring.style.height=(r.height+pad*2)+'px';
+  pop.innerHTML='<div class="tp-tour" style="color:'+TA.color+'">'+TA.name+'</div>'
+    +'<div class="tp-title">'+st.title+'</div>'
+    +'<div class="tp-text">'+st.text+'</div>'
+    +'<div class="tp-bar"><button class="tp-exit" onclick="tourExit()">Exit tour</button>'
+    +'<span class="tp-count">Step '+(TI+1)+' of '+TA.steps.length+'</span>'
+    +'<span><button class="tp-back" onclick="tourStep(-1)"'+(TI===0?' disabled':'')+'>Back</button> '
+    +'<button class="tp-next" onclick="tourStep(1)">'+(TI===TA.steps.length-1?'Finish':'Next')+'</button></span></div>';
+  pop.style.display='block';
+  const pw=pop.offsetWidth, ph=pop.offsetHeight, vw=innerWidth, vh=innerHeight;
+  let top=r.bottom+14, left=r.left;
+  if(top+ph>vh-12) top=r.top-ph-14;
+  if(top<12){ top=Math.max(12,Math.min(vh-ph-12,r.top)); left=(r.right+14+pw<vw-12)?r.right+14:r.left-pw-14; }
+  left=Math.max(12,Math.min(left,vw-pw-12));
+  pop.style.top=Math.max(12,top)+'px'; pop.style.left=left+'px';
+}
+
+function tourGo(i){
+  TI=i;
+  const st=TA.steps[TI];
+  switchRole(st.role); switchPage(st.role,st.pg);
+  setTimeout(function(){
+    const el=tourTarget(st);
+    try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+    setTimeout(tourPlace,380);
+  },120);
+}
+
+window.tourStep=function(d){
+  if(!TA) return;
+  const n=TI+d;
+  if(n>=TA.steps.length){tourExit();return;}
+  if(n<0) return;
+  tourGo(n);
+};
+window.tourExit=function(){
+  TA=null;
+  const ring=document.getElementById('tour-ring'), pop=document.getElementById('tour-pop');
+  if(ring)ring.style.display='none';
+  if(pop)pop.style.display='none';
+};
+window.tourStart=function(id){
+  tourChooserClose();
+  TA=TOURS.find(t=>t.id===id); if(!TA) return;
+  tourGo(0);
+};
+window.tourChooserOpen=function(){
+  let c=document.getElementById('tour-chooser');
+  if(c){c.style.display='flex';return;}
+  c=document.createElement('div'); c.id='tour-chooser';
+  c.innerHTML='<div class="tc-box"><h2>Guided demo</h2>'
+    +'<div class="tc-sub">Pick a scenario. Each tour drives the live dashboard and walks through a real user’s workflow, step by step.</div>'
+    +TOURS.map(t=>'<div class="tc-item" onclick="tourStart(\''+t.id+'\')">'
+      +'<div class="tc-dot" style="background:'+t.color+'">'+t.icon+'</div>'
+      +'<div><div class="tc-name">'+t.name+'</div><div class="tc-desc">'+t.desc+'</div>'
+      +'<div class="tc-steps">'+t.steps.length+' steps</div></div></div>').join('')
+    +'<button class="tc-close" onclick="tourChooserClose()">Close</button></div>';
+  c.addEventListener('click',function(e){if(e.target===c)tourChooserClose();});
+  document.body.appendChild(c);
+};
+window.tourChooserClose=function(){
+  const c=document.getElementById('tour-chooser'); if(c)c.style.display='none';
+};
+
+/* keep spotlight glued to target on scroll/resize */
+function tourTrack(){
+  if(TA) tourPlace();
+  tourRAF=requestAnimationFrame(tourTrack);
+}
+tourRAF=requestAnimationFrame(tourTrack);
+
+document.addEventListener('keydown',function(e){
+  if(!TA){
+    return;
+  }
+  if(e.key==='Escape') tourExit();
+  else if(e.key==='ArrowRight') tourStep(1);
+  else if(e.key==='ArrowLeft') tourStep(-1);
+});
+
+/* launcher button in the top nav */
+(function(){
+  const right=document.querySelector('.top-nav-right');
+  if(!right) return;
+  const b=document.createElement('button');
+  b.id='tour-launch';
+  b.innerHTML='&#9654;&#xFE0E; Guided demo';
+  b.onclick=tourChooserOpen;
+  right.appendChild(b);
+})();
+})();
+</script>
+
 </body>
 </html>
