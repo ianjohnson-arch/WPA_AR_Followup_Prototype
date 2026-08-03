@@ -357,8 +357,9 @@ function toggleTheme(){
   applyTheme(cur==='dark'?'light':'dark');
 }
 (function(){
-  let saved='light'; try{saved=localStorage.getItem('wpa-theme')||'light';}catch(e){}
-  if(saved==='dark') applyTheme('dark',true);
+  /* dark is the default view; a saved choice always wins */
+  let saved='dark'; try{saved=localStorage.getItem('wpa-theme')||'dark';}catch(e){}
+  applyTheme(saved==='light'?'light':'dark',true);
 })();
 
 
