@@ -2694,11 +2694,11 @@ reg(['active-flags','active-flags-by-type'],{
  a:'High-severity flags route to supervisor + AR Director automatically.',
  s:'Source: Coaching Engine rules engine'});
 reg(['flag-resolution-rate'],{
- d:'Share of flags resolved within 14 days of firing.',
- c:'<code>Flags resolved ≤ 14d ÷ flags fired</code>, 30-day rolling. Benchmark 80%.',
- p:'Measures whether coaching actually happens — flags that sit are worse than no flags.',
- i:'Below benchmark = the coaching loop is the bottleneck, not collector behavior.',
- a:'Weekly coaching review (Monday cadence, Gate 6 §6) should clear or schedule every open flag.',
+ d:'Share of closed flags that closed because the metric recovered, rather than expiring unresolved.',
+ c:'<code>Flags auto-resolved (metric recovered) ÷ flags closed</code>, 30-day rolling. Expired flags are excluded from the numerator. Benchmark 80%.',
+ p:'Measures whether behaviour actually changed, not whether anyone remembered to close a task.',
+ i:'Resolution is derived from the metric recovering and holding for the full window. A low rate means the signal is not moving, not that admin is behind.',
+ a:'The flags that expired without recovering are the ones worth discussing: the condition persisted for the whole window.',
  s:'Source: Coaching Engine'});
 reg(['suppression-window'],{
  d:'Anti-fatigue rule: how long before the same flag can re-fire for the same collector.',
@@ -3205,6 +3205,138 @@ reg(['cash-collected-mtd','cash-collected'],{
  s:'Source: RMA daily account snapshot (client EHR/PM extract)'});
 
 /* ============ ⓘ info popover infrastructure ============ */
+/* ---------- Definition gap-fill: every ⓘ target and column header populated ---------- */
+/* Collector — C4 */
+reg(['select-an-account'],{
+ d:'Browse mode for the deep dive: six pre-filtered buckets across your active universe, then the ranked table you pick an account from.',
+ c:'Buckets are filtered views of the same ranked queue — All Active, High ERV Clean Path, Timely Filing at Risk, Denial Preventable, Stall High Risk, Appeal in Progress. Each shows count, total ERV, and at-risk count.',
+ p:'Lets you work a theme, such as everything at filing risk, instead of going account by account down one list.',
+ i:'Bucket counts move daily as the scores re-run overnight. A bucket emptying is progress, not a data error.',
+ a:'Click any row to open the full account detail underneath the table.',
+ s:SRC.mix});
+
+/* Collector — C5 Coaching & Development */
+reg(['my-active-coaching-flags'],{
+ d:'Your own open development signals, each with the metric that triggered it and how it sits against threshold.',
+ c:'<code>coaching_flag</code> where status = Active for your collector_id. Flags open, resolve, and expire automatically from the nightly metric run (Gate 7 §7.3).',
+ p:'So a coaching conversation is never a surprise — you see the same signal your supervisor sees, at the same time.',
+ i:'A flag is a metric observation, not a judgment. Resolved means the metric recovered and held for the full rolling window.',
+ a:'Read-only by design. There is nothing to acknowledge or dismiss: work the underlying metric and the flag closes itself.',
+ s:'Source: Coaching Engine'});
+reg(['my-archetype'],{
+ d:'A plain-language label for your current performance pattern, derived from your own metric mix rather than a rank against others.',
+ c:'<code>collector_daily_snap.trajectory_arch</code>, computed from productivity trend, quality score, and complexity load.',
+ p:'Gives you a frame for what to work on next without reducing you to a leaderboard position.',
+ i:'An archetype describes a pattern, not a ceiling. It changes as the underlying trend changes.',
+ a:'Use it to pick one focus area, then watch the trajectory chart below to see whether it is moving.',
+ s:SRC.tl});
+reg(['my-6month-trajectory'],{
+ d:'Your complexity-adjusted score by month over six months, against your goal line.',
+ c:'<code>collector_trend</code> monthly mean of <code>units_adj</code> vs <code>daily_goal</code>. Adjusted, so a harder account mix does not depress the line.',
+ p:'Direction of travel matters more than any single month.',
+ i:'Read the slope, not the last point. One low month inside a rising trend is noise.',
+ a:'A flat or falling slope across three months is worth raising yourself in your next 1:1.',
+ s:SRC.tl});
+reg(['my-note-quality-vs-team'],{
+ d:'Your four NLI note-quality dimensions against the team average.',
+ c:'<code>collector_daily_snap</code>: nli_action, nli_next, nli_denial, nli_contact — each the share of your notes meeting that dimension.',
+ p:'Shows which specific documentation habit to change, instead of one quality number you cannot act on.',
+ i:'The dimension furthest below team average is usually the cheapest to fix, and the others tend to follow it up.',
+ a:'Compare against the "what good looks like" examples below before your next batch of notes.',
+ s:'Source: NLI note-quality model — simulated in this prototype'});
+
+/* Supervisor — S2 */
+reg(['performance-review'],{
+ d:'Auto-drafted 30-day review of one collector against peers and goal, with focus areas and a suggested coaching strategy.',
+ c:'Six measures vs target from <code>collector_daily_snap</code>; the peer comparison is the team mean over the same window. Focus areas are simply the measures below target.',
+ p:'Turns 1:1 prep from an hour of spreadsheet work into a two-minute read.',
+ i:'Check complexity load before concluding anything. A low score with a normal CLI is a behaviour or capacity story, not a workload story.',
+ a:'Nothing here is stored as a performance record. Use it as the discussion anchor and keep outcomes in your own HR system of record.',
+ s:SRC.mix});
+reg(['note-quality-nli'],{
+ d:'This collector’s overall NLI note-quality score against the team average.',
+ c:'<code>collector_daily_snap.nli_overall</code> — the mean of the four note dimensions across notes in the window.',
+ p:'Separates doing the work from documenting it well enough for someone else to act on.',
+ i:'Weak note quality surfaces later as a denial nobody can appeal, so treat it as a leading indicator rather than a tidiness metric.',
+ a:'Use the four-dimension breakdown to name a specific habit instead of asking for better notes.',
+ s:'Source: NLI note-quality model — simulated in this prototype'});
+
+/* Supervisor — S3 */
+reg(['stall-work-queue'],{
+ d:'Accounts already stalled or predicted to stall, ranked so the most valuable ones get unstuck first.',
+ c:'Union of accounts past the stage stall threshold and predicted stalls where <code>ml_stall_prediction.stall_risk</code> exceeds the configured cutoff. Shows days idle, balance, stage and owner.',
+ p:'Turns the bottleneck analysis on this page into a worklist someone can action this afternoon.',
+ i:'The predicted half is the valuable half. Intervening before an account goes quiet is far cheaper than recovering it afterwards.',
+ a:'Reassign or escalate from here. The flag clears on its own once the account moves.',
+ s:'Source: Stall Prediction model + RMA snapshot'});
+
+/* Supervisor — S6 Coaching Command */
+reg(['flagged'],{
+ d:'Collectors on your team carrying at least one active high-severity coaching flag.',
+ c:'Distinct collector_id in <code>coaching_flag</code> where status = Active and severity = High.',
+ p:'The short list of people who warrant a conversation this week.',
+ i:'Flagged is a metric state, not a performance rating, and it clears itself when the metric recovers.',
+ a:'Select the collector in the roster below to generate their brief before the 1:1.',
+ s:'Source: Coaching Engine'});
+reg(['on-watch'],{
+ d:'Collectors showing an early warning signal who do not yet have a flag open.',
+ c:'Anomaly detected against the collector’s own 30-day baseline (<code>ml_cli_score.anomaly_sev</code>) with no Active row in <code>coaching_flag</code>.',
+ p:'Catches a change in pattern before it crosses a flag threshold, which is where intervention is cheapest.',
+ i:'Deliberately separated from Flagged so an early signal does not carry the weight of a formal flag.',
+ a:'Usually an informal check-in rather than a coaching conversation.',
+ s:'Source: Collector anomaly detection — simulated in this prototype'});
+reg(['team-roster'],{
+ d:'Every collector on the team, including those with nothing open, alongside their live flags and signals.',
+ c:'The supervisor’s roster (PayFlo user hierarchy) left-joined to <code>coaching_flag</code> and <code>ml_cli_score</code>, so collectors with no flag still appear as Clear.',
+ p:'Knowing who needs nothing is as useful as knowing who needs help, and a filtered problem list hides exactly that.',
+ i:'Days since fired is flag age, not tenure. A long-open flag means the metric has not recovered yet.',
+ a:'Click any row for an on-demand brief. Nothing is written back; this is a read-only view.',
+ s:'Source: Coaching Engine + PayFlo configuration'});
+
+/* Director — D0 */
+reg(['automatable-work-by-type'],{
+ d:'Every work type the team performs, its automation ceiling, and what automating the selected types would change.',
+ c:'Touches classified by action and reason type, each with a configurable ceiling: routing 95%, status check 92%, portal lookup 85%, rebill 80%, appeal 10%, complex or clinical 5%, payer negotiation 0%.',
+ p:'Lets leadership model a phased rollout instead of an all-or-nothing switch.',
+ i:'A ceiling is an upper bound on what could ever be automated for that type, not a forecast. Lift is incremental over what is automated today, so existing bots are never counted twice.',
+ a:'Start with high-ceiling, high-volume types. Appeals, clinical denials and negotiation stay human.',
+ s:'Source: Gate 8 §7 automation model — modeled estimate, not measured'});
+
+/* ---------- Column headers ---------- */
+/* S3 stall heatmap — financial class columns */
+reg(['commercial'],{d:'Stalled balance in this AR stage for commercial payers.',
+ c:'Σ stalled balance for the stage where <code>financial_class</code> = Commercial. Cell intensity scales with dollars.'});
+reg(['medicare'],{d:'Stalled balance in this AR stage for Medicare and Medicare Advantage.',
+ c:'Σ stalled balance for the stage where <code>financial_class</code> = Medicare, including Advantage plans mapped to the Medicare class.'});
+reg(['medicaid'],{d:'Stalled balance in this AR stage for Medicaid, including managed Medicaid.',
+ c:'Σ stalled balance for the stage where <code>financial_class</code> = Medicaid.'});
+reg(['selfpay'],{d:'Stalled balance in this AR stage for patient responsibility.',
+ c:'Σ stalled balance for the stage where <code>financial_class</code> = Self-Pay — residual after insurance, or uninsured.'});
+/* S6 roster columns */
+reg(['archetype'],{d:'Plain-language performance pattern for this collector.',
+ c:'<code>collector_daily_snap.trajectory_arch</code> — solid, top performer, ramping, quality-focused, cherry-picking pattern, or declining trend.'});
+reg(['nli'],{d:'Overall NLI note-quality score.',
+ c:'<code>nli_overall</code>, 0–100 — the mean of the four note dimensions: action documented, next step, denial reason, payer contact.'});
+reg(['days-since-fired'],{d:'Age of this collector’s oldest active flag.',
+ c:'Days since the oldest Active row in <code>coaching_flag</code> fired. Flag age, not tenure. Blank when the collector is Clear.'});
+/* D0 table columns */
+reg(['work-type'],{d:'Action and reason classification of each touch.',
+ c:'Status check, portal lookup, rebill or corrected claim, follow-up routing, appeal preparation, complex or clinical denial, payer negotiation.'});
+reg(['automatable-ceiling'],{d:'Upper bound on what could ever be automated for this work type.',
+ c:'VisiQuate default per work type, client-configurable at implementation. A bound, not a forecast — maturity scales toward it and never past it.'});
+reg(['today'],{d:'Share of this work type already automated by the client’s existing bots.',
+ c:'0% wherever no automation exists. FLO work is 0% today because current workflow does not automate.'});
+reg(['at-scenario'],{d:'Share automated at the selected work types and maturity.',
+ c:'ceiling × maturity for enabled types, floored at Today so existing automation persists even if the type is not re-selected.'});
+reg(['lift-new'],{d:'Incremental gain over what is already automated.',
+ c:'At scenario minus Today. Only this incremental lift drives the impact estimates, so existing bots are never resold as new benefit.'});
+reg(['current'],{d:'Measured value today, from the touch log.',
+ c:'Actual, not modeled. The baseline every projection is compared against.'});
+reg(['projected'],{d:'Modeled value at the selected automation scenario.',
+ c:'An estimate, scaled by the incremental lift share. Labeled as an estimate wherever it appears.'});
+reg(['auto'],{d:'Share of this work type running without a person at the selected scenario.',
+ c:'Touchless share for the work type — the portion needing no human touch at all.'});
+
 function slugify(t){
   t = t.split('—')[0].split('·')[0];               // stable part of dynamic titles
   return t.toLowerCase().replace(/🤖|ⓘ/g,'').replace(/[^a-z0-9%\/+ ]/g,'').trim()
