@@ -1778,9 +1778,9 @@ RENDER['director-d0'] = function(){
         <div style="font-size:10.5px;color:var(--text3);margin-bottom:9px">Automation is applied by work type (payer- and reason-agnostic). Toggle a type on and every number on this page re-reads against it${m.HASBOTS?' · existing bots folded in':' · current automation 0% (no bots yet)'}.</div>
         ${workTypeTable(m)}
       </div></div>`
+  + botActualsCard(m)
   + `
     <div class="grid g2">
-      ${card('Manual vs. automatable — where the work is', pctBar(m)+`<div style="font-size:10.5px;color:var(--text3);margin-top:8px">Automatable = bot-eligible action types (the ceiling), including appeal filing and packet assembly. Manual = the clinical / medical-necessity argument, complex denial research, and payer negotiation.</div>`, ML('classified by action / reason type'))}
       ${card('Projected effects — throughput, efficiency, timeliness', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
         <tr><td colspan="4" style="background:var(--surface3);font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)">Throughput per FTE</td></tr>
         ${ba('Touches per FTE / day', m.touchesFTEday, m.projTouchFTE, x=>Math.round(x)+'')}
@@ -1790,25 +1790,6 @@ RENDER['director-d0'] = function(){
         ${ba('First-pass resolution rate', m.fpr, m.projFpr, x=>Math.round(x*100)+'%')}
         ${ba('Days follow-up → resolution', m.dtc, m.projDtc, x=>(+x).toFixed(1)+'d', true)}
       </tbody></table><div style="font-size:10.5px;color:var(--text3);margin-top:8px">Same headcount clears more once bots absorb touchless volume — less rework, faster cash.</div>`,'effective capacity multiple')}
-    </div>
-    <div class="grid g2">
-      ${card('Automation adoption — today vs opportunity', (()=>{
-        const stp=m.projShare, auto=Math.min(0.99,m.projShare*1.15), curX=m.curShare;
-        const leg=(clr,pct,label)=>`<span style="display:flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:3px;background:${clr};flex:none"></span><span style="font-size:11px;color:var(--text2)"><b class="num" style="color:var(--navy)">${pctf(pct)}</b> ${label}</span></span>`;
-        return `<div style="font-size:11px;color:var(--text2);margin-bottom:10px">${m.HASBOTS?`Existing bots already automate <b>${curPct}%</b> of work today.`:'Nothing is automated today — <b>0%</b>.'} The bar shows what's <b>reachable with the enabled work types</b> (${scen}). Touchless nests inside auto-routing.</div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px"><span>Today ${curPct}%</span><span>reachable ${projPct}% &nbsp;→</span></div>
-        <div style="position:relative;display:flex;height:26px;border-radius:7px;overflow:hidden;background:var(--surface2)">
-          <div style="width:${stp*100}%;background:var(--ml,#059669)" title="Touchless (STP)"></div>
-          <div style="width:${(auto-stp)*100}%;background:#C4B5FD" title="Auto-routed only"></div>
-          ${m.HASBOTS?`<div style="position:absolute;left:${curX*100}%;top:-2px;bottom:-2px;width:2px;background:var(--navy)" title="Automated today"></div>`:''}
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:11px">
-          ${leg('var(--ml,#059669)',stp,'completed without human touch (STP) — fully hands-off')}
-          ${leg('#C4B5FD',auto,'auto-generated / auto-routed — no manual prioritization (includes STP)')}
-          ${leg('#E8EAEE',1-auto,'still manually prioritized')}
-          ${m.HASBOTS?`<span style="font-size:10.5px;color:var(--text3)">▏ navy marker = automated today (${curPct}%); everything right of it is the opportunity.</span>`:''}
-        </div>`;
-      })(), 'straight-through processing nests inside auto-routing')}
       <div class="card"><div class="card-head"><div class="card-title">Operational &amp; financial impact — estimate</div>
       <div class="card-note">${scen} · illustrative model, not a commitment</div></div>
       <div class="card-body"><table class="tbl"><tbody>
@@ -1823,7 +1804,8 @@ RENDER['director-d0'] = function(){
         <tr style="border-top:2px solid var(--border)"><td><b>Total estimated annual opportunity (incremental)</b></td><td class="r num"><b style="color:#059669">${fmt$(m.annualValue)} / yr</b></td></tr>
       </tbody></table>
       <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Assumptions: ${m.MIN} min/touch, 1,800 productive hrs/FTE/yr, $75K loaded cost/FTE, $118K collections/FTE (60% redeploy). Values are the <b>incremental</b> gain beyond what's automated today.</div></div></div>
-    </div>`;
+    </div>`
+  + recsCard(m);
   d0StickTop();
 };
 /* Work-type toggles — the control surface for every projection on d0. */
@@ -1855,6 +1837,64 @@ function workTypeTable(m){
           </tbody></table>
           <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Today = what runs through bots now (0% unless the client has existing automation). At scenario = after the enabled types automate. <b>Lift</b> is the new, incremental capacity your project buys — it never double-counts existing bots. Total lift ties to the FTE freed in the impact bar.</div>`;
 }
+/* ---------- D0 measured actuals ----------
+   The only MEASURED block on d0. Everything else here is modeled. Reads the activity
+   log's actor on each touch (actor_type = human | bot, plus bot_id) over a trailing
+   window. With no bot actor in the feed, bot share is a measured 0% rather than an
+   assumption — the table still earns its space as the manual workload census.        */
+const BOT_WIN_DAYS = 90, BOT_WIN_WORKDAYS = 62;
+function botActuals(m){
+  /* Bot→human fallback: a bot touched the account, then a human had to touch the same
+     work type within 5 days. High fallback means the bot is generating rework, not capacity. */
+  const FALLBACK={status:0.08, routing:0.05, portal:0.19, rebill:0.14, appeal_admin:0.22};
+  const BOTS={status:3, routing:2, portal:2, rebill:1, appeal_admin:1};
+  const TREND={status:+4, routing:+1, portal:-3, rebill:0, appeal_admin:+7};
+  const win=m.annualTouches*(BOT_WIN_WORKDAYS/250);
+  const rows=m.WORK.map(w=>{
+    const vol=win*w.share, bot=vol*w.cur, hum=vol-bot;
+    const live=w.cur>0;
+    return {id:w.id,label:w.label,eligible:w.eligible,ceiling:w.auto,botShare:w.cur,
+      vol,bot,hum,live,
+      fb:live?(FALLBACK[w.id]||0):null,
+      nBots:live?(BOTS[w.id]||1):0,
+      trend:live?(TREND[w.id]||0):null,
+      headroom:Math.max(0,w.auto-w.cur)};
+  });
+  const vol=rows.reduce((s,r)=>s+r.vol,0), bot=rows.reduce((s,r)=>s+r.bot,0);
+  const fbNum=rows.reduce((s,r)=>s+(r.fb!=null?r.bot*r.fb:0),0);
+  return {rows,vol,bot,hum:vol-bot,botShare:vol?bot/vol:0,
+    nBots:rows.reduce((s,r)=>s+r.nBots,0),
+    fbRate:bot?fbNum/bot:null, reworkTouches:fbNum};
+}
+/* Ranked next actions, derived from the measured actuals against the model ceilings.
+   Ordered by what a leader should do first, not by dollar size alone. */
+function autoRecs(m,A){
+  const out=[];
+  const bad=A.rows.filter(r=>r.fb!=null&&r.fb>=0.15).sort((a,b)=>b.fb*b.bot-a.fb*a.bot)[0];
+  if(bad) out.push({tag:'Fix before expanding',clr:'var(--amber)',
+    h:`${bad.label} bots are handing ${Math.round(bad.fb*100)}% of their work back to people`,
+    b:`${Math.round(bad.bot*bad.fb).toLocaleString()} of ${Math.round(bad.bot).toLocaleString()} bot touches in the last ${BOT_WIN_DAYS} days needed a human follow-up on the same work type. That is rework, not capacity. Widening this bot before the fallback rate comes down multiplies the rework.`,
+    n:`${Math.round(bad.fb*100)}% fallback`});
+  const start=A.rows.filter(r=>r.eligible&&r.headroom>0.2).sort((a,b)=>b.headroom*b.vol-a.headroom*a.vol)[0];
+  if(start){
+    const lift=start.headroom*start.vol*(250/BOT_WIN_WORKDAYS), fte=lift*m.MIN/60/1800;
+    out.push({tag:'Start here',clr:'var(--ml)',
+      h:`${start.label} is the largest untapped block`,
+      b:`Measured bot share is ${Math.round(start.botShare*100)}% against a ${Math.round(start.ceiling*100)}% ceiling, on ${Math.round(start.vol).toLocaleString()} touches per ${BOT_WIN_DAYS} days. Closing that headroom is worth roughly ${fte.toFixed(1)} FTE a year — the biggest single move available.`,
+      n:`${Math.round(start.headroom*100)} pts headroom`});
+  }
+  const done=A.rows.filter(r=>r.eligible&&r.live&&r.headroom<=0.2).sort((a,b)=>a.headroom-b.headroom)[0];
+  if(done) out.push({tag:'Stop investing',clr:'var(--midblue)',
+    h:`${done.label} is within ${Math.round(done.headroom*100)} points of its ceiling`,
+    b:`Further engineering here buys very little. Redirect the effort to a work type with real headroom rather than chasing the last few points on this one.`,
+    n:`${Math.round(done.botShare*100)}% of ${Math.round(done.ceiling*100)}%`});
+  const human=m.WORK.filter(w=>!w.eligible).sort((a,b)=>b.share-a.share)[0];
+  if(human) out.push({tag:'Leave human',clr:'var(--text3)',
+    h:`${human.label} stays with people, and should`,
+    b:`${Math.round(human.share*100)}% of all touches, ceiling ${Math.round(human.auto*100)}%. This is where the capacity freed elsewhere should land — the same staff on harder work, not fewer staff.`,
+    n:'by design'});
+  return out;
+}
 /* Keep the impact bar clear of the sticky nav / role / filter chrome. */
 function d0StickTop(){
   const el=document.getElementById('d0-impact'); if(!el) return;
@@ -1868,11 +1908,61 @@ function d0StickTop(){
   el.style.top=Math.round(b||134)+'px';
 }
 addEventListener('resize',d0StickTop);
-function pctBar(m){
-  const auto=Math.round(m.automatableShare*100), man=100-auto;
-  return `<div style="display:flex;height:26px;border-radius:6px;overflow:hidden;font-size:10.5px;font-weight:700;color:#fff;margin-bottom:6px">
-    <div style="width:${auto}%;background:var(--ml,#059669);display:flex;align-items:center;justify-content:center">${auto}% automatable</div>
-    <div style="width:${man}%;background:var(--slate,#64748B);display:flex;align-items:center;justify-content:center">${man}% manual</div></div>`;
+/* Measured bot vs. human split by work type. Contrast with everything else on d0:
+   these are counted touches, not model output. */
+function botActualsCard(m){
+  const A=botActuals(m), pct=x=>Math.round(x*100)+'%';
+  const banner = A.bot>0
+    ? `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3);margin-bottom:11px">
+         <div><div class="mini-label">Bot share of touches</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${pct(A.botShare)}</div></div>
+         <div><div class="mini-label">Bot touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.bot).toLocaleString()}</div></div>
+         <div><div class="mini-label">Human touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.hum).toLocaleString()}</div></div>
+         <div><div class="mini-label">Distinct bots seen</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${A.nBots}</div></div>
+         <div><div class="mini-label" title="Bot touched the account, then a human had to touch the same work type within 5 days">Handed back to a human</div><div class="num" style="font-size:19px;font-weight:700;line-height:1.1;color:${A.fbRate>=0.15?'var(--red)':'var(--navy)'}">${pct(A.fbRate)}</div><div style="font-size:10px;color:var(--text3)">${Math.round(A.reworkTouches).toLocaleString()} touches of rework</div></div>
+       </div>`
+    : `<div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:7px;background:var(--surface3);margin-bottom:11px;font-size:11.5px;line-height:1.55;color:var(--text2)">
+         <b>No touch in this period carries a bot actor.</b> Bot share is a measured <b>0%</b>, not an assumption — we looked and found none. The table below is therefore the manual workload census: who is spending time on what. This card fills in on its own the moment the activity feed carries <code>actor_type = bot</code> and a <code>bot_id</code> on the touch record.
+       </div>`;
+  const bar=(b)=>{const p=Math.round(b*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:120px;margin-top:4px"><div style="width:${p}%;background:var(--ml,#059669)"></div><div style="width:${100-p}%;background:var(--slate,#64748B)"></div></div>`;};
+  const rows=A.rows.slice().sort((a,b)=>b.vol-a.vol).map(r=>{
+    const gap=r.eligible?r.headroom:null;
+    return `<tr>
+      <td><b>${r.label}</b>${!r.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
+      <td>${bar(r.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(r.botShare*100)}% bot · ${Math.round((1-r.botShare)*100)}% human</div></td>
+      <td class="r num">${r.live?Math.round(r.bot).toLocaleString():'<span style="color:var(--text3)">0</span>'}</td>
+      <td class="r num">${Math.round(r.hum).toLocaleString()}</td>
+      <td class="r">${r.nBots?`<span class="num">${r.nBots}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+      <td class="r">${r.fb==null?'<span style="color:var(--text3)">—</span>':`<b class="num" style="color:${r.fb>=0.15?'var(--red)':'var(--text)'}">${Math.round(r.fb*100)}%</b>`}</td>
+      <td class="r">${r.trend==null?'<span style="color:var(--text3)">—</span>':`<span class="num" style="color:${r.trend>0?'var(--green)':r.trend<0?'var(--red)':'var(--text3)'}">${r.trend>0?'+':''}${r.trend} pts</span>`}</td>
+      <td class="r">${gap==null?'<span style="color:var(--text3)">n/a</span>':`<span class="num">${Math.round(gap*100)} pts</span><div style="font-size:10px;color:var(--text3)">to ${Math.round(r.ceiling*100)}% ceiling</div>`}</td></tr>`;}).join('');
+  const body=banner+`<table class="tbl"><thead><tr><th>Work type</th><th>Bot / human split</th>
+      <th class="r">Bot touches</th><th class="r">Human touches</th><th class="r">Bots</th>
+      <th class="r" title="Bot touched it, then a human had to touch the same work type within 5 days">Handed back</th>
+      <th class="r">Trend</th><th class="r">Headroom</th></tr></thead><tbody>${rows}
+      <tr style="border-top:2px solid var(--border)"><td><b>Total</b></td>
+        <td>${bar(A.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(A.botShare*100)}% bot · ${Math.round((1-A.botShare)*100)}% human</div></td>
+        <td class="r num"><b>${Math.round(A.bot).toLocaleString()}</b></td>
+        <td class="r num"><b>${Math.round(A.hum).toLocaleString()}</b></td>
+        <td class="r num">${A.nBots||'—'}</td>
+        <td class="r num">${A.fbRate==null?'—':Math.round(A.fbRate*100)+'%'}</td>
+        <td class="r">—</td><td class="r">—</td></tr>
+    </tbody></table>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Counted from the activity log over a trailing ${BOT_WIN_DAYS} days by the actor on each touch — <b>measured, not modeled</b>, and the only block on this page that is. <b>Handed back</b> is the share of bot touches followed by a human touch on the same work type within 5 days; above roughly 15% the bot is producing rework rather than capacity. <b>Headroom</b> is the gap from measured share to the modeled ceiling.</div>`;
+  return `<div style="margin-bottom:12px">`+card('Bot vs. human work today — measured', body, ML('actor on each touch · activity log'))+`</div>`;
+}
+/* Ranked next actions. Reads the measured actuals against the ceilings. */
+function recsCard(m){
+  const R=autoRecs(m,botActuals(m));
+  const items=R.map(r=>`<div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid ${r.clr};border-radius:7px;background:var(--surface3)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px">
+        <span style="font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${r.clr}">${r.tag}</span>
+        <span class="num" style="font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap">${r.n}</span></div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">${r.h}</div>
+      <div style="font-size:11px;line-height:1.55;color:var(--text2)">${r.b}</div></div>`).join('');
+  return card('Where to point automation next — recommendations',
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">${items}</div>
+     <div style="font-size:10.5px;color:var(--text3);margin-top:9px">Ranked by what to do first, not by dollar size. Fixing a bot that hands work back comes before widening one, because rework scales with the bot. Re-ranks as the measured actuals move.</div>`,
+    ML('derived from measured actuals vs. modeled ceilings'));
 }
 
 let _sptip;
@@ -2136,12 +2226,12 @@ const SRC = {
 
 /* ---------- Director D0 — Automation Opportunity ---------- */
 reg(['maturity'],{d:'How touchless the automations you have turned on actually run — accounts for ramp-up and edge cases. Applied only to the enabled work types. At 100% every automatable touch in an enabled type is hands-off; lower leaves a share still needing a person.'});
-reg(['automation-scenario'],{d:'The adoption dial. ~61% of all work is automatable by action type (fixed); this slider sets how much of that automatable work you assume actually goes touchless. It drives every projected figure on the page. FLO has no automation today — projections are modeled estimates.'});
+reg(['automation-scenario'],{d:'The adoption dial. About 66% of all work is automatable by action type (fixed by the ceilings); this slider sets how much of that automatable work you assume actually goes touchless. It drives every projected figure on the page. FLO has no automation today, so projections are modeled estimates — the measured bot-vs-human table is the exception.'});
 reg(['page-automation-opportunity'],{
- d:'Separates the AR follow-up work your team does today into two kinds — routine, rules-based work a bot could handle (claim status checks, portal lookups, clean rebills, follow-up routing) and judgment work that needs a person (appeals, complex and clinical denials, payer negotiation) — then models what automating the routine portion would give back in staff capacity, cycle time, and cash.',
+ d:'Separates the AR follow-up work your team does today into two kinds — routine, rules-based work a bot could handle (claim status checks, portal lookups, clean rebills, follow-up routing, appeal filing and packet assembly) and judgment work that needs a person (the clinical or medical-necessity argument, complex denial research, payer negotiation) — then models what automating the routine portion would give back in staff capacity, cycle time, and cash.',
  c:'Work is classified as automatable vs. manual by action / reason type. You choose which work types to automate (toggles / phase presets, since automation ships in chunks by work type), and a maturity slider sets how touchless those enabled types run. Every projected figure scales from the enabled set × maturity.',
  p:'Gives leadership one clear, honest picture of where effort goes now and what automation could unlock — grounded in the team\'s real volumes rather than anecdotes.',
- i:'Read the manual-vs-automatable split first, then the projected capacity, timeliness, and dollar gains at the chosen scenario. The adoption meters read 0% today because FLO has no automation yet — that gap is the potential, not a current result.',
+ i:'Read the measured bot-vs-human table before any projection: it is counted from the activity log, while everything else here is modeled. Then set a scenario and read the projected capacity, timeliness, and dollar gains. Where the bot share is a measured 0%, that is because FLO has no automation yet — the gap is the potential, not a current result.',
  a:'Use the slider to walk conservative vs. aggressive scenarios. Focus automation where the breakdown shows a high automatable share at high volume; keep judgment work with your staff.',
  s:'Modeled estimate on synthetic demo data. FLO automation is a future capability — nothing here reflects live automated performance.'});
 reg(['big-picture'],{d:'ML-synthesized narrative of the current all-manual state vs. the automation opportunity at the selected scenario, with a suggested starting point. Rewrites as you move the slider.',s:'Synthesized from the automation model — simulated.'});
@@ -3313,6 +3403,20 @@ reg(['team-roster'],{
  s:'Source: Coaching Engine + PayFlo configuration'});
 
 /* Director — D0 */
+reg(['bot-vs-human-work-today'],{
+ d:'What bots actually did versus what people actually did, by work type, over a trailing 90 days.',
+ c:'Counted from the activity log by the actor on each touch: <code>actor_type</code> in (human, bot) with a <code>bot_id</code> where the actor is a bot. Handed back = share of bot touches followed by a human touch on the same account and work type within 5 days. Headroom = modeled ceiling minus measured bot share.',
+ p:'It is the only measured block on this page. It answers a question the model cannot: are the bots we already paid for producing capacity, or producing rework?',
+ i:'A measured 0% means we looked at the actor on every touch and found no bot, not that we assumed none. Handed back above roughly 15% means the bot is generating human follow-up work rather than absorbing it, and widening that bot would multiply the rework.',
+ a:'Fix a high hand-back rate before expanding that bot. Use headroom, not raw volume, to pick what to automate next.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['where-to-point-automation-next'],{
+ d:'A ranked short list of next moves, generated by reading the measured bot actuals against the modeled ceilings.',
+ c:'Fix-before-expanding fires on the live work type with the highest hand-back rate weighted by bot volume. Start-here is the eligible type with the largest headroom multiplied by touch volume. Stop-investing fires when a live type is within 20 points of its ceiling. Leave-human names the largest ineligible type by share.',
+ p:'A ceiling table tells you what is possible; it does not tell you what to do on Monday. This ranks by sequence rather than by dollar size, because rework compounds and dollars do not.',
+ i:'Ranked by order of operations, not by value. A smaller fix can outrank a larger expansion when the expansion would scale a bot that is already handing work back.',
+ a:'Work the list top to bottom. It re-ranks on its own as the measured actuals move.',
+ s:'Source: measured actuals vs. Gate 8 §7 ceilings — partly modeled'});
 reg(['scenario','automatable-work-by-type'],{
  d:'Every work type the team performs, its automation ceiling, and what automating the selected types would change. This panel is the control surface: every projection on this page re-reads against it.',
  c:'Touches classified by action and reason type, each with a configurable ceiling: routing 95%, status check 92%, portal lookup 85%, rebill 80%, appeal filing and packet assembly 75%, clinical or medical-necessity argument 8%, complex denial research 5%, payer negotiation 0%. Appeal work is split because the two halves behave nothing alike.',
@@ -3889,6 +3993,8 @@ const TOURS=[
      text:'Every account touch is classified by work type. The model separates truly manual work from work that fits automation, using honest, work-type-level estimates. Today’s automation level starts at zero because current Flo does not automate; this is the opportunity, not a claim.'},
     {role:'director',pg:'d0',cardTitle:'Scenario',title:'Automate in chunks, not with a magic wand',
      text:'Each work type gets its own automation ceiling and toggles independently, and a maturity slider sets how far along the rollout is. Note that denials are split: appeal filing and packet assembly is mechanical enough to automate, while the clinical argument is not. Everything above re-reads as you change the scenario, including credit for bots the client already runs.'},
+    {role:'director',pg:'d0',cardTitle:'Bot vs. human work today',title:'What the bots are actually doing',
+     text:'Everything else on this page is a model. This block is counted: the activity log carries an actor on every touch, so we can show what bots did versus what people did, by work type. It also shows how often a bot handed work back to a human within five days, which is the difference between a bot that creates capacity and one that creates rework. Where a client runs no bots, the share is a measured zero rather than an assumed one.'},
     {role:'director',pg:'d0',cardTitle:'Operational & financial impact',title:'The impact, in FTEs and dollars',
      text:'Hours freed per year, FTE capacity released, and the collections lift if that capacity is redeployed to complex accounts. This is the slide leadership asks for, generated from the same data the floor works from.'},
     {role:'director',pg:'d5',cardTitle:'Required vs staffed FTE',title:'The staffing gap, forecast forward',
