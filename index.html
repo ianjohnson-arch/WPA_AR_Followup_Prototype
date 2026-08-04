@@ -464,7 +464,7 @@ RENDER['collector-c1'] = function(){
   + `<div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
       ${kpi('Accounts in my queue', m.queue.toLocaleString(), 'active universe, all segments')}
       ${kpi('Worked today', `${workedToday} <span style="font-size:12px;color:var(--text2)">/ ${m.goal}</span>`,
-          pbar(workedToday,m.goal,C.blue,100*65/65)+'<div class="kpi-sub">63% of daily goal · 2:40 PM pace ≈ on track</div>')}
+          pbar(workedToday,m.goal,C.blue,100*65/65)+'<div class="kpi-sub">raw touches · 63% of daily goal · 2:40 PM pace ≈ on track</div>')}
       ${kpi('Expected recovery in queue', fmt$(ervTot), ML('Σ balance × propensity'))}
       ${kpi('At risk today', atRisk.length, 'timer ≤ 5 days or stall risk > 0.7','+3','down')}
       ${kpi('Timely-filing deadlines ≤ 3d', q.filter(r=>r.timer!=null&&r.timer<=3).length,'auto-elevated to top of queue')}
@@ -2229,7 +2229,7 @@ reg(['accounts-in-my-queue','queue-size-total'],{
  a:'If queue growth outpaces closes for 2+ weeks, raise with supervisor for rebalancing before quality slips.',
  s:SRC.pf+' + '+SRC.rma});
 reg(['worked-today'],{
- d:'Touches logged today versus the daily goal, with an on-pace read.',
+ d:'Raw touches logged today versus the daily goal, with an on-pace read. Deliberately not complexity-adjusted: a partial day cannot be fairly weighted, so the intraday gauge stays a straight count. The complexity-adjusted view lives on My Performance.',
  c:'Count of user touches today ÷ daily goal (65). Pace compares completion % against elapsed working-day %.',
  p:'The real-time "am I on track" gauge collectors check through the day.',
  i:'Bar at or ahead of the elapsed-day fraction = on pace. Behind at midday is recoverable; behind at 3 PM usually is not.',
