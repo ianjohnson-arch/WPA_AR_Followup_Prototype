@@ -327,7 +327,7 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 <script>
 /* ============ helpers ============ */
 const C = {navy:'#1B2A4A',orange:'#E86B1A',blue:'#2E5E9B',purple:'#5B21B6',magenta:'#BE185D',
-  ml:'var(--green)',red:'#DC2626',amber:'#D97706',teal:'#0E7490',slate:'#64748B',
+  ml:'#059669',red:'#DC2626',amber:'#D97706',teal:'#0E7490',slate:'#64748B',
   grid:'#EDEEF1',lblue:'#93C5FD',surface:'#fff'};
 const PAL = [C.blue,C.orange,C.ml,C.purple,C.magenta,C.teal,C.slate,C.amber];
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
@@ -342,6 +342,10 @@ function applyTheme(t,skipRender){
   document.documentElement.setAttribute('data-theme', dark?'dark':'light');
   C.grid   = dark ? '#2C3648' : '#EDEEF1';
   C.surface= dark ? '#1B2433' : '#fff';
+  /* chart colours are painted on canvas, so they must be literals, not CSS vars */
+  C.ml     = dark ? '#34D399' : '#059669';
+  C.red    = dark ? '#F87171' : '#DC2626';
+  C.amber  = dark ? '#FBBF24' : '#D97706';
   Chart.defaults.color = dark ? '#98A6BA' : '#6b7280';
   try{localStorage.setItem('wpa-theme', dark?'dark':'light');}catch(e){}
   const b=document.getElementById('theme-toggle'); if(b) b.innerHTML = dark ? '&#9728;&#xFE0E;' : '&#9790;&#xFE0E;';
@@ -3670,7 +3674,7 @@ const TOURS=[
     {role:'supervisor',pg:'s5',sel:'.kpi-row',title:'Team capacity becomes a staffing question',
      text:'Aggregate again. Every collector\u2019s real throughput, weighted for complexity, is what tells you how many people the inventory in front of you actually requires. Same touch data, two altitudes up.'},
     {role:'director',pg:'d1',sel:'.grid',title:'And staffing becomes the KPI leadership reports',
-     text:'AR days, collection rate and cost to collect are downstream of everything you just saw. When one of these misses target, the chain you climbed is the path back down to the behavior behind it.'},
+     text:'AR days, collection rate and cost to collect sit downstream of everything you just saw. When one of them misses target, the chain you climbed is how you find out why \u2014 workload, a process bottleneck, payer behavior, account mix, capacity, or one person who needs help. Most dashboards tell you the number moved. This tells you which of those moved it.'},
     {role:'director',pg:'d0',cardTitle:'Big picture',title:'Which reframes the whole question',
      text:'Once you can see the work at touch level, you can ask what a bot should be doing instead. Same foundation, final altitude: from one person\u2019s Tuesday to a capital decision about capacity.'}
   ]
