@@ -431,13 +431,23 @@ function switchRole(role){
   document.querySelectorAll('.role-panel').forEach(p=>p.classList.remove('active'));
   $$('role-'+role).classList.add('active');
   const active = document.querySelector(`#role-${role} .page-btn.active`);
-  if(active) ensure(role, active.dataset.pg);
+  if(active){ scrollTopOnPageChange(role+'-'+active.dataset.pg); ensure(role, active.dataset.pg); }
+}
+/* Land at the top when the visible page changes. Guarded on an actual change because the
+   guided tour calls switchPage on every step, including consecutive steps on the same page,
+   and an unconditional scroll would yank the view to the top and then back down again. */
+let _shownPage = null;
+function scrollTopOnPageChange(key){
+  if(key===_shownPage) return;
+  _shownPage = key;
+  window.scrollTo({top:0, behavior:'auto'});
 }
 function switchPage(role,pg){
   const panel = $$('role-'+role);
   panel.querySelectorAll('.page-btn').forEach(b=>b.classList.toggle('active',b.dataset.pg===pg));
   panel.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
   $$(`page-${role}-${pg}`).classList.add('active');
+  scrollTopOnPageChange(role+'-'+pg);
   ensure(role,pg);
 }
 function ensure(role,pg){
