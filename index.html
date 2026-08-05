@@ -673,6 +673,205 @@ function buildQueueTable(){
     <td style="max-width:230px">${r.nba}</td></tr>`).join('') + '</tbody>';
 }
 
+/* ============ COLLECTOR COMPOSITE SCORE ============
+   One 0-100 score from four pillars. Gate 7 §8.
+
+   Two properties do the real work and must not be removed independently:
+   1. Productivity is complexity-adjusted (pctGoal x cli), so credit tracks the difficulty
+      of the accounts actually worked. Without it the score rewards cherry-picking.
+   2. A red-threshold gate caps the score at 70. Volume cannot buy past bad documentation.
+
+   COMPOSITE STANDARDS ARE NOT FLAG THRESHOLDS. Flag thresholds (Gate 7 §7.1) say when to
+   intervene; standards say what good looks like, and sit above them. Scoring against the
+   flag threshold would give 100 to everyone who simply is not flagged.                    */
+const CS_STD = {          // 100 = at standard. Client-configurable at implementation.
+  fpr:0.75, res:0.88, dtc:26, adjGoal:105, rubric:92, nli:85, stale:0.05 };
+const CS_W   = { eff:0.35, prod:0.25, qual:0.30, rel:0.10 };
+const CS_GATE_CAP = 70;   // red thresholds from Gate 7 §7.1
+const CS_RED = { rubric:68, nli:68, pctGoal:80 };
+const CS_BANDS = [[85,'Exceeds'],[75,'Strong'],[62,'Solid'],[50,'Developing'],[0,'Needs support']];
+const CS_FORMULA_VERSION = 'v1.0';
+/* No credit above standard: cap at 100 so volume is not an unbounded lever. */
+function csPart(v,std,lowerBetter){
+  if(v==null||!isFinite(v)) return null;
+  const r=(lowerBetter? std/v : v/std)*100;
+  return Math.max(0,Math.min(100,r));
+}
+function csBand(x){ return (CS_BANDS.find(b=>x>=b[0])||CS_BANDS[CS_BANDS.length-1])[1]; }
+function compositeScore(c){
+  const adjGoal = c.pctGoal * c.cli;
+  const pillars = {
+    eff : 0.40*csPart(c.fpr,CS_STD.fpr) + 0.35*csPart(c.res,CS_STD.res) + 0.25*csPart(c.dtc,CS_STD.dtc,true),
+    prod: csPart(adjGoal,CS_STD.adjGoal),
+    qual: 0.60*csPart(c.q.score,CS_STD.rubric) + 0.40*csPart(c.nli.overall*100,CS_STD.nli),
+    rel : csPart(c.stale,CS_STD.stale,true)
+  };
+  const raw = CS_W.eff*pillars.eff + CS_W.prod*pillars.prod + CS_W.qual*pillars.qual + CS_W.rel*pillars.rel;
+  const gate=[];
+  if(c.q.score < CS_RED.rubric)        gate.push('quality rubric below '+CS_RED.rubric);
+  if(c.nli.overall*100 < CS_RED.nli)   gate.push('note quality below '+CS_RED.nli);
+  if(c.pctGoal < CS_RED.pctGoal)       gate.push('productivity below '+CS_RED.pctGoal+'% of goal');
+  const score = gate.length ? Math.min(raw, CS_GATE_CAP) : raw;
+  /* Ramping collectors are not scored against a tenured standard. Showing a low number
+     instead of "not scored" is the failure mode this suppression exists to prevent. */
+  const suppressed = (c.arch==='ramping' || c.tenure<6)
+    ? (c.arch==='ramping' ? 'Ramping — not scored against the tenured standard' : 'Under 6 months tenure')
+    : null;
+  /* The pillar that drives the conversation is the one costing the most composite points,
+     which is weight x shortfall, NOT the lowest raw pillar score. A lightly weighted pillar
+     scoring 54 costs less than a heavily weighted one scoring 75, and ranking by raw score
+     would point every conversation at whichever pillar happens to be calibrated hardest. */
+  const cost = k => CS_W[k] * (100 - pillars[k]);
+  const order = ['qual','eff','prod','rel'];   // tie-break toward the heavier pillar
+  const weakest = order.slice().sort((a,b)=>cost(b)-cost(a))[0];
+  return {score:+score.toFixed(1), raw:+raw.toFixed(1), band:csBand(score), pillars, gate,
+          suppressed, adjGoal:+adjGoal.toFixed(1), weakest, version:CS_FORMULA_VERSION};
+}
+const CS_LABEL = {eff:'Effectiveness',prod:'Productivity',qual:'Quality',rel:'Reliability'};
+const CS_SUB = {
+  eff :'first-pass resolution, resolution rate, days to resolution',
+  prod:'complexity-adjusted % of goal',
+  qual:'quality rubric 60% · note quality 40%',
+  rel :'accounts past follow-up date without a touch'};
+function csBandColor(b){
+  return b==='Exceeds'?'var(--green)':b==='Strong'?'var(--ml)':b==='Solid'?'var(--amber)'
+       : b==='Developing'?'var(--orange,#E8681A)':'var(--red)';
+}
+/* The four pillars always render with the score. Never the number alone. */
+function csPillarTable(cs){
+  const row=(k)=>{
+    const v=cs.pillars[k], w=Math.round(CS_W[k]*100);
+    return `<tr${k===cs.weakest?' class="row-sel"':''}><td><b>${CS_LABEL[k]}</b>${k===cs.weakest?' <span class="pill amber" style="font-size:8.5px">costing the most</span>':''}
+        <div style="font-size:10px;color:var(--text3)">${CS_SUB[k]}</div></td>
+      <td class="r num">${w}%</td>
+      <td style="width:130px"><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--track)">
+        <div style="width:${v}%;background:${v>=85?'var(--ml)':v>=70?'var(--amber)':'var(--red)'}"></div></div></td>
+      <td class="r num"><b>${v.toFixed(0)}</b></td></tr>`;
+  };
+  return `<table class="tbl"><thead><tr><th>Pillar</th><th class="r">Weight</th><th>vs standard</th><th class="r">Score</th></tr></thead>
+    <tbody>${['eff','prod','qual','rel'].map(row).join('')}</tbody></table>`;
+}
+/* Director altitude: AGGREGATES ONLY, no individual names.
+   Individual performance is a supervisor-altitude conversation. A director needs to know
+   which team is struggling and on which pillar, not who. Adding names here would move the
+   score from a coaching instrument to a ranking one in a single edit. */
+function csTeamRollupCard(){
+  const T=WPA.collectors, sups=WPA.supervisors;
+  const rows=sups.map(sp=>{
+    const mine=T.filter(c=>c.sup===sp.id).map(c=>({c,cs:compositeScore(c)}));
+    const live=mine.filter(x=>!x.cs.suppressed);
+    const m=k=>live.length? live.reduce((s,x)=>s+x.cs.pillars[k],0)/live.length : null;
+    const avg=live.length? live.reduce((s,x)=>s+x.cs.score,0)/live.length : null;
+    const below=live.filter(x=>x.cs.score<75).length, capped=live.filter(x=>x.cs.gate.length).length;
+    const pil={eff:m('eff'),prod:m('prod'),qual:m('qual'),rel:m('rel')};
+    const weakest=avg==null?null:['qual','eff','prod','rel'].slice()
+      .sort((a,b)=>CS_W[b]*(100-pil[b])-CS_W[a]*(100-pil[a]))[0];
+    return {sp,n:mine.length,live:live.length,avg,pil,below,capped,weakest};
+  });
+  const all=T.map(c=>compositeScore(c)).filter(x=>!x.suppressed);
+  const teamAvg=all.length? all.reduce((s,x)=>s+x.score,0)/all.length : 0;
+  const cell=v=>v==null?'<span style="color:var(--text3)">—</span>'
+    :`<span class="num" style="color:${v>=85?'var(--green)':v>=70?'var(--amber)':'var(--red)'}">${v.toFixed(0)}</span>`;
+  const body=`<table class="tbl"><thead><tr><th>Team</th><th class="r">Scored</th><th class="r">Avg composite</th>
+      <th class="r">Eff</th><th class="r">Prod</th><th class="r">Qual</th><th class="r">Rel</th>
+      <th>Pillar costing the most</th><th class="r">Below band</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><b>${r.sp.name}</b></td>
+      <td class="r num">${r.live} of ${r.n}</td>
+      <td class="r">${r.avg==null?'—':`<b class="num" style="color:var(--navy)">${r.avg.toFixed(1)}</b> <span class="pill" style="background:${csBandColor(csBand(r.avg))};color:#fff;font-size:8.5px">${csBand(r.avg)}</span>`}</td>
+      <td class="r">${cell(r.pil.eff)}</td><td class="r">${cell(r.pil.prod)}</td>
+      <td class="r">${cell(r.pil.qual)}</td><td class="r">${cell(r.pil.rel)}</td>
+      <td>${r.weakest?CS_LABEL[r.weakest]:'—'}</td>
+      <td class="r num">${r.below}${r.capped?` <span class="pill amber" style="font-size:8.5px">${r.capped} capped</span>`:''}</td></tr>`).join('')}
+    <tr style="border-top:2px solid var(--border)"><td><b>All teams</b></td>
+      <td class="r num">${all.length} of ${T.length}</td>
+      <td class="r"><b class="num" style="color:var(--navy)">${teamAvg.toFixed(1)}</b></td>
+      <td class="r" colspan="5"></td>
+      <td class="r num">${all.filter(x=>x.score<75).length}</td></tr>
+    </tbody></table>
+    <div style="font-size:10.5px;color:var(--text2);margin-top:9px">Team averages only. Individual scores live at supervisor altitude, on Collector Deep Dive, where the person and the context are both in the room. A pillar consistently low across a whole team is a process or assignment question, not a people question, and is the more useful finding at this level.</div>`;
+  return `<div style="margin-top:12px">`+card('Composite score — by team', body, 'aggregates only · no individual names at this altitude')+`</div>`;
+}
+/* Team view: a DISTRIBUTION, not a leaderboard.
+   A sorted list of names with scores is a stack rank whatever we label it. The supervisor's
+   actual question is "is my team healthy and who needs help", which a band histogram plus a
+   named list of only the below-band cases answers without producing the ranking artifact.
+   Do not turn this into a sortable name-by-score table. */
+function csDistributionCard(T){
+  const scored=T.map(c=>({c,cs:compositeScore(c)}));
+  const live=scored.filter(x=>!x.cs.suppressed), supp=scored.filter(x=>x.cs.suppressed);
+  const order=CS_BANDS.map(b=>b[1]);
+  const counts=order.map(b=>({band:b,n:live.filter(x=>x.cs.band===b).length}));
+  const max=Math.max(1,...counts.map(c=>c.n));
+  const avg=live.length? live.reduce((s,x)=>s+x.cs.score,0)/live.length : 0;
+  const bars=counts.map(c=>`<div style="display:flex;align-items:center;gap:9px;margin-bottom:5px">
+      <div style="width:104px;font-size:11px;color:var(--text2);text-align:right">${c.band}</div>
+      <div style="flex:1;display:flex;align-items:center;gap:7px">
+        <div style="height:16px;width:${(c.n/max)*100}%;min-width:${c.n?'10px':'0'};background:${csBandColor(c.band)};border-radius:3px"></div>
+        <span class="num" style="font-size:11px;color:${c.n?'var(--text)':'var(--text3)'}">${c.n}</span></div></div>`).join('');
+  /* Only the people below band are named, because those are the ones a supervisor has to
+     act on. Naming the top of the list serves ranking, not coaching. */
+  const attn=live.filter(x=>x.cs.score<75).sort((a,b)=>a.cs.score-b.cs.score);
+  const attnList = attn.length
+    ? attn.map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--divider);font-size:11.5px">
+        <span><b>${x.c.name}</b> <span style="color:var(--text3)">${CS_LABEL[x.cs.weakest]} costing the most${x.cs.gate.length?' · capped':''}</span></span>
+        <span class="num"><b>${x.cs.score.toFixed(0)}</b></span></div>`).join('')
+    : `<div style="font-size:11.5px;color:var(--text3)">Nobody is below band. Nothing to action here today.</div>`;
+  const body=`<div class="grid g2" style="gap:16px">
+      <div>${bars}
+        <div style="font-size:10.5px;color:var(--text3);margin-top:9px">Team average <b class="num" style="color:var(--navy)">${avg.toFixed(1)}</b> across ${live.length} scored${supp.length?` · ${supp.length} not scored (${supp.map(x=>x.c.name.split(' ')[0]).join(', ')})`:''}.</div>
+      </div>
+      <div><div class="mini-label" style="margin-bottom:5px">Below band — where to spend your time</div>
+        ${attnList}
+        <div style="font-size:10.5px;color:var(--text3);margin-top:9px">Deliberately a distribution, not a ranking. Scoring is against a fixed standard, so a healthy team can sit entirely in the top band and that is a real result rather than a calibration problem. Open <b>Collector Deep Dive</b> for any individual's pillars.</div>
+      </div>
+    </div>`;
+  return `<div style="margin-top:12px">`+card('Composite score — team distribution', body, 'band counts · not a leaderboard')+`</div>`;
+}
+/* Compact grid cell. The four pillars stay one hover away, so the number never travels
+   alone even in a dense table. */
+function csCell(c){
+  const cs=compositeScore(c);
+  if(cs.suppressed) return `<span style="font-size:10px;color:var(--text3)" title="${cs.suppressed}">not scored</span>`;
+  const tip=['eff','prod','qual','rel'].map(k=>`${CS_LABEL[k]} ${cs.pillars[k].toFixed(0)}`).join(' · ')
+    + (cs.gate.length?` — capped at ${CS_GATE_CAP}: ${cs.gate.join('; ')}`:'');
+  return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;justify-content:flex-end">
+    <b class="num">${cs.score.toFixed(0)}</b>
+    <span style="width:7px;height:7px;border-radius:50%;background:${csBandColor(cs.band)};flex:none"></span></span>`;
+}
+/* The score, its band, and the four pillars in one block. `own` = the collector's own view
+   on c2, which is worded in the first person and states the read-only scope explicitly. */
+function csHeroCard(c, own){
+  const cs=compositeScore(c);
+  const num = cs.suppressed
+    ? `<div style="font-size:34px;font-weight:700;color:var(--text3);line-height:1">—</div>`
+    : `<div style="font-size:46px;font-weight:700;color:var(--navy);line-height:1" class="num">${cs.score.toFixed(0)}<span style="font-size:18px;color:var(--text3);font-weight:600">/100</span></div>`;
+  const bandPill = cs.suppressed
+    ? `<span class="pill" style="background:var(--surface2);color:var(--text3)">Not scored</span>`
+    : `<span class="pill" style="background:${csBandColor(cs.band)};color:#fff">${cs.band}</span>`;
+  const why = cs.suppressed
+    ? `<div style="font-size:11.5px;line-height:1.55;color:var(--text2)"><b>${cs.suppressed}.</b> The four pillars below are still measured and still worth working; what is withheld is the single rolled-up number, because comparing a ramping collector against a tenured standard produces a low score that says nothing useful.</div>`
+    : `<div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${own?'Your':'This'} composite is <b>${cs.score.toFixed(0)}</b> (${cs.band}). ${CS_LABEL[cs.weakest]} is costing the most right now, so that is where the next point comes from. Productivity is <b>complexity-adjusted</b>: raw ${c.pctGoal}% of goal x CLI ${(+c.cli).toFixed(2)} = <b>${cs.adjGoal}%</b> adjusted, so credit follows the difficulty of the accounts ${own?'you':'they'} actually worked.</div>`;
+  const body = `<div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start">
+      <div style="text-align:center;padding:10px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface3)">
+        ${num}<div style="margin-top:7px">${bandPill}</div>
+        <div style="font-size:9.5px;color:var(--text3);margin-top:7px;line-height:1.4">formula ${cs.version}<br>30-day trailing window</div>
+      </div>
+      <div>${why}
+        <div style="margin-top:11px">${csPillarTable(cs)}</div>
+        ${csGateNote(cs)}
+        <div style="font-size:10.5px;color:var(--text3);margin-top:9px">Scored against a fixed standard, not against ${own?'your colleagues':'peers'}. Everyone can score well at once and nobody is graded on a curve. ${own?'This is the same view your supervisor sees.':'Read-only: this informs a conversation, it is not a rating or a ranking.'}</div>
+      </div>
+    </div>`;
+  return `<div style="margin-bottom:12px">`
+    + card('Composite score — four pillars, one number', body,
+        ML('deterministic formula · Gate 7 §8'))
+    + `</div>`;
+}
+function csGateNote(cs){
+  if(!cs.gate.length) return '';
+  return `<div class="alert yellow" style="margin-top:10px"><div><div class="alert-sig">Capped at ${CS_GATE_CAP}</div>
+    <div class="alert-txt">A red threshold is breached (${cs.gate.join('; ')}), so the composite cannot rise above ${CS_GATE_CAP} regardless of the other pillars. Volume does not offset documentation.</div></div></div>`;
+}
 RENDER['collector-c2'] = function(){
   const m = me();
   const team = WPA.collectors;
@@ -693,6 +892,7 @@ RENDER['collector-c2'] = function(){
       ${kpi('Recovery efficiency', '$'+Math.round(m.revK*1000/(m.prod30*22)), ML('per weighted unit worked')+' · ERV capture '+Math.round((m.res*0.55+m.fpr*0.45)*100)+'%','+$9','up')}
       ${kpi('Cash collected MTD', '$'+m.revK+'K', 'context only — raw $ is not complexity-normalized')}
     </div>`
+  + csHeroCard(m, true)
   + `<div class="grid g2">
       ${card('6-month trend — complexity-adjusted score', canvas('c2trend'), 'me vs team average · avg daily weighted units')}
       ${card('Last 30 days — complexity-adjusted score vs goal', canvas('c2daily','chart-tall'), 'same metric as the KPI tile, daily')}
@@ -1122,7 +1322,8 @@ RENDER['supervisor-s1'] = function(){
     <div class="grid g2">
       ${card('Period goal progress — with forecast overlay', '<div id="s1goals"></div>', ML('forecast'))}
       ${card('Queue aging distribution by collector', canvas('s1aging','chart-tall'), 'stacked by aging bucket')}
-    </div>`;
+    </div>
+    ${csDistributionCard(T)}`;
   buildHeatGrid();
   const goals = [
     {n:'Revenue collected (MTD)', v:1.42, t:4.8, f:4.55, fmt:v=>'$'+v.toFixed(2)+'M'},
@@ -1275,6 +1476,7 @@ function renderS2(){
       </div>
     </div></div>`;
   $$('s2body').innerHTML = `
+    ${csHeroCard(c, false)}
     ${review}
     ${c.anomaly?`<div class="alert ${c.anomaly.sev==='High'?'red':'yellow'}" style="margin-bottom:12px"><div>
       <div class="alert-sig">🤖 Collector Anomaly — ${c.anomaly.cat} · ${c.anomaly.sev}</div>
@@ -1573,7 +1775,17 @@ function coachBrief(c){
     : easyBook
       ? 'Easier book than the team, so volume comparisons flatter this collector. Worth checking whether the harder accounts are being left for someone else.'
       : 'Book difficulty is in line with the team, so the productivity and quality numbers above compare cleanly against peers.';
+  /* The composite leads the evidence: it is the summary, and the lines under it are the
+     decomposition. Its reading names the pillar costing the most, so the number always
+     arrives attached to an action. */
+  const cs=compositeScore(c);
+  const csRead = cs.suppressed
+    ? `${cs.suppressed}. Work the four pillars below on their own terms; a rolled-up number compared against a tenured standard would understate someone still ramping.`
+    : cs.gate.length
+      ? `Capped at ${CS_GATE_CAP} because a red threshold is breached (${cs.gate.join('; ')}). Volume cannot lift this until that clears, which is the point of the cap. ${CS_LABEL[cs.weakest]} is costing the most.`
+      : `Band ${cs.band}. ${CS_LABEL[cs.weakest]} is costing the most, so that is where the next point comes from. Productivity inside this is complexity-adjusted (${c.pctGoal}% raw x CLI ${(+c.cli).toFixed(2)} = ${cs.adjGoal}%), so it is not moved by working easier accounts.`;
   const evidence=[
+    {m:`Composite score ${cs.suppressed?'not scored':cs.score.toFixed(0)+'/100'} · Eff ${cs.pillars.eff.toFixed(0)} · Prod ${cs.pillars.prod.toFixed(0)} · Qual ${cs.pillars.qual.toFixed(0)} · Rel ${cs.pillars.rel.toFixed(0)}`, s:csRead},
     {m:`Productivity ${c.pctGoal}% of goal (${gap>=0?'+':''}${gap} pts)`, s:prodRead},
     {m:`Quality rubric ${c.q.score} · NLI note quality ${nli}/100`, s:qRead},
     {m:`Complexity load ${(+c.cli).toFixed(2)}× vs team 1.00`, s:cliRead}];
@@ -1606,7 +1818,7 @@ function toggleCoachRow(cid){
   document.querySelectorAll('[id^="cbc-"]').forEach(x=>x.textContent='▶');
   if(open){
     const c=WPA.collectors.find(x=>x.id===cid), b=coachBrief(c);   // generated on demand, never stored
-    d.innerHTML=`<td colspan="8" style="padding:12px 16px" onclick="event.stopPropagation()">
+    d.innerHTML=`<td colspan="9" style="padding:12px 16px" onclick="event.stopPropagation()">
       <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:5px">🤖 Auto-drafted coaching brief — generated now from this collector's snapshot &amp; flags · not stored</div>
       <div style="font-size:12px;line-height:1.55;margin-bottom:10px">${b.opening}</div>
       <div class="mini-label" style="margin-bottom:4px">Evidence</div>
@@ -1638,6 +1850,7 @@ RENDER['supervisor-s6'] = function(){
       <td>${ARCH_LABEL[c.arch]||c.arch}</td>
       <td>${statusPill(st)}${c.anomaly?' <span class="pill purple">anomaly</span>':''}</td>
       <td style="font-size:11px">${flagCells}</td>
+      <td class="r">${csCell(c)}</td>
       <td class="r num" style="color:${c.pctGoal>=100?'var(--green)':'var(--amber)'}">${c.pctGoal}%</td>
       <td class="r num">${c.q.score}</td>
       <td class="r num">${(c.nli.overall*100).toFixed(0)}</td>
@@ -1655,7 +1868,7 @@ RENDER['supervisor-s6'] = function(){
     <div class="card" style="margin-bottom:12px"><div class="card-head"><div class="card-title">Team roster — flags & signals</div>
       <div class="card-note">${ML('flags fire & resolve automatically per Gate 7 thresholds')} · click a collector for the on-demand 1:1 brief</div></div>
       <div class="card-body" style="padding:0"><table class="tbl" data-nosort="1"><thead><tr>
-        <th>Collector</th><th>Archetype</th><th>Status</th><th>Active flags</th><th class="r">% of goal</th><th class="r">Quality</th><th class="r">NLI</th><th class="r">Days since fired</th></tr></thead>
+        <th>Collector</th><th>Archetype</th><th>Status</th><th>Active flags</th><th class="r">Composite</th><th class="r">% of goal</th><th class="r">Quality</th><th class="r">NLI</th><th class="r">Days since fired</th></tr></thead>
         <tbody>${roster}</tbody></table></div></div>
     <div class="grid g2">
       ${card('Active flags by type', canvas('s6types','chart-short'))}
@@ -2182,7 +2395,8 @@ RENDER['director-d4'] = function(){
         <td class="r">${b.p}</td>
         <td class="r" style="color:${good?'var(--green)':'var(--amber)'};font-weight:700">${gap>0?'+':''}${b.fmt==='$'?'$':''}${(+gap).toFixed(1)}${b.fmt==='%'?' pts':b.fmt==='days'?'d':''}</td></tr>`;}).join('')}
      </tbody></table>
-     <div style="font-size:10.5px;color:var(--text2);margin-top:10px">Reading: black tick = benchmark. Every bar short of the tick is a quantified improvement lever — denial rate and collection rate are the two largest dollar-weighted gaps ($3.05M and $700K/yr respectively at current volume).</div></div></div>`;
+     <div style="font-size:10.5px;color:var(--text2);margin-top:10px">Reading: black tick = benchmark. Every bar short of the tick is a quantified improvement lever — denial rate and collection rate are the two largest dollar-weighted gaps ($3.05M and $700K/yr respectively at current volume).</div></div></div>`
+  + csTeamRollupCard();
 };
 
 RENDER['director-d5'] = function(){
@@ -3443,6 +3657,27 @@ reg(['team-roster'],{
  a:'Click any row for an on-demand brief. Nothing is written back; this is a read-only view.',
  s:'Source: Coaching Engine + PayFlo configuration'});
 
+/* Composite score — Gate 7 §8 */
+reg(['composite-score'],{
+ d:'One 0-100 score combining effectiveness, productivity, quality, and reliability, shown with the four pillars that produce it.',
+ c:'Weighted sum: effectiveness 35% (first-pass resolution, resolution rate, days to resolution), productivity 25% (complexity-adjusted % of goal), quality 30% (rubric 60 / note quality 40), reliability 10% (accounts past follow-up without a touch). Each pillar scores against a fixed standard where 100 = at standard, capped at 100 so nothing above standard is credited. Productivity input is <code>pctGoal x cli</code>, so credit follows the difficulty of the accounts actually worked.',
+ p:'Leadership asked for a single number. The two mechanics that make one safe are the complexity adjustment and the red-threshold cap: without them a composite rewards working easy accounts and lets volume offset poor documentation.',
+ i:'Scored against a fixed standard, not on a curve, so a healthy team can sit entirely in the top band. That is a real result, not a calibration problem. The score is capped at 70 while any Gate 7 red threshold is breached. Ramping collectors and anyone under 6 months are not scored, because comparing them against a tenured standard produces a low number that says nothing. The pillar flagged as costing the most is by weighted shortfall, not lowest raw score.',
+ a:'Work the pillar costing the most. Never read the number without the pillars; the score summarizes, the pillars diagnose.',
+ s:'Source: collector_daily_snap + ml_nli_score — deterministic formula, versioned'});
+reg(['composite-score-team-distribution'],{
+ d:'How many collectors sit in each band, plus a named list of only those below band.',
+ c:'Band counts over scored collectors (ramping and under-6-month excluded). Bands: Exceeds 85+, Strong 75-84, Solid 62-74, Developing 50-61, Needs support below 50.',
+ p:'A supervisor needs to know whether the team is healthy and who needs help. A sorted list of names by score answers a different question and becomes a stack rank regardless of intent.',
+ i:'Deliberately a distribution rather than a ranking, and only the below-band cases are named. Naming the top of the list would serve ranking, not coaching.',
+ a:'Open Collector Deep Dive for any individual pillar breakdown.',
+ s:'Source: composite score, aggregated'});
+reg(['composite-score-by-team'],{
+ d:'Average composite and average pillar scores per supervisor, with the pillar costing that team the most.',
+ c:'Mean composite and mean pillar scores across each supervisor\u2019s scored collectors. Below-band and capped counts are collector counts, not averages.',
+ p:'A pillar consistently low across an entire team is a process, routing, or assignment question rather than a people question, and that is the more actionable finding at director altitude.',
+ i:'Aggregates only. Individual scores are deliberately not shown at this altitude; they belong in a supervisor conversation where the person and the context are both present.',
+ s:'Source: composite score, aggregated by supervisor'});
 /* Director — D0 */
 reg(['bot-vs-human-work-today'],{
  d:'What bots actually did versus what people actually did, by work type, over a trailing 90 days.',
