@@ -1548,10 +1548,49 @@ function coachBrief(c){
   const opening = flags.length
     ? `${first} — ${ARCH_LABEL[c.arch]||c.arch}. ${flags.length} active ${flags.length>1?'flags':'flag'}: ${flags.map(f=>f.type).join(', ')}. ${c.cli>1.1?`Carrying a harder-than-average book (CLI ${c.cli}×) — weigh volume expectations accordingly.`:c.cli<0.9?`Low complexity load (CLI ${c.cli}×) alongside volume — worth probing account selection.`:''} Frame this as development, not discipline.`
     : `${first} — ${ARCH_LABEL[c.arch]||c.arch}. No active flags. Use the 1:1 to recognize what's working and explore a stretch goal or mentoring.`;
-  const evidence=[`Productivity ${c.pctGoal}% of goal (${gap>=0?'+':''}${gap} pts)`,
-    `Quality rubric ${c.q.score} · NLI note quality ${(c.nli.overall*100).toFixed(0)}/100`,
-    `Complexity load ${c.cli}× vs team 1.0`];
-  flags.forEach(f=>evidence.push(`${f.type} (${f.sev}) — ${f.metric}`));
+  /* Each evidence line carries a reading so the supervisor is not left to infer what the
+     number means. Thresholds are the Gate 7 ones: % of goal 95/80, quality 80/68,
+     NLI 78, CLI 0.9/1.1. */
+  const hardBook=c.cli>1.1, easyBook=c.cli<0.9, nli=+(c.nli.overall*100).toFixed(0);
+  const prodRead = c.pctGoal>=100
+      ? (easyBook
+        ? 'At goal, but on an easier-than-average book — the volume may reflect which accounts are being picked rather than throughput. Read this with the complexity line below.'
+        : 'At or above goal. Volume is not the thing to work in this 1:1.')
+    : c.pctGoal>=95
+      ? 'Just under goal and still inside the 95% tolerance — this is normal week-to-week variation, not a finding. Watch the trend, not the number.'
+      : hardBook
+        ? `Under the 95% threshold, but carrying a harder-than-average book (CLI ${c.cli}×). Part of this gap is account difficulty rather than effort — adjust the expectation before adjusting the person.`
+        : `Under the ${c.pctGoal<80?'80% escalation':'95%'} threshold on a normal-difficulty book, so the queue does not explain it. Ask what is in the way before assuming effort.`;
+  const qRead = c.q.score>=80 && nli>=78
+      ? 'Both documentation measures are holding. Nothing to work here.'
+    : c.q.score>=80
+      ? `The mechanical steps are getting done (rubric ${c.q.score}) but the notes themselves are thin (NLI ${nli}, below 78). The score drops on next step and denial reference — a documentation conversation, not a performance one.`
+    : nli>=78
+      ? `Notes read well (NLI ${nli}) but the rubric is below 80, so steps are being skipped rather than done poorly — usually the status update or the follow-up date.`
+      : 'Both measures are below threshold. This is the highest-leverage item in the brief: a weak note makes the next person redo the discovery, so the cost lands on the team, not just this collector.';
+  const cliRead = hardBook
+      ? 'Harder book than the team, so raw touch counts understate the work being done. Discount any volume gap accordingly.'
+    : easyBook
+      ? 'Easier book than the team, so volume comparisons flatter this collector. Worth checking whether the harder accounts are being left for someone else.'
+      : 'Book difficulty is in line with the team, so the productivity and quality numbers above compare cleanly against peers.';
+  const evidence=[
+    {m:`Productivity ${c.pctGoal}% of goal (${gap>=0?'+':''}${gap} pts)`, s:prodRead},
+    {m:`Quality rubric ${c.q.score} · NLI note quality ${nli}/100`, s:qRead},
+    {m:`Complexity load ${(+c.cli).toFixed(2)}× vs team 1.00`, s:cliRead}];
+  /* What each flag type actually indicates — the part a threshold breach does not tell you. */
+  const FLAG_READ=[
+    [/stale|aging/i, 'Accounts are passing their follow-up date untouched, which is how balances age into the bands that collect worst. Usually a queue-management or capacity problem rather than a skill one.'],
+    [/status/i,      'Work is happening but the AR status is not moving with it, so the queue and every report built on it read stale. Cheap to fix, and it distorts everyone else’s view until it is.'],
+    [/note|missing/i,'Touches are landing without a usable note, so the next person to open the account starts the discovery over. The cost of this one lands on the team, not the collector.'],
+    [/reassign/i,    'A high share of touches end with the account moving to someone else. Either the routing is wrong or a specific account type is outside this collector’s comfort zone — ask which before assuming either.'],
+    [/first-pass|fpr/i,'Accounts are being touched more than once to reach the same outcome. That points at incomplete first touches or follow-up set too early, not at low effort.'],
+    [/productivity/i,'Measured against this collector’s own 30-day average, not against the team — so something changed for this person. The change is the subject, not the level.'],
+  ];
+  flags.forEach(f=>{
+    const hit=FLAG_READ.find(([re])=>re.test(f.type));
+    evidence.push({m:`${f.type} (${f.sev}) — ${f.metric}`,
+      s:hit?hit[1]:'Fired against the Gate 7 threshold shown. Confirm the metric with the collector before drawing a conclusion from it.'});
+  });
   const asks=[];
   if(flags.some(f=>/note|missing/i.test(f.type))||c.nli.overall<0.78) asks.push('Review 2 recent notes together; reinforce the 4-part note (action · next step · denial ref · contact).');
   if(flags.some(f=>/touch|aging|stale|status/i.test(f.type))) asks.push('Walk the morning past-due follow-up sweep — surface anything blocking it.');
@@ -1571,7 +1610,9 @@ function toggleCoachRow(cid){
       <div class="mini-label" style="color:var(--t-supervisor);margin-bottom:5px">🤖 Auto-drafted coaching brief — generated now from this collector's snapshot &amp; flags · not stored</div>
       <div style="font-size:12px;line-height:1.55;margin-bottom:10px">${b.opening}</div>
       <div class="mini-label" style="margin-bottom:4px">Evidence</div>
-      ${b.evidence.map(e=>`<div style="font-size:11.5px;padding:3px 0;border-bottom:1px solid var(--divider)">· ${e}</div>`).join('')}
+      ${b.evidence.map(e=>`<div style="padding:5px 0;border-bottom:1px solid var(--divider)">
+        <div style="font-size:11.5px">· ${e.m}</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--text3);padding-left:12px;margin-top:2px">↳ ${e.s}</div></div>`).join('')}
       <div class="mini-label" style="margin:10px 0 4px">Suggested 1:1 asks</div>
       ${b.asks.map((a,i)=>`<div style="font-size:11.5px;padding:3px 0">${i+1}. ${a}</div>`).join('')}</td>`;
     d.dataset.open='1';
