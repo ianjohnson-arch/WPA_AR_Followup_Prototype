@@ -851,17 +851,23 @@ function csHeroCard(c, own){
   const why = cs.suppressed
     ? `<div style="font-size:11.5px;line-height:1.55;color:var(--text2)"><b>${cs.suppressed}.</b> The four pillars below are still measured and still worth working; what is withheld is the single rolled-up number, because comparing a ramping collector against a tenured standard produces a low score that says nothing useful.</div>`
     : `<div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${own?'Your':'This'} composite is <b>${cs.score.toFixed(0)}</b> (${cs.band}). ${CS_LABEL[cs.weakest]} is costing the most right now, so that is where the next point comes from. Productivity is <b>complexity-adjusted</b>: raw ${c.pctGoal}% of goal x CLI ${(+c.cli).toFixed(2)} = <b>${cs.adjGoal}%</b> adjusted, so credit follows the difficulty of the accounts ${own?'you':'they'} actually worked.</div>`;
-  const body = `<div style="display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:start">
-      <div style="text-align:center;padding:10px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface3)">
-        ${num}<div style="margin-top:7px">${bandPill}</div>
-        <div style="font-size:9.5px;color:var(--text3);margin-top:7px;line-height:1.4">formula ${cs.version}<br>30-day trailing window</div>
+  /* The narrative lives INSIDE the score panel so the panel spans the same height as the
+     pillar table beside it, instead of a short box next to a tall table. */
+  /* Score and narrative share one panel so its height tracks the pillar table beside it
+     rather than sitting as a short box next to a tall one. The scope footnote spans both
+     columns underneath, which keeps the two panels close to the same height. */
+  const body = `<div style="display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start">
+      <div style="padding:14px 14px 13px;border:1px solid var(--border);border-radius:8px;background:var(--surface3)">
+        <div style="text-align:center">
+          ${num}<div style="margin-top:7px">${bandPill}</div>
+          <div style="font-size:9.5px;color:var(--text3);margin-top:7px;line-height:1.4">formula ${cs.version} · 30-day trailing window</div>
+        </div>
+        <div style="height:1px;background:var(--divider);margin:12px 0 11px"></div>
+        ${why}
       </div>
-      <div>${why}
-        <div style="margin-top:11px">${csPillarTable(cs)}</div>
-        ${csGateNote(cs)}
-        <div style="font-size:10.5px;color:var(--text3);margin-top:9px">Scored against a fixed standard, not against ${own?'your colleagues':'peers'}. Everyone can score well at once and nobody is graded on a curve. ${own?'This is the same view your supervisor sees.':'Read-only: this informs a conversation, it is not a rating or a ranking.'}</div>
-      </div>
-    </div>`;
+      <div>${csPillarTable(cs)}${csGateNote(cs)}</div>
+    </div>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:11px;padding-top:10px;border-top:1px solid var(--divider);line-height:1.5">Scored against a fixed standard, not against ${own?'your colleagues':'peers'}. Everyone can score well at once and nobody is graded on a curve. ${own?'This is the same view your supervisor sees.':'Read-only: this informs a conversation, it is not a rating or a ranking.'}</div>`;
   return `<div style="margin-bottom:12px">`
     + card('Composite score — four pillars, one number', body,
         ML('deterministic formula · Gate 7 §8'))
@@ -2035,7 +2041,7 @@ RENDER['director-d0'] = function(){
   + botActualsCard(m)
   + `
     <div class="grid g2">
-      ${card('Projected effects — throughput, efficiency, timeliness', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Δ</th></tr></thead><tbody>
+      ${card('Projected effects — throughput, efficiency, timeliness', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Change</th></tr></thead><tbody>
         <tr><td colspan="4" style="background:var(--surface3);font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)">Throughput per FTE</td></tr>
         ${ba('Touches per FTE / day', m.touchesFTEday, m.projTouchFTE, x=>Math.round(x)+'')}
         ${ba('Accounts worked per FTE / day', m.acctsFTEday, m.projAcctsFTE, x=>Math.round(x)+'')}
@@ -2360,7 +2366,7 @@ RENDER['director-d3'] = function(){
     </div>
     <div class="grid g2">
       ${card('Team productivity & quality — 30 days', canvas('d3team'), 'are coaching programs working? both trending up')}
-      ${card('Coaching program signal', `<table class="tbl"><thead><tr><th>Cohort</th><th class="r">Pre</th><th class="r">Post-30d</th><th class="r">Δ</th></tr></thead><tbody>
+      ${card('Coaching program signal', `<table class="tbl"><thead><tr><th>Cohort</th><th class="r">Pre</th><th class="r">Post-30d</th><th class="r">Change</th></tr></thead><tbody>
         <tr><td>Coached collectors (5)</td><td class="r">71% of goal</td><td class="r">80%</td><td class="r" style="color:var(--green);font-weight:700">+9 pts</td></tr>
         <tr><td>Non-coached (9)</td><td class="r">92%</td><td class="r">94%</td><td class="r">+2 pts</td></tr>
         <tr><td>Notes rate — coached</td><td class="r">61%</td><td class="r">72%</td><td class="r" style="color:var(--green);font-weight:700">+11 pts</td></tr>
@@ -3706,6 +3712,62 @@ reg(['projected-effects'],{
  p:'Capacity and cycle time are the two claims a leader will be held to, so they belong in one table rather than two cards that look alike.',
  i:'Every figure is the incremental change beyond what existing bots already deliver, so a client that already automates does not get credited twice.',
  s:'Source: Gate 8 §7 automation model — modeled estimate, not measured'});
+
+
+/* Composite score — pillar table (C2, S2) */
+reg(['pillar'],{d:'One of the four components of the composite score: effectiveness, productivity, quality, or reliability.',
+ c:'Weights are fixed at effectiveness 35%, productivity 25%, quality 30%, reliability 10% (Gate 7 §8.1). The row highlighted as costing the most is the pillar with the largest weight × shortfall from 100, not the lowest raw score.'});
+reg(['weight'],{d:'How much this pillar contributes to the composite score.',
+ c:'Fixed weights per Gate 7 §8.1. Configurable per client at implementation, and frozen within a scoring period so a mid-period change cannot rewrite history.'});
+reg(['vs-standard'],{d:'This pillar\u2019s score against its standard, where a full bar is at or above standard.',
+ c:'Each component is scored as a ratio to its standard and capped at 100, so nothing above standard earns extra credit. Green at 85+, amber 70-84, red below 70.'});
+reg(['score'],{d:'This pillar\u2019s 0-100 score against standard, capped at 100.',
+ c:'Standards: FPR 75%, resolution 88%, 26 days to resolution, 105% complexity-adjusted goal, rubric 92, NLI 85, stale follow-up 5%. Standards sit above the Gate 7 flag thresholds: a flag says when to intervene, a standard says what good looks like.'});
+reg(['composite'],{d:'The collector\u2019s composite score, with the band shown as a colored dot.',
+ c:'Gate 7 §8.1 weighted sum of the four pillars. Hover the value for the pillar breakdown. Reads "not scored" for ramping collectors and anyone under 6 months tenure.',
+ a:'Open Collector Deep Dive for the full pillar view. Never act on the number without the pillars.'});
+/* Composite score — team roll-up (D4) */
+reg(['team'],{d:'The supervisor whose collectors are aggregated in this row.'});
+reg(['scored'],{d:'How many of this team\u2019s collectors have a composite score, out of the total.',
+ c:'Ramping collectors and anyone under 6 months tenure are excluded from scoring; their pillars still compute but the rolled-up number is withheld.'});
+reg(['avg-composite'],{d:'Mean composite score across this team\u2019s scored collectors, with the band that average falls in.',
+ c:'A straight mean over scored collectors only. Unscored collectors do not drag or lift it.'});
+reg(['eff'],{d:'Team mean of the effectiveness pillar: first-pass resolution, resolution rate, and days to resolution.'});
+reg(['prod'],{d:'Team mean of the productivity pillar: complexity-adjusted % of goal.',
+ c:'Adjusted as % of goal × CLI, so a team working harder accounts is not penalized on volume.'});
+reg(['qual'],{d:'Team mean of the quality pillar: quality rubric 60%, note quality 40%.'});
+reg(['rel'],{d:'Team mean of the reliability pillar: accounts passing their follow-up date without a touch.'});
+reg(['pillar-costing-the-most'],{d:'The pillar dragging this team\u2019s average the most.',
+ c:'Largest weight × shortfall from 100 across the team means.',
+ p:'A pillar low across an entire team is a process, routing, or assignment question rather than a people question, which is the more useful finding at director altitude.'});
+reg(['below-band'],{d:'How many of this team\u2019s collectors score below 75, and how many are capped by a red threshold.',
+ c:'Counts of collectors, not an average. Capped means a Gate 7 red threshold is breached, holding the composite at 70.'});
+/* Bot vs. human actuals (D0) */
+reg(['bot-/-human-split'],{d:'Share of this work type\u2019s touches performed by a bot versus a person.',
+ c:'Counted from the activity log by <code>actor_type</code> on each touch over a trailing 90 days. Green is bot, grey is human.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['bot-touches'],{d:'Touches on this work type performed by a bot in the last 90 days.',
+ c:'Count where <code>actor_type = bot</code>. A measured zero means no bot actor appears in the feed, not that the question was skipped.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['human-touches'],{d:'Touches on this work type performed by a person in the last 90 days.',
+ c:'Count where <code>actor_type = human</code>. Where no bots are running, this column is the manual workload census.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['bots'],{d:'Distinct automations observed working this work type.',
+ c:'Count of unique <code>bot_id</code> values in the window.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['handed-back'],{d:'Share of bot touches that a person then had to touch again on the same work type.',
+ c:'Bot touches followed by a human touch on the same account and work type within 5 days, divided by bot touches.',
+ p:'It separates a bot that creates capacity from one that creates rework, which bot share alone cannot show.',
+ i:'Above roughly 15% the automation is generating human follow-up rather than absorbing it. Widening that bot multiplies the rework.',
+ a:'Bring the hand-back rate down before expanding the bot.',
+ s:'Source: Activity log touch actor — measured'});
+reg(['headroom'],{d:'Gap between the measured bot share and the modeled ceiling for this work type.',
+ c:'Ceiling from Gate 8 §7.1 minus measured bot share, in percentage points.',
+ p:'Headroom multiplied by volume, not raw volume, is what ranks the next automation target.',
+ i:'Reads n/a for work types that stay human, where there is no ceiling to close.'});
+/* Shared */
+reg(['change'],{d:'The change between the two columns to its left.',
+ c:'Projected minus current. Green marks a move in the favorable direction for that metric, which is downward for touches per account, days to resolution, and other lower-is-better measures.'});
 
 /* ---------- Column headers ---------- */
 /* S3 stall heatmap — financial class columns */
