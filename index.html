@@ -827,6 +827,20 @@ function csDistributionCard(T){
     </div>`;
   return `<div style="margin-top:12px">`+card('Composite score — team distribution', body, 'band counts · not a leaderboard')+`</div>`;
 }
+/* Heat-map variant: matches the banding of the surrounding heat cells so the column reads
+   as part of the same scan, and carries the pillar breakdown plus the gate reason on hover
+   so the number is never stranded without its decomposition. */
+function csHeatCell(c){
+  const cs=compositeScore(c);
+  if(cs.suppressed) return `<td class="r"><span class="heat-cell" title="${cs.suppressed}" style="background:var(--surface2);color:var(--text3);display:inline-block;min-width:42px;font-size:10px">n/s</span></td>`;
+  const b=cs.band;
+  const bg = b==='Exceeds'||b==='Strong' ? 'var(--green-bg)' : b==='Solid' ? 'var(--amber-bg)' : 'var(--red-bg)';
+  const col= b==='Exceeds'||b==='Strong' ? 'var(--green)'    : b==='Solid' ? 'var(--amber)'    : 'var(--red)';
+  const tip=`${b} — ${['eff','prod','qual','rel'].map(k=>CS_LABEL[k]+' '+cs.pillars[k].toFixed(0)).join(' · ')}`
+    + ` · ${CS_LABEL[cs.weakest]} costing the most`
+    + (cs.gate.length?` · capped at ${CS_GATE_CAP}: ${cs.gate.join('; ')}`:'');
+  return `<td class="r"><span class="heat-cell num" title="${tip}" style="background:${bg};color:${col};display:inline-block;min-width:42px">${cs.score.toFixed(0)}${cs.gate.length?'<span style="font-size:9px;font-weight:400"> ▲</span>':''}</span></td>`;
+}
 /* Compact grid cell. The four pillars stay one hover away, so the number never travels
    alone even in a dense table. */
 function csCell(c){
@@ -1358,14 +1372,15 @@ function buildHeatGrid(){
     const ok = inv? v<=good : v>=good; const md = inv? v<=mid : v>=mid;
     const bg = ok?'var(--green-bg)':md?'var(--amber-bg)':'var(--red-bg)';
     const col = ok?'var(--green)':md?'var(--amber)':'var(--red)';
-    return `<td class="r"><span class="heat-cell num" style="background:${bg};color:${col};display:inline-block;min-width:52px">${v}</span></td>`;};
-  $$('heatgrid').innerHTML = `<thead><tr><th>Collector</th><th class="r">% of Goal</th><th class="r">Quality</th>
-    <th class="r">FPR %</th><th class="r">Aged att. %</th><th class="r">Stall-risk</th><th class="r">CLI</th><th>Coaching</th><th>Trend · adj. productivity</th></tr></thead><tbody>`+
+    return `<td class="r"><span class="heat-cell num" style="background:${bg};color:${col};display:inline-block;min-width:42px">${v}</span></td>`;};
+  $$('heatgrid').innerHTML = `<thead><tr><th>Collector</th><th class="r">Composite</th><th class="r">% of Goal</th><th class="r">Quality</th>
+    <th class="r">FPR %</th><th class="r">Aged att. %</th><th class="r">Stall-risk</th><th class="r">CLI</th><th>Coaching</th><th>Trend</th></tr></thead><tbody>`+
     T.map((c,i)=>{
       const spark = `<canvas id="sp-${c.id}" width="86" height="22" title="22-day trend of complexity-adjusted daily productivity — hover a point for the daily value"></canvas>`;
       const coach = c.flags.length? sevPill(c.flags.some(f=>f.sev==='High')?'High':c.flags.some(f=>f.sev==='Medium')?'Medium':'Low'):'<span class="pill green">Clear</span>';
       const anomTitle = 'ML Collector Anomaly: recent behavior deviates from this collector\'s own baseline (e.g. productivity drop with queue &amp; complexity unchanged, or an unusual account-mix). A learned pattern flag, not a fixed threshold — open the collector to see the driver.';
       return `<tr><td><b>${c.name}</b><br><span style="color:var(--text3);font-size:10px">${c.role} · ${collSupName(c.sup)}</span></td>
+        ${csHeatCell(c)}
         ${cell(c.pctGoal,95,80)}${cell(c.q.score,80,68)}${cell((c.fpr*100).toFixed(0),70,55)}
         ${cell((c.q.aged*100).toFixed(0),70,55)}
         ${cell(c.stallCt,25,45,true)}${cell(c.cli.toFixed(2),0.95,0.85)}
