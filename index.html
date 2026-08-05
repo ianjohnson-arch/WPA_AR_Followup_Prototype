@@ -1544,7 +1544,7 @@ const ARCH_LABEL={solid:'Solid performer',top:'Top performer',ramping:'Ramping',
 function collFlagStatus(c){const f=c.flags||[];return f.some(x=>x.sev==='High')?'Flagged':f.length?'Watch':'Clear';}
 function flagDays(c,f){let h=0;const str=c.id+f.type;for(let i=0;i<str.length;i++)h=(h*31+str.charCodeAt(i))>>>0;return 2+h%12;}
 function coachBrief(c){
-  const flags=c.flags||[], first=c.name.split(' ')[0], gap=c.pctGoal-100;
+  const flags=c.flags||[], first=c.name.split(' ')[0], gap=+(c.pctGoal-100).toFixed(1);
   const opening = flags.length
     ? `${first} — ${ARCH_LABEL[c.arch]||c.arch}. ${flags.length} active ${flags.length>1?'flags':'flag'}: ${flags.map(f=>f.type).join(', ')}. ${c.cli>1.1?`Carrying a harder-than-average book (CLI ${c.cli}×) — weigh volume expectations accordingly.`:c.cli<0.9?`Low complexity load (CLI ${c.cli}×) alongside volume — worth probing account selection.`:''} Frame this as development, not discipline.`
     : `${first} — ${ARCH_LABEL[c.arch]||c.arch}. No active flags. Use the 1:1 to recognize what's working and explore a stretch goal or mentoring.`;
