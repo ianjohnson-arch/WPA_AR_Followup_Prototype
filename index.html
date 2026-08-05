@@ -687,11 +687,19 @@ function buildQueueTable(){
 const CS_STD = {          // 100 = at standard. Client-configurable at implementation.
   fpr:0.75, res:0.88, dtc:26, adjGoal:105, rubric:92, nli:85, stale:0.05 };
 const CS_W   = { eff:0.35, prod:0.25, qual:0.30, rel:0.10 };
-const CS_GATE_CAP = 70;   // red thresholds from Gate 7 §7.1
+/* Two caps, both from the Gate 7 §7.1 threshold set, so the composite cannot contradict the
+   coaching flag sitting next to it. Red is a hard stop; amber needs two breaches because a
+   single amber is ordinary variation, not a pattern. CLI and stall-risk are deliberately not
+   amber inputs: CLI is context (already inside the productivity pillar) rather than
+   performance, and stall risk is a property of the accounts, not the person. */
+const CS_GATE_CAP = 70;   // any red threshold breached
+const CS_AMBER_CAP = 74;  // 2+ amber thresholds breached — top of the Solid band
+const CS_AMBER_MIN = 2;
 const CS_RED = { rubric:68, nli:68, pctGoal:80 };
+const CS_AMBER = { pctGoal:95, rubric:80, nli:78, fpr:70 };
 const CS_BANDS = [[85,'Exceeds'],[75,'Strong'],[62,'Solid'],[50,'Developing'],[0,'Needs support']];
 const CS_MIN_TENURE_MO = 3;      // scored from month 3; fixed, not the derived archetype
-const CS_FORMULA_VERSION = 'v1.1';
+const CS_FORMULA_VERSION = 'v1.2';
 /* No credit above standard: cap at 100 so volume is not an unbounded lever. */
 function csPart(v,std,lowerBetter){
   if(v==null||!isFinite(v)) return null;
@@ -712,7 +720,16 @@ function compositeScore(c){
   if(c.q.score < CS_RED.rubric)        gate.push('quality rubric below '+CS_RED.rubric);
   if(c.nli.overall*100 < CS_RED.nli)   gate.push('note quality below '+CS_RED.nli);
   if(c.pctGoal < CS_RED.pctGoal)       gate.push('productivity below '+CS_RED.pctGoal+'% of goal');
-  const score = gate.length ? Math.min(raw, CS_GATE_CAP) : raw;
+  const amber=[];
+  if(c.pctGoal < CS_AMBER.pctGoal && c.pctGoal >= CS_RED.pctGoal)      amber.push('% of goal '+c.pctGoal+' below '+CS_AMBER.pctGoal);
+  if(c.q.score < CS_AMBER.rubric && c.q.score >= CS_RED.rubric)        amber.push('rubric '+c.q.score+' below '+CS_AMBER.rubric);
+  if(c.nli.overall*100 < CS_AMBER.nli && c.nli.overall*100 >= CS_RED.nli) amber.push('note quality '+Math.round(c.nli.overall*100)+' below '+CS_AMBER.nli);
+  if(c.fpr*100 < CS_AMBER.fpr)                                          amber.push('first-pass '+Math.round(c.fpr*100)+'% below '+CS_AMBER.fpr+'%');
+  /* Red wins where both apply; it is the lower cap. */
+  const capLevel = gate.length ? 'red' : (amber.length >= CS_AMBER_MIN ? 'amber' : null);
+  const score = capLevel==='red'   ? Math.min(raw, CS_GATE_CAP)
+              : capLevel==='amber' ? Math.min(raw, CS_AMBER_CAP)
+              : raw;
   /* Not scored inside the first 3 months. A FIXED tenure threshold, deliberately not the
      derived `ramping` archetype: that label comes from a weekly trend classifier, so it
      released collectors on no predictable date and left a 10-month collector unscored while
@@ -727,7 +744,7 @@ function compositeScore(c){
   const cost = k => CS_W[k] * (100 - pillars[k]);
   const order = ['qual','eff','prod','rel'];   // tie-break toward the heavier pillar
   const weakest = order.slice().sort((a,b)=>cost(b)-cost(a))[0];
-  return {score:+score.toFixed(1), raw:+raw.toFixed(1), band:csBand(score), pillars, gate,
+  return {score:+score.toFixed(1), raw:+raw.toFixed(1), band:csBand(score), pillars, gate, amber, capLevel,
           suppressed, adjGoal:+adjGoal.toFixed(1), weakest, version:CS_FORMULA_VERSION};
 }
 const CS_LABEL = {eff:'Effectiveness',prod:'Productivity',qual:'Quality',rel:'Reliability'};
@@ -765,7 +782,7 @@ function csTeamRollupCard(){
     const live=mine.filter(x=>!x.cs.suppressed);
     const m=k=>live.length? live.reduce((s,x)=>s+x.cs.pillars[k],0)/live.length : null;
     const avg=live.length? live.reduce((s,x)=>s+x.cs.score,0)/live.length : null;
-    const below=live.filter(x=>x.cs.score<75).length, capped=live.filter(x=>x.cs.gate.length).length;
+    const below=live.filter(x=>x.cs.score<75).length, capped=live.filter(x=>x.cs.capLevel).length;
     const pil={eff:m('eff'),prod:m('prod'),qual:m('qual'),rel:m('rel')};
     const weakest=avg==null?null:['qual','eff','prod','rel'].slice()
       .sort((a,b)=>CS_W[b]*(100-pil[b])-CS_W[a]*(100-pil[a]))[0];
@@ -816,7 +833,7 @@ function csDistributionCard(T){
   const attn=live.filter(x=>x.cs.score<75).sort((a,b)=>a.cs.score-b.cs.score);
   const attnList = attn.length
     ? attn.map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--divider);font-size:11.5px">
-        <span><b>${x.c.name}</b> <span style="color:var(--text3)">${CS_LABEL[x.cs.weakest]} costing the most${x.cs.gate.length?' · capped':''}</span></span>
+        <span><b>${x.c.name}</b> <span style="color:var(--text3)">${CS_LABEL[x.cs.weakest]} costing the most${x.cs.capLevel?' · capped ('+x.cs.capLevel+')':''}</span></span>
         <span class="num"><b>${x.cs.score.toFixed(0)}</b></span></div>`).join('')
     : `<div style="font-size:11.5px;color:var(--text3)">Nobody is below band. Nothing to action here today.</div>`;
   const body=`<div class="grid g2" style="gap:16px">
@@ -841,8 +858,9 @@ function csHeatCell(c){
   const col= b==='Exceeds'||b==='Strong' ? 'var(--green)'    : b==='Solid' ? 'var(--amber)'    : 'var(--red)';
   const tip=`${b} — ${['eff','prod','qual','rel'].map(k=>CS_LABEL[k]+' '+cs.pillars[k].toFixed(0)).join(' · ')}`
     + ` · ${CS_LABEL[cs.weakest]} costing the most`
-    + (cs.gate.length?` · capped at ${CS_GATE_CAP}: ${cs.gate.join('; ')}`:'');
-  return `<td class="r"><span class="heat-cell num" title="${tip}" style="background:${bg};color:${col};display:inline-block;min-width:42px">${cs.score.toFixed(0)}${cs.gate.length?'<span style="font-size:9px;font-weight:400"> ▲</span>':''}</span></td>`;
+    + (cs.capLevel==='red'   ? ` · capped at ${CS_GATE_CAP} (red): ${cs.gate.join('; ')}` : '')
+    + (cs.capLevel==='amber' ? ` · capped at ${CS_AMBER_CAP} (${cs.amber.length} amber): ${cs.amber.join('; ')}` : '');
+  return `<td class="r"><span class="heat-cell num" title="${tip}" style="background:${bg};color:${col};display:inline-block;min-width:42px">${cs.score.toFixed(0)}${cs.capLevel?'<span style="font-size:9px;font-weight:400"> ▲</span>':''}</span></td>`;
 }
 /* Compact grid cell. The four pillars stay one hover away, so the number never travels
    alone even in a dense table. */
@@ -850,7 +868,8 @@ function csCell(c){
   const cs=compositeScore(c);
   if(cs.suppressed) return `<span style="font-size:10px;color:var(--text3)" title="${cs.suppressed}">not scored</span>`;
   const tip=['eff','prod','qual','rel'].map(k=>`${CS_LABEL[k]} ${cs.pillars[k].toFixed(0)}`).join(' · ')
-    + (cs.gate.length?` — capped at ${CS_GATE_CAP}: ${cs.gate.join('; ')}`:'');
+    + (cs.capLevel==='red'   ? ` — capped at ${CS_GATE_CAP} (red): ${cs.gate.join('; ')}` : '')
+    + (cs.capLevel==='amber' ? ` — capped at ${CS_AMBER_CAP} (${cs.amber.length} amber): ${cs.amber.join('; ')}` : '');
   return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:5px;justify-content:flex-end">
     <b class="num">${cs.score.toFixed(0)}</b>
     <span style="width:7px;height:7px;border-radius:50%;background:${csBandColor(cs.band)};flex:none"></span></span>`;
@@ -891,9 +910,11 @@ function csHeroCard(c, own){
     + `</div>`;
 }
 function csGateNote(cs){
-  if(!cs.gate.length) return '';
-  return `<div class="alert yellow" style="margin-top:10px"><div><div class="alert-sig">Capped at ${CS_GATE_CAP}</div>
+  if(cs.capLevel==='red') return `<div class="alert red" style="margin-top:10px"><div><div class="alert-sig">Capped at ${CS_GATE_CAP} — red threshold</div>
     <div class="alert-txt">A red threshold is breached (${cs.gate.join('; ')}), so the composite cannot rise above ${CS_GATE_CAP} regardless of the other pillars. Volume does not offset documentation.</div></div></div>`;
+  if(cs.capLevel==='amber') return `<div class="alert yellow" style="margin-top:10px"><div><div class="alert-sig">Capped at ${CS_AMBER_CAP} — ${cs.amber.length} amber thresholds</div>
+    <div class="alert-txt">${cs.amber.join('; ')}. Two or more amber breaches hold the composite at ${CS_AMBER_CAP} so the score cannot read Strong while coaching thresholds are being missed. One amber alone is ordinary variation and does not cap.</div></div></div>`;
+  return '';
 }
 RENDER['collector-c2'] = function(){
   const m = me();
@@ -1805,8 +1826,10 @@ function coachBrief(c){
   const cs=compositeScore(c);
   const csRead = cs.suppressed
     ? `${cs.suppressed}. Work the four pillars below on their own terms; a rolled-up number this early reflects a start date more than the work. Scoring begins at ${CS_MIN_TENURE_MO} months.`
-    : cs.gate.length
+    : cs.capLevel==='red'
       ? `Capped at ${CS_GATE_CAP} because a red threshold is breached (${cs.gate.join('; ')}). Volume cannot lift this until that clears, which is the point of the cap. ${CS_LABEL[cs.weakest]} is costing the most.`
+    : cs.capLevel==='amber'
+      ? `Held at ${CS_AMBER_CAP} by ${cs.amber.length} amber breaches (${cs.amber.join('; ')}). None is severe on its own, but the pattern is why this does not read Strong. ${CS_LABEL[cs.weakest]} is costing the most.`
       : `Band ${cs.band}. ${CS_LABEL[cs.weakest]} is costing the most, so that is where the next point comes from. Productivity inside this is complexity-adjusted (${c.pctGoal}% raw x CLI ${(+c.cli).toFixed(2)} = ${cs.adjGoal}%), so it is not moved by working easier accounts.`;
   const evidence=[
     {m:`Composite score ${cs.suppressed?'not scored':cs.score.toFixed(0)+'/100'} · Eff ${cs.pillars.eff.toFixed(0)} · Prod ${cs.pillars.prod.toFixed(0)} · Qual ${cs.pillars.qual.toFixed(0)} · Rel ${cs.pillars.rel.toFixed(0)}`, s:csRead},
@@ -3686,7 +3709,7 @@ reg(['composite-score'],{
  d:'One 0-100 score combining effectiveness, productivity, quality, and reliability, shown with the four pillars that produce it.',
  c:'Weighted sum: effectiveness 35% (first-pass resolution, resolution rate, days to resolution), productivity 25% (complexity-adjusted % of goal), quality 30% (rubric 60 / note quality 40), reliability 10% (accounts past follow-up without a touch). Each pillar scores against a fixed standard where 100 = at standard, capped at 100 so nothing above standard is credited. Productivity input is <code>pctGoal x cli</code>, so credit follows the difficulty of the accounts actually worked.',
  p:'Leadership asked for a single number. The two mechanics that make one safe are the complexity adjustment and the red-threshold cap: without them a composite rewards working easy accounts and lets volume offset poor documentation.',
- i:'Scored against a fixed standard, not on a curve, so a healthy team can sit entirely in the top band. That is a real result, not a calibration problem. The score is capped at 70 while any Gate 7 red threshold is breached. Collectors are not scored in their first 3 months, because a score against a tenured standard that early reflects a start date more than the work. A fixed tenure threshold is used rather than the derived ramping archetype, which released collectors on no predictable date. The pillar flagged as costing the most is by weighted shortfall, not lowest raw score.',
+ i:'Scored against a fixed standard, not on a curve, so a healthy team can sit entirely in the top band. That is a real result, not a calibration problem. The score is capped at 70 while any Gate 7 red threshold is breached, and at 74 while two or more amber thresholds are breached. The amber cap exists so the composite cannot read Strong while a collector is missing coaching thresholds; one amber alone is ordinary variation and does not cap. Collectors are not scored in their first 3 months, because a score against a tenured standard that early reflects a start date more than the work. A fixed tenure threshold is used rather than the derived ramping archetype, which released collectors on no predictable date. The pillar flagged as costing the most is by weighted shortfall, not lowest raw score.',
  a:'Work the pillar costing the most. Never read the number without the pillars; the score summarizes, the pillars diagnose.',
  s:'Source: collector_daily_snap + ml_nli_score — deterministic formula, versioned'});
 reg(['composite-score-team-distribution'],{
@@ -3759,7 +3782,7 @@ reg(['pillar-costing-the-most'],{d:'The pillar dragging this team\u2019s average
  c:'Largest weight × shortfall from 100 across the team means.',
  p:'A pillar low across an entire team is a process, routing, or assignment question rather than a people question, which is the more useful finding at director altitude.'});
 reg(['below-band'],{d:'How many of this team\u2019s collectors score below 75, and how many are capped by a red threshold.',
- c:'Counts of collectors, not an average. Capped means a Gate 7 red threshold is breached, holding the composite at 70.'});
+ c:'Counts of collectors, not an average. Capped means the composite is held down by a threshold breach: 70 for any red, 74 for two or more ambers.'});
 /* Bot vs. human actuals (D0) */
 reg(['bot-/-human-split'],{d:'Share of this work type\u2019s touches performed by a bot versus a person.',
  c:'Counted from the activity log by <code>actor_type</code> on each touch over a trailing 90 days. Green is bot, grey is human.',
