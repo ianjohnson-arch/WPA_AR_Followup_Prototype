@@ -1991,15 +1991,16 @@ function autoModel(){
      pre-light the reveal and turn the page back into a conclusion. */
   if(!window.__autoOn) window.__autoOn={};
   const maturity=(window.__autoMaturity==null?85:window.__autoMaturity)/100;
-  const HASBOTS=!!window.__autoHasBots;
-  const SEED={status:0.25, routing:0.30, portal:0.10, rebill:0.15};   // existing-bot baseline when a client has bots
+  /* One mental model: the switch IS the bot. ON means that bot runs (simulated in this
+     prototype) at ceiling x maturity, and its activity appears in the measured columns so
+     the monitoring view — touch mix, hand-back, trend — is visible per bot. In production
+     the activity columns come from the feed and the switch models the not-yet-built ones.
+     The old separate existing-bots seed and phase presets are gone: one switch, one story. */
   const WORK=BASE.map(w=>{
     const eligible=w.auto>=0.5;
     const on = eligible && !!window.__autoOn[w.id];
-    const cur = HASBOTS ? Math.min(w.auto, SEED[w.id]||0) : 0;   // already automated today
-    const target = on ? w.auto*maturity : 0;
-    const achieved = Math.max(cur, target);                     // existing bots persist even if not re-selected
-    return {...w, eligible, on, cur, achieved, lift: Math.max(0, achieved-cur)};
+    const achieved = on ? w.auto*maturity : 0;
+    return {...w, eligible, on, cur:0, achieved, lift: achieved};
   });
   const eligibleN=WORK.filter(w=>w.eligible).length, enabledN=WORK.filter(w=>w.on).length;
   const automatableShare=BASE.reduce((s,w)=>s+w.share*w.auto,0);            // ceiling
@@ -2021,45 +2022,45 @@ function autoModel(){
   const capMult=1/(1-Math.min(0.9,liftShare));
   const projAcctsFTE=Math.round(acctsFTEday*capMult), projTouchFTE=Math.round(touchesFTEday*capMult);
   return {FTE,touchesFTEday,acctsFTEday,tpc,fpr,dtc,WORK,automatableShare,maturityPct:Math.round(maturity*100),
-    eligibleN,enabledN,HASBOTS,curShare,projShare,liftShare,autoTouchesYr,curAutomatedYr,projAutomatedYr,liftYr,
+    eligibleN,enabledN,curShare,projShare,liftShare,autoTouchesYr,curAutomatedYr,projAutomatedYr,liftYr,
     hoursYr,fteFreed,costFreed,collLift,annualValue,projTpc,projFpr,projDtc,projAcctsFTE,projTouchFTE,
     daysSaved:+(dtc-projDtc).toFixed(1),MIN,annualTouches};
 }
 function setMaturity(v){window.__autoMaturity=+v;delete rendered['director-d0'];RENDER['director-d0']();}
 function toggleWork(id){window.__autoOn=window.__autoOn||{};window.__autoOn[id]=!window.__autoOn[id];delete rendered['director-d0'];RENDER['director-d0']();}
-function setHasBots(){window.__autoHasBots=!window.__autoHasBots;delete rendered['director-d0'];RENDER['director-d0']();}
-function setPhase(p){
-  const sets={quick:['routing','status'], all:['status','portal','rebill','routing','appeal_admin'], clear:[]};
-  const on={}; (sets[p]||[]).forEach(id=>on[id]=true); window.__autoOn=on;
+/* One demo control: switch on a representative set of bots in one click, or reset. */
+function simulateBots(){
+  const anyOn = Object.values(window.__autoOn||{}).some(Boolean);
+  window.__autoOn = anyOn ? {} : {status:true,routing:true,portal:true,rebill:true};
   delete rendered['director-d0']; RENDER['director-d0']();
 }
 RENDER['director-d0'] = function(){
   const m=autoModel(), mat=m.maturityPct, onN=m.enabledN, eligN=m.eligibleN;
   const annual=Math.round(m.annualTouches), curPct=Math.round(m.curShare*100), projPct=Math.round(m.projShare*100);
-  const scen = onN+' of '+eligN+' types · '+mat+'% maturity';
+  const scen = onN+' of '+eligN+' bots on · '+mat+'% maturity';
   const topAuto=m.WORK.filter(w=>w.eligible).sort((a,b)=>b.share*b.auto-a.share*a.auto).slice(0,2).map(w=>w.label);
   const pctf=(x)=>Math.round(x*100)+'%';
   /* The hero states TODAY at large type. The opportunity numbers (66%, FTE, dollars, cycle
      time) live in the sticky tile strip directly below and are deliberately not repeated
      here: this card previously restated all four in 11.5px prose, which is why nothing in a
      card called "Big picture" actually read as big. Hero = where we are. Tiles = the prize. */
-  const manualPct = 100 - curPct;
+  const manualPct = 100 - projPct;   // when bots are simulated on, the hero reflects that state
   const bigStat=(v,unit,label,sub,colour)=>`<div style="padding:2px 4px">
       <div style="line-height:1;white-space:nowrap"><span class="num" style="font-size:31px;font-weight:700;color:${colour||'var(--navy)'}">${v}</span>${unit?`<span style="font-size:14px;font-weight:600;color:var(--text3);margin-left:4px">${unit}</span>`:''}</div>
       <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:5px">${label}</div>
       <div style="font-size:10.5px;color:var(--text3);margin-top:2px;line-height:1.45">${sub}</div></div>`;
   const narrInner=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
       ${bigStat(annual.toLocaleString(),'','touches a year','every one on an account someone has to work')}
-      ${bigStat(manualPct+'%','','by hand', m.HASBOTS
-          ? `the other ${curPct}% runs through existing bots (${m.curAutomatedYr.toLocaleString()} touches/yr)`
+      ${bigStat(manualPct+'%','','by hand', onN>0
+          ? `the other ${projPct}% runs through ${onN} simulated bot${onN===1?'':'s'} (${m.projAutomatedYr.toLocaleString()} touches/yr)`
           : 'nothing is auto-generated or touchless today',
         manualPct>=90?'var(--amber)':'var(--navy)')}
       ${bigStat(m.tpc,'touches','to resolve one account',`over ${m.dtc} days, on average, from follow-up to resolution`)}
     </div>
     <div style="font-size:12px;color:var(--text2);margin-top:14px;padding-top:12px;border-top:1px solid var(--divider);line-height:1.55">Every touch from the last ${BOT_WIN_DAYS} days was classified by <b>actor and work type</b> — that profile is the table below. Up to <b style="color:var(--ml,#059669)">${Math.round(m.automatableShare*100)}%</b> of the work is bot-eligible. ${onN===0
-      ? 'Nothing is switched on yet: flip work types in the profile and the tiles above light up with what each one returns.'
+      ? 'No bots are switched on yet: flip one on in the profile and the tiles above light up with what it returns.'
       : `The tiles size what the current scenario returns (${scen}).`}</div>
-    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Denials split in two: <b>appeal filing and packet assembly</b> is largely mechanical (pull the claim and remit, key off the CARC/RARC, generate the letter from a template, track the timely-filing clock, submit and chase status) and is bot-eligible; the <b>clinical / medical-necessity argument</b> is not. That argument, complex denial research, and payer negotiation stay human. <span style="color:var(--text3)">Flip work types in the profile below to model rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
+    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Denials split in two: <b>appeal filing and packet assembly</b> is largely mechanical (pull the claim and remit, key off the CARC/RARC, generate the letter from a template, track the timely-filing clock, submit and chase status) and is bot-eligible; the <b>clinical / medical-necessity argument</b> is not. That argument, complex denial research, and payer negotiation stay human. <span style="color:var(--text3)">Switch bots on in the profile below to model rollout in chunks; maturity sets how touchless each bot runs.</span></div>
     <div style="font-size:10px;color:var(--text3);margin-top:8px">${ML('narrative synthesized from the automation model')}</div>`;
   const kpiTile=(l,v,sub)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px"><div class="kpi-label">${l}</div><div style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1" class="num">${v}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
   const ba=(label,cur,proj,fmt,lowerBetter)=>{
@@ -2068,7 +2069,6 @@ RENDER['director-d0'] = function(){
       <td class="r num"><b style="color:${better?'var(--green)':'var(--text)'}">${fmt(proj)}</b></td>
       <td class="r num" style="color:${better?'var(--green)':'var(--text3)'}">${(lowerBetter?(cur-proj>=0?'-':'+'):(proj-cur>=0?'+':''))}${fmt(Math.abs(proj-cur)).replace(/[^0-9.]/g,'')}${typeof cur==='number'&&fmt(cur).includes('%')?' pts':''}</td></tr>`;
   };
-  const phaseBtn=(p,lab)=>`<button onclick="setPhase('${p}')" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;background:var(--surface);color:var(--text2)">${lab}</button>`;
   $$('page-director-d0').innerHTML = header('DIRECTOR / VP','var(--director)','Automation Opportunity',
     'Manual work today vs. what bots could take on — capacity, timeliness, and outcome upside. FLO automation is a future capability; projected figures are modeled estimates.')
   + `<div class="card" style="margin-bottom:10px">
@@ -2078,7 +2078,7 @@ RENDER['director-d0'] = function(){
   + `<div id="d0-impact" style="position:sticky;top:134px;z-index:20;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 10px;box-shadow:0 3px 10px rgba(0,0,0,.07)">
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
           ${kpiTile('Automatable share', pctf(m.automatableShare), 'ceiling — status, lookups, rebills, routing, appeal filing')}
-          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), onN===0?'nothing enabled — flip a work type below':onN+'/'+eligN+' types on'+(m.HASBOTS?' · +'+curPct+'% already live':' · incremental'))}
+          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), onN===0?'no bots on — flip one on below':onN+' of '+eligN+' bots on')}
           ${kpiTile('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
           ${kpiTile('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.')}
           ${kpiTile('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.')}
@@ -2101,8 +2101,7 @@ RENDER['director-d0'] = function(){
       <div class="card-note">${scen} · illustrative model, not a commitment</div></div>
       <div class="card-body"><table class="tbl"><tbody>
         <tr><td>Automatable touches / year (ceiling)</td><td class="r num">${m.autoTouchesYr.toLocaleString()}</td></tr>
-        ${m.HASBOTS?`<tr><td>Already automated today (existing bots)</td><td class="r num">${m.curAutomatedYr.toLocaleString()} · ${curPct}%</td></tr>`:''}
-        <tr><td><b>Additional touchless / year (the lift)</b></td><td class="r num"><b>${m.liftYr.toLocaleString()}</b></td></tr>
+        <tr><td><b>Touchless / year with the enabled bots</b></td><td class="r num"><b>${m.liftYr.toLocaleString()}</b></td></tr>
         <tr><td>Minutes saved per touch</td><td class="r num">${m.MIN}</td></tr>
         <tr><td>Hours reclaimed / year</td><td class="r num">${Math.round(m.hoursYr).toLocaleString()}</td></tr>
         <tr><td>FTE-equivalents freed (incremental)</td><td class="r num"><b>${m.fteFreed.toFixed(1)}</b> of ${m.FTE}</td></tr>
@@ -2114,58 +2113,56 @@ RENDER['director-d0'] = function(){
     </div>`;
   d0StickTop();
 };
-/* ONE table: the measured profile on the left, the switch in the middle, the modeled
-   consequence on the right. Merging the census and the scenario table puts the toggle
-   physically between the reality it reads from and the projection it drives — the reader
-   no longer joins the same eight work-type rows across two cards 1,500px apart.        */
+/* ONE table, one mental model: the switch IS the bot. Flip it on and that bot's activity
+   appears in the same row — touch mix, hand-back, trend — so the monitoring view arrives
+   with the decision. Columns mirror the original measured census (one value per column)
+   rather than packing pairs into shared cells, which is what made the first merge hard
+   to read.                                                                              */
 function workProfileCard(m){
-  const A=botActuals(m), mat=m.maturityPct, annual=m.annualTouches, MIN=m.MIN;
-  const curPct=Math.round(m.curShare*100), projPct=Math.round(m.projShare*100);
+  const A=botActuals(m), mat=m.maturityPct;
+  const annual=m.annualTouches, MIN=m.MIN, onN=m.enabledN, eligN=m.eligibleN;
+  const projPct=Math.round(m.projShare*100);
   const pct=x=>Math.round(x*100)+'%';
-  const banner = A.bot>0
+  const anyOn=onN>0;
+  const banner = anyOn
     ? `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3);margin-bottom:11px">
          <div><div class="mini-label">Bot share of touches</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${pct(A.botShare)}</div></div>
          <div><div class="mini-label">Bot touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.bot).toLocaleString()}</div></div>
          <div><div class="mini-label">Human touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.hum).toLocaleString()}</div></div>
-         <div><div class="mini-label">Distinct bots seen</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${A.nBots}</div></div>
+         <div><div class="mini-label">Bots running</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${A.nBots}</div></div>
          <div><div class="mini-label" title="Bot touched the account, then a human had to touch the same work type within 5 days">Handed back to a human</div><div class="num" style="font-size:19px;font-weight:700;line-height:1.1;color:${A.fbRate>=0.15?'var(--red)':'var(--navy)'}">${pct(A.fbRate)}</div><div style="font-size:10px;color:var(--text3)">${Math.round(A.reworkTouches).toLocaleString()} touches of rework</div></div>
+         <div style="flex:1;text-align:right;align-self:center;font-size:10px;color:var(--text3)">simulated at ${mat}% maturity — prototype</div>
        </div>`
     : `<div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:7px;background:var(--surface3);margin-bottom:11px;font-size:11.5px;line-height:1.55;color:var(--text2)">
-         <b>We scanned ${Math.round(A.vol).toLocaleString()} touches from the last ${BOT_WIN_DAYS} days. None carries a bot actor.</b> Bot share is a measured <b>0%</b>, not an assumption — the left half of this table is your manual workload census: who is spending time on what. The right half is what flipping each switch would change. Measured columns fill in on their own the moment the activity feed carries <code>actor_type = bot</code> and a <code>bot_id</code>.
+         <b>We scanned ${Math.round(A.vol).toLocaleString()} touches from the last ${BOT_WIN_DAYS} days. None carries a bot actor — this operation is 100% manual.</b> Switch a bot on and its activity appears in this table: what it takes over, what stays human, and how often it hands work back. That is the view you would use to monitor and tune each bot once it runs for real.
        </div>`;
-  const bar=(b)=>{const p=Math.round(b*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:104px;margin-top:4px"><div style="width:${p}%;background:var(--ml,#059669)"></div><div style="width:${100-p}%;background:var(--slate,#64748B)"></div></div>`;};
+  const bar=(b)=>{const p2=Math.round(b*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:104px;margin-top:4px"><div style="width:${p2}%;background:var(--ml,#059669)"></div><div style="width:${100-p2}%;background:var(--slate,#64748B)"></div></div>`;};
   const toggle=(w)=> w.eligible
-    ? `<button onclick="toggleWork('${w.id}')" title="Automate this work type" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml)':'var(--track)'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:var(--surface)"></span></button>`
+    ? `<button onclick="toggleWork('${w.id}')" title="${w.on?'Switch this bot off':'Switch this bot on'}" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml)':'var(--track)'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:var(--surface)"></span></button>`
     : `<span style="font-size:9px;color:var(--text3)">n/a</span>`;
+  const dash='<span style="color:var(--text3)">—</span>';
   const byId={}; A.rows.forEach(r=>byId[r.id]=r);
   const rows=m.WORK.slice().sort((a,b)=>byId[b.id].vol-byId[a.id].vol).map(w=>{
     const r=byId[w.id];
-    const vol=annual*w.share, achP=Math.round(w.achieved*100), lt=vol*w.lift, hf=lt*MIN/60, fte=hf/1800;
-    /* Only the scenario side dims when a switch is off — the measured half is fact and
-       stays at full strength regardless of what is enabled. */
-    const off = w.eligible && !w.on && w.lift===0;
-    const dim = off?'opacity:.45':'';
-    const measSub = r.live
-      ? `handed back <b style="color:${r.fb>=0.15?'var(--red)':'inherit'}">${Math.round(r.fb*100)}%</b> · trend ${r.trend>0?'+':''}${r.trend} pts · ${r.nBots} bot${r.nBots===1?'':'s'}`
-      : `${Math.round(r.botShare*100)}% bot today`;
+    const vol=annual*w.share, lt=vol*w.lift, hf=lt*MIN/60, fte=hf/1800;
     return `<tr>
-      <td><b>${w.label}</b>${!w.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
-      <td class="r"><b class="num">${Math.round(r.hum).toLocaleString()}</b> human${r.bot>0?` · <b class="num">${Math.round(r.bot).toLocaleString()}</b> bot`:''}<div style="font-size:10px;color:var(--text3)">≈ ${Math.round(vol).toLocaleString()} touches/yr</div></td>
-      <td>${bar(r.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${measSub}</div></td>
-      <td style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface3)">${toggle(w)}</td>
-      <td class="r"><span class="num" style="${w.eligible?'':'color:var(--text3)'}">${Math.round(w.auto*100)}%</span>${w.eligible&&r.headroom>0?`<div style="font-size:10px;color:var(--text3)">${Math.round(r.headroom*100)} pts headroom</div>`:''}</td>
-      <td class="r" style="${dim}"><b class="num" style="color:${achP>Math.round(w.cur*100)?'var(--green)':'var(--text)'}">${achP}%</b> auto</td>
-      <td class="r" style="${dim}">${w.lift>0?`<b class="num" style="color:#059669">+${Math.round(lt).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:`<span style="color:var(--text3)">—</span>`}</td></tr>`;}).join('');
-  const phaseBtn=(p2,lab)=>`<button onclick="setPhase('${p2}')" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;background:var(--surface);color:var(--text2)">${lab}</button>`;
+      <td style="text-align:center">${toggle(w)}</td>
+      <td><b>${w.label}</b><br><span style="font-size:9px;color:var(--text3)">${w.eligible?`ceiling ${Math.round(w.auto*100)}%${r.headroom>0.005?` · ${Math.round(r.headroom*100)} pts headroom`:''}`:'stays human'}</span></td>
+      <td class="r num">${r.live?`<b>${Math.round(r.bot).toLocaleString()}</b>`:'<span style="color:var(--text3)">0</span>'}</td>
+      <td class="r num">${Math.round(r.hum).toLocaleString()}</td>
+      <td>${bar(r.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(r.botShare*100)}% bot · ${Math.round((1-r.botShare)*100)}% human</div></td>
+      <td class="r">${r.fb==null?dash:`<b class="num" style="color:${r.fb>=0.15?'var(--red)':'var(--text)'}">${Math.round(r.fb*100)}%</b><div style="font-size:10px;color:var(--text3)">${Math.round(r.bot*r.fb).toLocaleString()} touches</div>`}</td>
+      <td class="r">${r.trend==null?dash:`<span class="num" style="color:${r.trend>0?'var(--green)':r.trend<0?'var(--red)':'var(--text3)'}">${r.trend>0?'+':''}${r.trend} pts</span>`}</td>
+      <td class="r">${w.lift>0?`<b class="num" style="color:#059669">+${Math.round(lt).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:dash}</td></tr>`;}).join('');
   const bandTh='position:static;font-size:9px;letter-spacing:.08em;color:var(--text3);border-bottom:none;padding-bottom:2px';
+  const bandLeft = anyOn ? `Bot activity — last ${BOT_WIN_DAYS} days · simulated for enabled bots` : `Measured — last ${BOT_WIN_DAYS} days · activity log`;
   return `<div class="card" style="margin-bottom:12px">
-      <div class="card-head" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
-        <div class="card-title">Work profile — measured, with the switches in it</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:420px;justify-content:flex-end">
-          <button onclick="setHasBots()" title="Demo: simulate a client that already runs some automation" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid ${m.HASBOTS?'var(--director)':'var(--border)'};border-radius:6px;padding:3px 9px;cursor:pointer;background:${m.HASBOTS?'var(--director)':'var(--surface)'};color:${m.HASBOTS?'#fff':'var(--text2)'}">${m.HASBOTS?'Existing bots: on':'Client has bots'}</button>
+      <div class="card-head" style="align-items:center;gap:14px;flex-wrap:wrap">
+        <div class="card-title">Work profile — every bot, its work, and its effectiveness</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:320px;justify-content:flex-end">
+          <button onclick="simulateBots()" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid ${anyOn?'var(--director)':'var(--border)'};border-radius:6px;padding:3px 9px;cursor:pointer;background:${anyOn?'var(--director)':'var(--surface)'};color:${anyOn?'#fff':'var(--text2)'}">${anyOn?'Reset simulation':'Simulate bots'}</button>
           <div style="width:1px;height:18px;background:var(--border)"></div>
-          <div style="display:flex;gap:6px">${phaseBtn('quick','Quick wins')}${phaseBtn('all','All automatable')}${phaseBtn('clear','Clear')}</div>
-          <div class="kpi-label" style="white-space:nowrap;margin:0" title="How touchless the automations you have turned on are — accounts for ramp-up and edge cases">Maturity</div>
+          <div class="kpi-label" style="white-space:nowrap;margin:0" title="How touchless each running bot is — accounts for ramp-up and edge cases. Lower maturity also raises the hand-back rate.">Maturity</div>
           <input type="range" min="0" max="100" value="${mat}" style="min-width:100px;max-width:160px;accent-color:var(--director)"
             oninput="document.getElementById('autoMatLbl').textContent=this.value+'%'" onchange="setMaturity(this.value)">
           <div style="font-size:12px;color:var(--text2);white-space:nowrap"><b id="autoMatLbl">${mat}%</b></div>
@@ -2174,22 +2171,22 @@ function workProfileCard(m){
       <div class="card-body">
         ${banner}
         <table class="tbl"><thead>
-          <tr><th colspan="3" style="${bandTh}">Measured — last ${BOT_WIN_DAYS} days · activity log</th>
-              <th style="${bandTh}"></th>
-              <th colspan="3" style="${bandTh}">If you automate it — modeled · ${mat}% maturity</th></tr>
-          <tr><th>Work type</th><th class="r">Touches / ${BOT_WIN_DAYS}d</th><th>Bot / human split</th>
-              <th style="width:52px;text-align:center">Auto</th>
-              <th class="r">Ceiling</th><th class="r">At scenario</th><th class="r">Lift</th></tr></thead>
+          <tr><th style="${bandTh}"></th><th style="${bandTh}"></th><th colspan="5" style="${bandTh}">${bandLeft}</th>
+              <th style="${bandTh};text-align:right">Modeled · ${mat}% maturity</th></tr>
+          <tr><th style="width:52px;text-align:center">Bot</th><th>Work type</th>
+              <th class="r">Bot touches</th><th class="r">Human touches</th><th>Bot / human split</th>
+              <th class="r" title="Bot touched it, then a human had to touch the same work type within 5 days">Handed back</th>
+              <th class="r">Trend</th><th class="r">Lift</th></tr></thead>
           <tbody>${rows}
-          <tr style="border-top:2px solid var(--border)"><td><b>Total</b></td>
-            <td class="r"><b class="num">${Math.round(A.hum).toLocaleString()}</b> human${A.bot>0?` · <b class="num">${Math.round(A.bot).toLocaleString()}</b> bot`:''}</td>
+          <tr style="border-top:2px solid var(--border)"><td></td><td><b>Total</b><br><span style="font-size:9px;color:var(--text3)">ceiling ${Math.round(m.automatableShare*100)}% of all work</span></td>
+            <td class="r num"><b>${Math.round(A.bot).toLocaleString()}</b></td>
+            <td class="r num"><b>${Math.round(A.hum).toLocaleString()}</b></td>
             <td>${bar(A.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(A.botShare*100)}% bot · ${Math.round((1-A.botShare)*100)}% human</div></td>
-            <td style="border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface3)"></td>
-            <td class="r"><span class="num">${Math.round(m.automatableShare*100)}%</span></td>
-            <td class="r"><b class="num" style="color:#059669">${projPct}%</b> auto</td>
+            <td class="r num">${A.fbRate==null?'—':Math.round(A.fbRate*100)+'%'}</td>
+            <td class="r">—</td>
             <td class="r">${m.liftYr>0?`<b class="num" style="color:#059669">+${m.liftYr.toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(m.hoursYr).toLocaleString()} hrs · ${m.fteFreed.toFixed(1)} FTE</div>`:'<span style="color:var(--text3)">—</span>'}</td></tr>
           </tbody></table>
-        <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Left of the switch is <b>measured, not modeled</b> — counted from the actor on each touch, the only measured data on this page. <b>Handed back</b> = bot touches a human had to re-touch within 5 days (above ~15% the bot makes rework, not capacity). Right of the switch is the model: <b>Lift</b> is the new, incremental capacity beyond what runs through bots today — it never double-counts existing automation, and the total ties to the FTE freed in the tiles above.</div>
+        <div style="font-size:10.5px;color:var(--text3);margin-top:8px">The switch is the bot: on means it runs. In production the activity columns are <b>counted from the actor on each touch</b>; in this prototype an enabled bot is simulated at the selected maturity so the monitoring view is visible. <b>Handed back</b> = bot touches a human had to re-touch within 5 days — above ~15% the bot makes rework, not capacity, and it worsens as maturity drops. <b>Lift</b> = the touchless capacity that bot buys per year; the total ties to the FTE freed in the tiles above.</div>
       </div></div>`;
 }
 /* ---------- D0 measured actuals ----------
@@ -2204,16 +2201,20 @@ function botActuals(m){
   const FALLBACK={status:0.08, routing:0.05, portal:0.19, rebill:0.14, appeal_admin:0.22};
   const BOTS={status:3, routing:2, portal:2, rebill:1, appeal_admin:1};
   const TREND={status:+4, routing:+1, portal:-3, rebill:0, appeal_admin:+7};
+  const maturity=(window.__autoMaturity==null?85:window.__autoMaturity)/100;
+  /* Hand-back worsens as maturity drops: an immature bot generates more human rework.
+     Scaled around the 85% default so the shipped numbers hold there. */
+  const fbScale=Math.max(0.5,Math.min(2.2, 1.85-maturity));
   const win=m.annualTouches*(BOT_WIN_WORKDAYS/250);
   const rows=m.WORK.map(w=>{
-    const vol=win*w.share, bot=vol*w.cur, hum=vol-bot;
-    const live=w.cur>0;
-    return {id:w.id,label:w.label,eligible:w.eligible,ceiling:w.auto,botShare:w.cur,
+    const vol=win*w.share, bot=vol*w.achieved, hum=vol-bot;
+    const live=w.achieved>0;
+    return {id:w.id,label:w.label,eligible:w.eligible,ceiling:w.auto,botShare:w.achieved,
       vol,bot,hum,live,
-      fb:live?(FALLBACK[w.id]||0):null,
+      fb:live?Math.min(0.6,(FALLBACK[w.id]||0.1)*fbScale):null,
       nBots:live?(BOTS[w.id]||1):0,
       trend:live?(TREND[w.id]||0):null,
-      headroom:Math.max(0,w.auto-w.cur)};
+      headroom:Math.max(0,w.auto-w.achieved)};
   });
   const vol=rows.reduce((s,r)=>s+r.vol,0), bot=rows.reduce((s,r)=>s+r.bot,0);
   const fbNum=rows.reduce((s,r)=>s+(r.fb!=null?r.bot*r.fb:0),0);
@@ -3753,12 +3754,15 @@ reg(['where-to-point-automation-next'],{
  a:'Work the list top to bottom. It re-ranks on its own as the measured actuals move.',
  s:'Source: measured actuals vs. Gate 8 §7 ceilings — partly modeled'});
 reg(['work-profile'],{
- d:'One table holding both halves of the automation story: the measured work profile on the left (what bots and people actually did, counted from the activity log) and the modeled scenario on the right (ceiling, at-scenario share, and lift). The toggle for each work type sits between them.',
- c:'Measured half: touches by actor over a trailing 90 days, bot share, hand-back rate, trend, and headroom to ceiling. Modeled half: ceilings per Gate 8 §7.1 (routing 95%, status 92%, portal 85%, rebill 80%, appeal filing 75%, clinical argument 8%, complex research 5%, negotiation 0%), share at the selected scenario, and incremental lift at the chosen maturity.',
- p:'Measurement and decision about the same work type belong in the same row. Splitting them across two tables made the reader join the same eight rows twice.',
- i:'The page opens with nothing enabled, so lift reads zero until you flip a switch — deliberate: the visitor creates the opportunity number rather than being handed it. Only the scenario side dims when a switch is off; the measured half is fact and stays at full strength. Where no bot actor exists in the feed, the measured half is the manual workload census and bot share is an explicit measured 0%.',
- a:'Read the measured half first, then flip the recommended work type and watch the tiles above react. Presets model phased rollout; maturity sets how touchless enabled types get.',
- s:'Source: activity log touch actor (measured) + Gate 8 §7 automation model (modeled)'});
+ d:'Every work type as a row: a switch for its bot, the bot\u2019s activity (touch mix, hand-back rate, trend), and the capacity it buys. The switch is the bot — on means it runs.',
+ c:'Activity columns: bot and human touch counts over a trailing 90 days, split share, hand-back rate (bot touches a human re-touched within 5 days), and trend. Lift: touchless volume per year at ceiling x maturity, converted to hours at 4.5 min/touch and FTE at 1,800 hrs/yr. Ceilings per Gate 8 §7.1 sit under each work-type name.',
+ p:'The point is monitoring effectiveness, not just sizing opportunity: the same row that turns a bot on shows what it takes over, what stays human, and whether it hands work back — the view you would use to tune or pull a bot.',
+ i:'In production the activity columns are counted from the actor on each touch. In this prototype, switching a bot on simulates it at the selected maturity so the monitoring view is visible before any bot exists. Hand-back above ~15% means rework, not capacity, and it worsens as maturity drops. The page opens with no bots on: the tiles read zero until you flip one.',
+ a:'Switch on the recommended bot first (see the recommendations below), watch the tiles react, then read its hand-back rate before switching on the next.',
+ s:'Source: activity log touch actor (production) / simulated at selected maturity (prototype) + Gate 8 §7 ceilings'});
+reg(['bot-activity'],{d:'What each enabled bot is doing: its touches, the human remainder, hand-back, and trend. Simulated at the selected maturity in this prototype; counted from the activity log actor in production.'});
+reg(['modeled'],{d:'The capacity the enabled bots buy per year at the selected maturity — hours and FTE-equivalents, never double-counted.'});
+reg(['bot'],{d:'The switch is the bot: on means it runs and its activity appears in this row. n/a marks work that stays human by design.'});
 reg(['touches-/-90d'],{d:'Touches on this work type in the trailing 90-day window, split human vs bot, with the annualized volume beneath.',
  c:'Counted from the activity log by <code>actor_type</code> on each touch — measured, not modeled.'});
 reg(['measured'],{d:'Everything left of the switch is counted from the activity log over the trailing 90 days. It does not change when you flip toggles.'});
@@ -4397,8 +4401,8 @@ const TOURS=[
      text:'Collections, AR days, denial rate, and cost to collect, each with trend sparklines and benchmark context. This is the page a VP checks between meetings.'},
     {role:'director',pg:'d0',cardTitle:'Big picture',title:'How much of our work could a bot do?',
      text:'Every account touch is classified by work type. The model separates truly manual work from work that fits automation, using honest, work-type-level estimates. Today’s automation level starts at zero because current Flo does not automate; this is the opportunity, not a claim.'},
-    {role:'director',pg:'d0',cardTitle:'Work profile',title:'Your operation, scanned — with the switches in it',
-     text:'Every touch from the last 90 days, classified by actor and work type. The left half is measured: who does what, and where bots already carry load. The right half is the model: each work type has its own automation ceiling and its own switch. The page opens with nothing enabled — flip a switch and the tiles above light up with what that single decision returns. Denials split in two: filing and packet assembly automates, the clinical argument stays human.'},
+    {role:'director',pg:'d0',cardTitle:'Work profile',title:'The switch is the bot',
+     text:'Every touch from the last 90 days, classified by actor and work type. Each row is one work type with a switch for its bot: flip it on and the bot\u2019s activity appears right there — what it takes over, what stays human, how often it hands work back — while the tiles above light up with the capacity it buys. That hand-back column is the tell: above roughly 15%, a bot is making rework, not capacity, and this is the view you would use to catch and tune it. Denials split in two: filing and packet assembly automates, the clinical argument stays human.'},
     {role:'director',pg:'d0',cardTitle:'Where to point automation next',title:'A ranked answer, not just a table',
      text:'The measured profile read against the ceilings produces a short ordered list: fix a bot that hands work back before widening it, start where headroom times volume is largest, stop polishing anything near its ceiling, and name where the freed capacity should land. Ranked by order of operations, not dollar size, because rework compounds and dollars do not.'},
     {role:'director',pg:'d0',cardTitle:'Operational & financial impact',title:'The impact, in FTEs and dollars',
