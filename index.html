@@ -302,6 +302,11 @@ html[data-theme="dark"] .pf-top{background:#111A2E}
 .pf-sn .row{margin-bottom:8px}
 .pf-sn label{display:block;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
 .pf-sn input,.pf-sn textarea{width:100%;font-family:inherit;font-size:11px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+.pf-need{border-color:var(--amber)!important;background:rgba(217,119,6,.10)!important;box-shadow:0 0 0 1px rgba(217,119,6,.28)}
+.pf-need::placeholder{color:var(--amber);opacity:.75}
+.pf-sn.pf-sn-need{border-color:var(--amber);box-shadow:0 0 0 1px rgba(217,119,6,.2)}
+.pf-need-tag{font-size:8.5px;font-weight:800;letter-spacing:.06em;color:var(--amber);text-transform:uppercase;margin-left:6px}
+.pf-done-tag{font-size:8.5px;font-weight:800;letter-spacing:.06em;color:var(--green);text-transform:uppercase;margin-left:6px}
 .pf-chips{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 3px}
 .pf-chip{font-size:9px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:9px;background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
 .pf-chip.ok{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
@@ -1110,14 +1115,15 @@ function pfRight(d){
      takes care of itself. */
   const sn=f.sn, hasDenial=!!r.carc;
   const chip=(ok,lab)=>`<span class="pf-chip ${ok?'ok':''}">${ok?'✓':'○'} ${lab}</span>`;
-  const smart=`<div class="pf-fld"><label>Flo Last Notes <b>*</b> — guided</label>
-    <div class="pf-sn">
-      <div class="row"><label>Action taken — what did you do?</label>
-        <input value="${sn.act.replace(/"/g,'&quot;')}" placeholder="e.g. Called ${r.payer} provider line re: claim status" oninput="pfSN('act',this.value)"></div>
+  const needAct=sn.act.trim().length<8, needNext=sn.next.trim().length<8;
+  const smart=`<div class="pf-fld"><label>Flo Last Notes <b>*</b> — guided<span id="pf-sn-head" class="${(needAct||needNext)?'pf-need-tag':'pf-done-tag'}">${(needAct||needNext)?((needAct?1:0)+(needNext?1:0))+' required field'+((needAct?1:0)+(needNext?1:0)===1?'':'s')+' below':'✓ complete'}</span></label>
+    <div class="pf-sn ${(needAct||needNext)?'pf-sn-need':''}" id="pf-sn-box">
+      <div class="row"><label>Action taken — what did you do?<span id="pf-tag-act" class="${needAct?'pf-need-tag':'pf-done-tag'}">${needAct?'required':'✓'}</span></label>
+        <input id="pf-sn-act" class="${needAct?'pf-need':''}" value="${sn.act.replace(/"/g,'&quot;')}" placeholder="e.g. Called ${r.payer} provider line re: claim status" oninput="pfSN('act',this.value)"></div>
       <div class="row"><label>Contact / outcome — who, and the ref #</label>
         <input value="${sn.contact.replace(/"/g,'&quot;')}" placeholder="e.g. Rep Maria, ref# AR0000000000 — claim pended for records" oninput="pfSN('contact',this.value)"></div>
-      <div class="row"><label>Next step — what happens now, by when</label>
-        <input value="${sn.next.replace(/"/g,'&quot;')}" placeholder="e.g. Fax itemized bill by Fri; follow up 7/16" oninput="pfSN('next',this.value)"></div>
+      <div class="row"><label>Next step — what happens now, by when<span id="pf-tag-next" class="${needNext?'pf-need-tag':'pf-done-tag'}">${needNext?'required':'✓'}</span></label>
+        <input id="pf-sn-next" class="${needNext?'pf-need':''}" value="${sn.next.replace(/"/g,'&quot;')}" placeholder="e.g. Fax itemized bill by Fri; follow up 7/16" oninput="pfSN('next',this.value)"></div>
       ${hasDenial?`<div class="row"><label>Denial reference (${r.carc})</label>
         <input value="${sn.denial.replace(/"/g,'&quot;')}" placeholder="e.g. ${r.carc} ${(PF_CARC[r.carc]||{}).root||''} — appeal grounds / correction" oninput="pfSN('denial',this.value)"></div>`:''}
       <div class="pf-chips" id="pf-chips">${chip(sn.act.length>=8,'Action')}${chip(sn.next.length>=8,'Next step')}${hasDenial?chip(sn.denial.length>=5,'Denial ref'):''}${chip(sn.contact.length>=5,'Contact')}</div>
@@ -1144,6 +1150,19 @@ function pfComposeNote(f,r){
 }
 function pfSN(k,v){
   const st=pfForm(__pf.acct); st.form.sn[k]=v;
+  /* live needs-attention state: amber until satisfied, green check when done */
+  const sn2=st.form.sn;
+  const mark=(id,tag,ok)=>{const el=document.getElementById(id),tg=document.getElementById(tag);
+    if(el) el.classList.toggle('pf-need',!ok);
+    if(tg){tg.className=ok?'pf-done-tag':'pf-need-tag';tg.textContent=ok?'✓':'required';}};
+  mark('pf-sn-act','pf-tag-act',sn2.act.trim().length>=8);
+  mark('pf-sn-next','pf-tag-next',sn2.next.trim().length>=8);
+  const box=document.getElementById('pf-sn-box');
+  const nA=sn2.act.trim().length<8, nN=sn2.next.trim().length<8, nTot=(nA?1:0)+(nN?1:0);
+  if(box) box.classList.toggle('pf-sn-need',nTot>0);
+  const hd=document.getElementById('pf-sn-head');
+  if(hd){hd.className=nTot?'pf-need-tag':'pf-done-tag';
+    hd.textContent=nTot?nTot+' required field'+(nTot===1?'':'s')+' below':'✓ complete';}
   const r=pfData(__pf.acct).r, sn=st.form.sn;
   const pv=document.getElementById('pf-notepv');
   if(pv) pv.innerHTML=pfComposeNote(st.form,r)||'<span style="color:var(--text3)">Note preview builds here as you fill the fields…</span>';
