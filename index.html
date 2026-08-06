@@ -908,9 +908,9 @@ const PF_FORMS=[
  {id:'appeal',   name:'New Appeal Form'},
  {id:'mrr',      name:'Medical Records Request'},
  {id:'itemized', name:'Patient Itemized Charge Statement'},
- {id:'payiz',    name:'Payer IZ - Payments and Adjs'},
- {id:'payizsub', name:'Payer IZ Detail - Daily Subtotal'},
- {id:'payizrep', name:'Payer IZ Detail Report'},
+ {id:'payiz',    name:'Payer Itemized - Payments and Adjs'},
+ {id:'payizsub', name:'Payer Itemized Detail - Daily Subtotal'},
+ {id:'payizrep', name:'Payer Itemized Detail Report'},
 ];
 /* Payer portal directory: which portal serves this payer, and where it lives. */
 const PF_PORTALS=[
@@ -934,17 +934,21 @@ function pfSuggestForm(r){
   return 'payiz';
 }
 function pfOpenForm(id){__pf.formOpen=id;__pf.rp='forms';pfRender();}
+/* __pf.docView is set by the generated-list click and cleared by the catalog click. */
 function pfGenForm(id){
-  const st=pfForm(__pf.acct); st.events=st.events||[];
+  const st=pfForm(__pf.acct); st.events=st.events||[]; st.docs=st.docs||[];
   const f=PF_FORMS.find(x=>x.id===id);
+  st.docs.unshift({id:id, name:f.name, t:Date.now(), by:'Jordan Reyes'});
   st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
     notes:'Generated "'+f.name+'" from the PayFlo card.',status:'DOC: FORM GENERATED'});
-  __pf.formOpen=null; __pf.c='act'; pfRender();
+  __pf.formOpen=null; __pf.docView=null; __pf.c='act'; pfRender();
   const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
   t.textContent='"'+f.name+'" generated (simulated) — logged as an activity event.';
   t.className='show'; setTimeout(()=>t.className='',3200);
 }
-function pfFormDoc(id,d){
+function pfFormDoc(id,d,docIx){
+  const _docs=(window.__pfState[d.r.acct]||{}).docs||[];
+  const _gen=(docIx!=null)?_docs[docIx]:null;
   const r=d.r, kv=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--divider);padding:3px 0"><span style="color:var(--text3)">${k}</span><b>${v}</b></div>`;
   const head=kv('Account',r.acct)+kv('Patient',r.pt+' (display-only)')+kv('Payer',r.payer)+kv('Invoice',d.inv);
   const body={
@@ -952,14 +956,15 @@ function pfFormDoc(id,d){
      <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">Attachments auto-assembled: claim ${d.inv}, 835 remit, itemized statement, medical records cover sheet. Appeal narrative drafts from the CARC and the account history.</div>`,
    mrr:     `<h4>Medical Records Request</h4>${head}${kv('Service date','03/23/2026')}${kv('Records requested','Full chart · itemized bill · physician notes')}${kv('Reason','Payer requested documentation ('+d.carc+')')}`,
    itemized:`<h4>Patient Itemized Charge Statement</h4>${head}${kv('Statement period','03/23/2026 – 03/23/2026')}${kv('Total charges',pfMoney(d.chg))}${kv('Line items',d.claims.lines.length+' service lines (rev codes '+[...new Set(d.claims.lines.map(l=>l.rev))].join(', ')+')')}${kv('Patient responsibility',pfMoney(d.ptPay))}`,
-   payiz:   `<h4>Payer IZ — Payments and Adjs</h4>${head}${kv('Insurance payments',pfMoney(d.insPaid))}${kv('Expected',pfMoney(d.expected))}${kv('Variance',pfMoney(d.insPaid-d.expected))}${kv('Adjustments',pfMoney(d.contractual))}`,
-   payizsub:`<h4>Payer IZ Detail — Daily Subtotal</h4>${head}${kv('03/27/2026 · PACONADJ',pfMoney(d.contractual*0.89))}${kv('04/30/2026 · PAMCON',pfMoney(d.contractual*0.11))}${kv('04/07/2026 · PINSURPY',pfMoney(d.insPaid))}`,
-   payizrep:`<h4>Payer IZ Detail Report</h4>${head}${kv('Claims on account',d.claims.billed.length)}${kv('Service lines',d.claims.lines.length)}${kv('Total charges',pfMoney(d.chg))}${kv('Balance',pfMoney(r.bal))}
+   payiz:   `<h4>Payer Itemized — Payments and Adjs</h4>${head}${kv('Insurance payments',pfMoney(d.insPaid))}${kv('Expected',pfMoney(d.expected))}${kv('Variance',pfMoney(d.insPaid-d.expected))}${kv('Adjustments',pfMoney(d.contractual))}`,
+   payizsub:`<h4>Payer Itemized Detail — Daily Subtotal</h4>${head}${kv('03/27/2026 · PACONADJ',pfMoney(d.contractual*0.89))}${kv('04/30/2026 · PAMCON',pfMoney(d.contractual*0.11))}${kv('04/07/2026 · PINSURPY',pfMoney(d.insPaid))}`,
+   payizrep:`<h4>Payer Itemized Detail Report</h4>${head}${kv('Claims on account',d.claims.billed.length)}${kv('Service lines',d.claims.lines.length)}${kv('Total charges',pfMoney(d.chg))}${kv('Balance',pfMoney(r.bal))}
      <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">Full transaction detail by posted date, code, and payer order — the rebill/resubmit working document.</div>`};
-  return `<div class="pf-fdoc">${body[id]||''}</div>
+  const stamp=_gen?`<div style="font-size:10px;font-weight:700;color:var(--green);border:1px solid var(--green-border);background:var(--green-bg);border-radius:6px;padding:5px 9px;margin-bottom:8px">✓ Generated ${new Date(_gen.t).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} by ${_gen.by}</div>`:'';
+  return stamp+`<div class="pf-fdoc">${body[id]||''}</div>
     <div style="display:flex;gap:8px;margin-top:10px">
-      <button class="pf-save" onclick="pfGenForm('${id}')">Generate (simulated)</button>
-      <button class="pf-cancel" onclick="__pf.formOpen=null;pfRender()">Back to forms</button>
+      ${_gen?`<button class="pf-save" onclick="pfGenForm('${id}')">Regenerate</button>`:`<button class="pf-save" onclick="pfGenForm('${id}')">Generate (simulated)</button>`}
+      <button class="pf-cancel" onclick="__pf.formOpen=null;__pf.docView=null;pfRender()">Back to forms</button>
     </div>
     <div class="pf-note">Prefilled from the account. Generating logs an activity event — document work is a touch too.</div>`;
 }
@@ -967,9 +972,17 @@ function pfRight(d){
   const r=d.r, st=pfForm(r.acct), f=st.form;
   const sug=pfSuggestForm(r), sugName=(PF_FORMS.find(x=>x.id===sug)||{}).name;
   if(__pf.rp==='forms'){
-    if(__pf.formOpen) return pfFormDoc(__pf.formOpen,d);
-    return `<div class="pf-note" style="padding:0 0 8px">Forms prefill from this account. The suggested form for the recommended action pulses.</div>`
-      +PF_FORMS.map(x=>`<div class="pf-form-item ${x.id===sug?'suggest':''}" onclick="pfOpenForm('${x.id}')">● ${x.name}${x.id===sug?'<span class="tag">suggested</span>':''}</div>`).join('');
+    if(__pf.formOpen) return pfFormDoc(__pf.formOpen,d,__pf.docView);
+    const docs=(window.__pfState[r.acct]||{}).docs||[];
+    const gen = docs.length
+      ? `<div style="font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin:2px 0 6px">Generated on this account — ${docs.length}</div>`
+        +docs.map((x,ix)=>`<div class="pf-form-item" style="border-left:3px solid var(--green)" onclick="__pf.docView=${ix};pfOpenForm('${x.id}')">📄 ${x.name}
+            <span class="tag" style="color:var(--green)">${new Date(x.t).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · view</span></div>`).join('')
+        +`<div style="height:8px"></div>`
+      : '';
+    return gen
+      +`<div class="pf-note" style="padding:0 0 8px">Forms prefill from this account. The suggested form for the recommended action pulses.</div>`
+      +PF_FORMS.map(x=>`<div class="pf-form-item ${x.id===sug?'suggest':''}" onclick="__pf.docView=null;pfOpenForm('${x.id}')">● ${x.name}${x.id===sug?'<span class="tag">suggested</span>':''}</div>`).join('');
   }
   /* Recommended action: visible by default at the top, collapsible on click. */
   const rec=`<div class="pf-rec ${__pf.recMin?'min':''}">
