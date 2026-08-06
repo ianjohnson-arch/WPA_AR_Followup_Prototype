@@ -478,8 +478,18 @@ RENDER['collector-c1'] = function(){
       ${kpi('Worked today', `${workedToday} <span style="font-size:12px;color:var(--text2)">/ ${m.goal}</span>`,
           pbar(workedToday,m.goal,C.blue,100*65/65)+'<div class="kpi-sub">raw touches · 63% of daily goal · 2:40 PM pace ≈ on track</div>')}
       ${kpi('Expected recovery in queue', fmt$(ervTot), ML('Σ balance × propensity'))}
-      ${kpi('At risk today', atRisk.length, 'timer ≤ 5 days or stall risk > 0.7','+3','down')}
-      ${kpi('Timely-filing deadlines ≤ 3d', q.filter(r=>r.timer!=null&&r.timer<=3).length,'auto-elevated to top of queue')}
+      ${(()=>{ /* clickable KPI: same toggle pattern as the segment tiles */
+        const mk=(kind,label,val,sub)=>{
+          const on=window.__c1flt===kind;
+          return `<div class="kpi" onclick="toggleC1Flt('${kind}')" title="${on?'Click to clear filter':'Click to filter and sort the queue to these accounts'}"
+            style="cursor:pointer;border:2px solid ${on?'var(--sel-border)':'var(--border)'};background:${on?'var(--sel-bg)':''};box-shadow:${on?'0 0 0 3px rgba(46,94,155,.18)':'none'};transition:border-color .12s,background .12s"
+            onmouseenter="if('${on}'!=='true')this.style.borderColor='var(--midblue)'"
+            onmouseleave="if('${on}'!=='true')this.style.borderColor='var(--border)'">
+            <div class="kpi-label" style="${on?'color:var(--sel-border);font-weight:700':''}">${on?'\u2713 ':''}${label}</div>
+            <div class="kpi-val" style="${on?'color:var(--sel-num)':''}">${val}</div><div class="kpi-sub">${sub}</div></div>`;};
+        return mk('atrisk','At risk today', atRisk.length+' <span class="delta down">+3</span>', 'timer ≤ 5 days or stall risk > 0.7')
+             + mk('timely','Timely-filing deadlines ≤ 3d', q.filter(r=>r.timer!=null&&r.timer<=3).length, 'auto-elevated to top of queue');
+      })()}
     </div>`
   + (()=>{
     const activeSeg = window.__c1seg||null;
@@ -525,7 +535,11 @@ RENDER['collector-c1'] = function(){
       + `<div class="alert blue"><div><div class="alert-sig">Denial responses today</div><div class="alert-txt">4 new 835 denial lines posted to your queue overnight — 2 are CO-197 (auth) on Molina, appeal window 60d.</div></div></div>`;
     return `<div class="grid g23">
       <div class="card" style="display:flex;flex-direction:column"><div class="card-head"><div class="card-title">Prioritized queue</div>
-        <div class="card-note">${ML('Next Best Action rank')} &nbsp; sort: ERV × urgency${activeSeg?' · <b style="color:var(--midblue)">'+activeSeg+'</b>':''}</div></div>
+        <div class="card-note">${(()=>{const f=window.__c1flt;
+          const fl=f==='atrisk'?'At risk · sorted by deadline, then risk':f==='timely'?'Timely filing ≤ 3d · sorted by deadline':null;
+          return ML('Next Best Action rank')+' &nbsp; '+(fl
+            ? `<b style="color:var(--midblue)">${fl}</b>${activeSeg?' · <b style="color:var(--midblue)">'+activeSeg+'</b>':''} &nbsp;·&nbsp; <a href="#" onclick="toggleC1Flt('${f}');return false" style="color:var(--text3)">× Clear</a> &nbsp;·&nbsp; Esc to clear`
+            : 'sort: ERV × urgency'+(activeSeg?' · <b style="color:var(--midblue)">'+activeSeg+'</b>':''));})()}</div></div>
         <div class="tbl-viewport"><div class="tbl-scroll"><table class="tbl" id="qtbl"></table></div></div>
         <div class="gap-note">Queue of ${m.queue} accounts (top ${WPA.queue.length} ranked) · patient names display-only per Gate 12 PHI controls (never used in scoring)</div></div>
       <div>
@@ -540,13 +554,21 @@ RENDER['collector-c1'] = function(){
   bar('c1mix', Object.keys(window.__c1mixBuckets), [{data:Object.values(window.__c1mixBuckets), backgroundColor:[C.blue,C.teal,C.amber,'#EA580C',C.red]}], noLegend);
 };
 window.__c1seg = window.__c1seg || null;
+window.__c1flt = window.__c1flt || null;
+/* KPI-tile filter: at-risk or timely-filing. Composes with the segment filter — both can
+   be active at once, and Esc clears whatever is set. */
+function toggleC1Flt(kind){
+  window.__c1flt = (window.__c1flt === kind) ? null : kind;
+  delete rendered['collector-c1'];
+  RENDER['collector-c1']();
+}
 function toggleC1Seg(name){
   window.__c1seg = (window.__c1seg === name) ? null : name;
   delete rendered['collector-c1'];
   RENDER['collector-c1']();
 }
 document.addEventListener('keydown', function(e){
-  if(e.key==='Escape' && window.__c1seg){ window.__c1seg=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
+  if(e.key==='Escape' && (window.__c1seg||window.__c1flt)){ window.__c1seg=null; window.__c1flt=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
 });
 
 function acctSeed(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return function(){ h=Math.imul(h^(h>>>15),2246822507); h=Math.imul(h^(h>>>13),3266489909); return ((h^(h>>>16))>>>0)/4294967296; }; }
@@ -668,8 +690,17 @@ function openAccount(acct) {
   switchPage('collector', 'c4');
 }
 function buildQueueTable(){
-  const cls = window.__fcls||'', seg = window.__fseg||'';
-  const rows = WPA.queue.filter(r=>(!cls||r.cls===cls)&&(!seg||r.seg===seg));
+  const cls = window.__fcls||'', seg = window.__fseg||'', flt = window.__c1flt||'';
+  let rows = WPA.queue.filter(r=>(!cls||r.cls===cls)&&(!seg||r.seg===seg));
+  /* KPI-tile filter: narrow to the tile's accounts and sort by that tile's urgency, so the
+     count on the tile reconciles exactly with the rows shown. */
+  if(flt==='atrisk'){
+    rows = rows.filter(isAtRisk)
+      .sort((a,b)=>{ const ta=a.timer==null?99:a.timer, tb=b.timer==null?99:b.timer;
+        return (ta-tb) || (b.srisk-a.srisk); });               // deadline first, then risk
+  } else if(flt==='timely'){
+    rows = rows.filter(r=>r.timer!=null&&r.timer<=3).sort((a,b)=>a.timer-b.timer || b.erv-a.erv);
+  }
   // Mark as expanded so limitTables() skips it — the flex:1 scroll-y fills the card and handles overflow
   
   $$('qtbl').innerHTML = `<thead><tr><th></th><th>Account</th><th>Patient</th><th>Payer</th>
@@ -2676,13 +2707,14 @@ reg(['at-risk-today'],{
  c:'Count where timely-filing timer ≤ 5 days OR stall-risk score > 0.7.',
  p:'The "do these first" number.',
  i:'Growth day-over-day means intake of risk exceeds resolution — the queue is silently deteriorating.',
- a:'Clear timer-critical accounts first (hard deadlines beat soft risk), then highest balance × stall-risk.',
+ a:'Click the tile to filter the queue to these accounts, sorted deadline-first then by stall risk. Clear timer-critical accounts first (hard deadlines beat soft risk).',
  s:SRC.ml+' + payer timers ('+SRC.pf+')'});
 reg(['timelyfiling-deadlines-3d'],{
  d:'Accounts within 3 days of the payer timely-filing limit.',
  c:'Payer timely-filing window (per payer timer config) minus account age ≤ 3 days.',
  p:'Past this deadline recovery odds collapse (~18% appeal success on CO-29 vs 58–74% on other roots).',
  i:'Anything here is a same-day action, no exceptions.',
+ a:'Click the tile to filter the queue to these accounts, sorted by days remaining then expected recovery.',
  a:'File today, even imperfectly — a filed claim can be corrected; an unfiled one becomes a CO-29.',
  s:SRC.pf+' payer timers'});
 reg(['prioritized-queue'],{
