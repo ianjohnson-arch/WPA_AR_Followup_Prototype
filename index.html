@@ -2036,17 +2036,24 @@ RENDER['director-d0'] = function(){
   const scen = onN+' of '+eligN+' types · '+mat+'% maturity';
   const topAuto=m.WORK.filter(w=>w.eligible).sort((a,b)=>b.share*b.auto-a.share*a.auto).slice(0,2).map(w=>w.label);
   const pctf=(x)=>Math.round(x*100)+'%';
-  const curState = m.HASBOTS
-    ? `Today ≈<b>${curPct}%</b> of the work already runs through <b>existing bots</b> (${m.curAutomatedYr.toLocaleString()} touches/yr); the rest is manual. The average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.`
-    : `Today the AR follow-up operation is <b>100% manual</b> — about <b>${annual.toLocaleString()} touches a year</b>, every one human-driven. Nothing is auto-generated or touchless; the average account takes <b>${m.tpc} touches over ${m.dtc} days</b> to resolve.`;
-  const narrInner=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface3)">
-        <div class="mini-label" style="margin-bottom:4px">Current state${m.HASBOTS?' — some bots live':' — fully manual'}</div>
-        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">${curState}</div></div>
-      <div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3)">
-        <div class="mini-label" style="color:#059669;margin-bottom:4px">The opportunity — ${scen}</div>
-        <div style="font-size:11.5px;line-height:1.55;color:var(--text2)">Up to <b>${Math.round(m.automatableShare*100)}%</b> of work is bot-eligible. With the currently selected types, automation would free an <b>additional ≈ ${m.fteFreed.toFixed(1)} FTE</b> (${fmt$(m.annualValue)}/yr) beyond what's automated today, cut <b>${m.daysSaved} days</b> off resolution, and let the same team clear <b>${m.projAcctsFTE} accounts/FTE/day</b> vs ${m.acctsFTEday} today.</div></div>
+  /* The hero states TODAY at large type. The opportunity numbers (66%, FTE, dollars, cycle
+     time) live in the sticky tile strip directly below and are deliberately not repeated
+     here: this card previously restated all four in 11.5px prose, which is why nothing in a
+     card called "Big picture" actually read as big. Hero = where we are. Tiles = the prize. */
+  const manualPct = 100 - curPct;
+  const bigStat=(v,unit,label,sub,colour)=>`<div style="padding:2px 4px">
+      <div style="line-height:1;white-space:nowrap"><span class="num" style="font-size:31px;font-weight:700;color:${colour||'var(--navy)'}">${v}</span>${unit?`<span style="font-size:14px;font-weight:600;color:var(--text3);margin-left:4px">${unit}</span>`:''}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:5px">${label}</div>
+      <div style="font-size:10.5px;color:var(--text3);margin-top:2px;line-height:1.45">${sub}</div></div>`;
+  const narrInner=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+      ${bigStat(annual.toLocaleString(),'','touches a year','every one on an account someone has to work')}
+      ${bigStat(manualPct+'%','','by hand', m.HASBOTS
+          ? `the other ${curPct}% runs through existing bots (${m.curAutomatedYr.toLocaleString()} touches/yr)`
+          : 'nothing is auto-generated or touchless today',
+        manualPct>=90?'var(--amber)':'var(--navy)')}
+      ${bigStat(m.tpc,'touches','to resolve one account',`over ${m.dtc} days, on average, from follow-up to resolution`)}
     </div>
+    <div style="font-size:12px;color:var(--text2);margin-top:14px;padding-top:12px;border-top:1px solid var(--divider);line-height:1.55">Up to <b style="color:var(--ml,#059669)">${Math.round(m.automatableShare*100)}%</b> of that work is bot-eligible by action type. The tiles below size what closing the gap returns at the selected scenario (${scen}).</div>
     <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Denials split in two: <b>appeal filing and packet assembly</b> is largely mechanical (pull the claim and remit, key off the CARC/RARC, generate the letter from a template, track the timely-filing clock, submit and chase status) and is bot-eligible; the <b>clinical / medical-necessity argument</b> is not. That argument, complex denial research, and payer negotiation stay human. <span style="color:var(--text3)">Use the scenario panel below to model rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
     <div style="font-size:10px;color:var(--text3);margin-top:8px">${ML('narrative synthesized from the automation model')}</div>`;
   const kpiTile=(l,v,sub)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px"><div class="kpi-label">${l}</div><div style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1" class="num">${v}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
