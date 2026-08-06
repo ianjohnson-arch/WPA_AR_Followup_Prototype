@@ -970,6 +970,12 @@ function pfGenForm(id){
   const f=PF_FORMS.find(x=>x.id===id);
   window.__pfHotT=Date.now();
   st.docs.unshift({id:id, name:f.name, t:window.__pfHotT, by:'Jordan Reyes'});
+  /* Generating an appeal IS an appeal event: stamp Last Appeal Date automatically. */
+  if(id==='appeal'){
+    const dt=new Date(window.__pfHotT);
+    st.form.appeal=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    st.form.appealAuto=true;
+  }
   st.events.unshift({t:window.__pfHotT,by:'Jordan Reyes',added:true,
     notes:'Generated "'+f.name+'" from the PayFlo card.',status:'DOC: FORM GENERATED'});
   /* after generating: right panel returns to the Action Panel (the work continues there —
@@ -1139,7 +1145,7 @@ function pfRight(d){
   <div class="pf-fld"><label>Flo Owner <b>*</b></label>${sel('owner',WPA.collectors.slice(0,6).map(c=>c.name),f.owner)}</div>
   <div class="pf-fld"><label>Assignee <b>*</b></label>${sel('assignee',WPA.collectors.slice(0,6).map(c=>c.name),f.assignee)}</div>
   <div class="pf-fld"><label>Flo Root Cause <b>*</b></label>${sel('root',PF_ROOTS,f.root)}</div>
-  <div class="pf-fld"><label>Last Appeal Date</label><input type="date" value="${f.appeal}" onchange="pfSet('appeal',this.value)"></div>`
+  <div class="pf-fld"><label>Last Appeal Date${f.appealAuto?'<span class="pf-done-tag">✓ auto-filled from the generated appeal</span>':''}</label><input type="date" value="${f.appeal}" style="${f.appealAuto?'border-color:var(--green-border);background:var(--green-bg)':''}" onchange="pfSet('appeal',this.value);pfForm(__pf.acct).form.appealAuto=false"></div>`
   +smart;
 }
 function pfComposeNote(f,r){
