@@ -972,7 +972,9 @@ function pfGenForm(id){
   st.docs.unshift({id:id, name:f.name, t:window.__pfHotT, by:'Jordan Reyes'});
   st.events.unshift({t:window.__pfHotT,by:'Jordan Reyes',added:true,
     notes:'Generated "'+f.name+'" from the PayFlo card.',status:'DOC: FORM GENERATED'});
-  __pf.formOpen=null; __pf.docView=null; __pf.c='act'; pfRender();
+  /* after generating: right panel returns to the Action Panel (the work continues there —
+     log the note, set the status), center jumps to the timeline where the event just landed */
+  __pf.formOpen=null; __pf.docView=null; __pf.rp='action'; __pf.c='act'; pfRender();
   const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
   t.textContent='"'+f.name+'" generated (simulated) — logged as an activity event.';
   t.className='show'; setTimeout(()=>t.className='',3200);
