@@ -228,6 +228,59 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 @keyframes feedPulse{0%{box-shadow:0 0 0 0 rgba(217,164,42,0)}18%{box-shadow:0 0 0 4px rgba(217,164,42,.60)}45%{box-shadow:0 0 0 4px rgba(217,164,42,.15)}68%{box-shadow:0 0 0 4px rgba(217,164,42,.60)}100%{box-shadow:0 0 0 0 rgba(217,164,42,0)}}
 .alert.feed-pulse{animation:feedPulse 1.6s ease-out;border-radius:8px}
 
+
+/* ===== PayFlo card simulation (opened from PayFlo links) ===== */
+#pf-wrap{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.72)}
+.pf-card{width:min(96vw,1720px);height:92vh;background:var(--bg,var(--surface2));border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.55)}
+.pf-top{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--navy-bg,#1B2A4A);border-bottom:2px solid var(--orange)}
+html[data-theme="dark"] .pf-top{background:#111A2E}
+.pf-brand{font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em}
+.pf-brand span{color:var(--orange)}
+.pf-id{font-size:11px;color:#B9C4D8}
+.pf-money{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.pf-mt{padding:4px 10px;border-radius:7px;background:rgba(255,255,255,.07);text-align:right}
+.pf-mt .l{font-size:8.5px;font-weight:700;letter-spacing:.07em;color:#8FA0BC;text-transform:uppercase;white-space:nowrap}
+.pf-mt .v{font-size:13px;font-weight:700;color:#fff}
+.pf-mt .v.neg{color:#F87171}
+.pf-x{background:none;border:none;color:#B9C4D8;font-size:18px;cursor:pointer;padding:2px 6px;line-height:1}
+.pf-body{flex:1;display:grid;grid-template-columns:320px 1fr 330px;gap:10px;padding:10px;min-height:0}
+.pf-col{background:var(--surface);border:1px solid var(--border);border-radius:9px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pf-tabs{display:flex;gap:2px;padding:6px 8px;background:var(--surface3);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.pf-tab{font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;background:transparent;color:var(--text2)}
+.pf-tab.on{background:var(--orange);color:#fff}
+.pf-scroll{flex:1;overflow-y:auto;padding:10px;min-height:0}
+.pf-sec{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+.pf-sec-h{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--surface3);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);cursor:pointer}
+.pf-sec-h .car{margin-left:auto;color:var(--text3);font-size:9px}
+.pf-sec-b{padding:0}
+.pf-sec.closed .pf-sec-b{display:none}
+.pf-kv{display:grid;grid-template-columns:44% 56%;font-size:11px}
+.pf-kv>div{padding:5px 10px;border-top:1px solid var(--divider)}
+.pf-kv>div:nth-child(odd){color:var(--text3)}
+.pf-kv>div:nth-child(-n+2){border-top:none}
+.pf-t{width:100%;border-collapse:collapse;font-size:11px}
+.pf-t th{text-align:left;font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);padding:6px 9px;background:var(--surface3);white-space:nowrap}
+.pf-t td{padding:6px 9px;border-top:1px solid var(--divider);vertical-align:top}
+.pf-t .r{text-align:right}
+.pf-t tr.tot td{background:var(--amber-bg);font-weight:700;border-top:1px solid var(--border)}
+.pf-ev{border-left:2px solid var(--orange);margin:0 0 12px 8px;padding:0 0 0 14px;position:relative}
+.pf-ev:before{content:'';position:absolute;left:-6px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--orange)}
+.pf-ev .d{font-size:11.5px;font-weight:700;color:var(--text)}
+.pf-ev .m{font-size:10px;color:var(--text3);margin:1px 0 5px}
+.pf-ev .fl{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-top:6px}
+.pf-ev .fv{font-size:11px;color:var(--text2);background:var(--surface3);border:1px solid var(--divider);border-radius:6px;padding:5px 8px;margin-top:2px;line-height:1.5}
+.pf-fld{margin-bottom:10px}
+.pf-fld label{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:3px}
+.pf-fld label b{color:var(--red)}
+.pf-fld select,.pf-fld input,.pf-fld textarea{width:100%;font-family:inherit;font-size:11.5px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+.pf-fld .lock{background:var(--surface3);color:var(--text3)}
+.pf-foot{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--border);background:var(--surface3);font-size:10px;color:var(--text3)}
+.pf-save{font-family:inherit;font-size:11px;font-weight:700;border:none;border-radius:7px;padding:7px 18px;cursor:pointer;background:var(--orange);color:#fff}
+.pf-save:disabled{opacity:.45;cursor:not-allowed}
+.pf-cancel{font-family:inherit;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:7px;padding:7px 14px;cursor:pointer;background:var(--surface);color:var(--text2)}
+.pf-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:52px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:15px;z-index:3001}
+.pf-note{font-size:10px;color:var(--text3);padding:6px 10px}
+.pf-simtag{font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--orange);text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -568,7 +621,7 @@ function toggleC1Seg(name){
   RENDER['collector-c1']();
 }
 document.addEventListener('keydown', function(e){
-  if(e.key==='Escape' && (window.__c1seg||window.__c1flt)){ window.__c1seg=null; window.__c1flt=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
+  if(e.key==='Escape' && !(__pf&&__pf.open) && (window.__c1seg||window.__c1flt)){ window.__c1seg=null; window.__c1flt=null; delete rendered['collector-c1']; RENDER['collector-c1'](); }
 });
 
 function acctSeed(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return function(){ h=Math.imul(h^(h>>>15),2246822507); h=Math.imul(h^(h>>>13),3266489909); return ((h^(h>>>16))>>>0)/4294967296; }; }
@@ -622,13 +675,286 @@ function nbaFor(row, root, rnd){
 function pfLink(acct, small){
   return `<a href="#" class="pf-link" onclick="event.stopPropagation();pfNavigate('${acct}');return false" title="Navigate to the PayFlo worklist card for ${acct}">PayFlo${small?'':' card'} ↗</a>`;
 }
-function pfNavigate(acct){
-  let t = document.getElementById('pf-toast');
-  if(!t){ t=document.createElement('div'); t.id='pf-toast'; document.body.appendChild(t); }
-  t.textContent = 'Prototype: would deep-link to the PayFlo worklist card for '+acct+' (payflo://worklist/'+acct+')';
-  t.classList.add('show');
-  clearTimeout(window.__pfT); window.__pfT = setTimeout(()=>t.classList.remove('show'), 2600);
+function pfNavigate(acct){ openPayFlo(acct); }
+
+/* =====================================================================
+   PayFlo card view — working simulation of the PayFlo worklist card.
+   Opened from every PayFlo link. Learned from the two 2026-08-06 screen
+   recordings (see build-scripts/payflo_cardview_reference.md). This is
+   PayFlo's surface simulated inside the prototype: the Action Panel
+   actually saves — state persists for the session and the save lands as
+   a new Account Activity event, which is exactly how PayFlo work becomes
+   the touch data WPA scores.
+   ===================================================================== */
+const PF_CARC={
+ 'CO-4':{d:'The procedure code is inconsistent with the modifier used or a required modifier is missing.',root:'Coding'},
+ 'CO-11':{d:'The diagnosis is inconsistent with the procedure. Usage: refer to the 835 Healthcare Policy Identification Segment, if present.',root:'Coding'},
+ 'CO-16':{d:'Claim/service lacks information or has submission/billing error(s). Usage: at least one Remark Code must be provided.',root:'Billing error'},
+ 'CO-18':{d:'Exact duplicate claim/service. Usage: use only with Group Code OA except where state workers compensation regulations require CO.',root:'Duplicate'},
+ 'CO-22':{d:'This care may be covered by another payer per coordination of benefits.',root:'COB / eligibility'},
+ 'CO-27':{d:'Expenses incurred after coverage terminated.',root:'Eligibility'},
+ 'CO-29':{d:'The time limit for filing has expired.',root:'Timely filing'},
+ 'CO-50':{d:'These are non-covered services because this is not deemed a medical necessity by the payer. Usage: refer to the 835 Healthcare Policy Identification Segment (loop 2110 Service Payment Information REF), if present.',root:'Medical necessity'},
+ 'CO-97':{d:'The benefit for this service is included in the payment/allowance for another service/procedure that has already been adjudicated.',root:'Bundling'},
+ 'CO-197':{d:'Precertification/authorization/notification/pre-treatment absent.',root:'Authorization'}};
+const PF_STATUSES=['FUP: FOLLOW UP','TCI: CLAIM IN PROCESS','DNCS: NON COVERED SERVICE','AP1: APPEAL LVL 1 SUBMITTED','AP1DEN: APPEAL LVL 1 DENIED / UPHELD','CBR: ACCOUNT CLOSED','LEG: LEGAL REVIEW'];
+const PF_DISPO={'FUP':'OPEN','TCI':'OPEN','DNCS':'DENIED','AP1':'APPEALED','AP1DEN':'DENIED','CBR':'CLOSED','LEG':'ESCALATED'};
+const PF_ROOTS=['A - Authorization','B - Billing error','C - Coding','D - Duplicate','E - Eligibility','M - Per Diem','N - Medical necessity','T - Timely filing','U - Underpayment'];
+function pfSeed(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  return function(){h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%100000)/100000;};}
+window.__pfState = window.__pfState||{};   // per-account saved form + added events, session only
+window.__pfCache = window.__pfCache||{};
+function pfMoney(x){return '$ '+(Math.round(x*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function pfData(acct){
+  if(window.__pfCache[acct]) return window.__pfCache[acct];
+  const r=WPA.queue.find(x=>x.acct===acct)||WPA.queue[0];
+  const rnd=pfSeed(acct);
+  const chg=r.bal*(2.0+rnd()*2.0);
+  const contractual=chg*(0.58+rnd()*0.25);
+  const expected=chg-contractual;                    // allowed amount
+  const ptPay=Math.round(rnd()*300*100)/100;
+  const insPaid=Math.max(0, expected-r.bal-ptPay);
+  const denied=r.carc? r.bal*(0.6+rnd()*0.4) : 0;
+  const inv='1'+String(Math.abs(acct.split('').reduce((a,c)=>a*31+c.charCodeAt(0)|0,7))).slice(0,8)+'01';
+  const mrn='MRN'+acct.replace(/\D/g,'');
+  const plans=[{ord:'Primary',plan:r.payer+' '+(r.cls==='Commercial'?'PPO':r.cls==='Medicare'?'ADVANTAGE':'PLAN'),pol:'AMR'+acct.replace(/\D/g,'')+'19'}];
+  if(rnd()>0.45) plans.push({ord:'Secondary',plan:'AETNA PPO',pol:'W2'+acct.replace(/\D/g,'').slice(0,7)});
+  const now=new Date('2026-07-09T14:40:00');
+  const day=86400000, evs=[];
+  const people=['Jordan Reyes','Dana Whitfield','Diganta Roy','Pujala Nagendra Babu'];
+  const nEv=3+Math.floor(rnd()*4);
+  let t=now.getTime()-(2+rnd()*4)*day;
+  for(let i=0;i<nEv;i++){
+    const sys=rnd()>0.6;
+    const st=PF_STATUSES[Math.floor(rnd()*PF_STATUSES.length)];
+    evs.push(sys
+      ? {t:t, by:'SYSTEM', sys:true, status:st}
+      : {t:t, by:people[Math.floor(rnd()*people.length)],
+         dispo:PF_DISPO[st.split(':')[0]]||'OPEN',
+         fup:new Date(t+7*day).toLocaleDateString('en-US'),
+         notes:(r.carc?('Denial '+r.carc+' on file. '):'')+r.nba+' Ref# AR'+String(Math.floor(rnd()*9e9)).padStart(10,'0')+'.',
+         status:st});
+    t-=(4+rnd()*18)*day;
+  }
+  const svcN=4+Math.floor(rnd()*5);
+  const claims={billed:plans.map((p,ix)=>({inv:'S'+inv, date:ix? '04/06/2026':'03/30/2026', flag:'837i', ord:p.ord+' Payer', payer:p.plan})),
+    lines:Array.from({length:svcN},(_,ix)=>({inv:'S'+inv,date:'03/30/2026',flag:'837i',svc:'03/23/2026',rev:ix?'0636':'0710',amt:chg/svcN}))};
+  const d=window.__pfCache[acct]={r,chg,contractual,expected,ptPay,insPaid,denied,inv,mrn,plans,evs,claims,
+    totPay:insPaid+ptPay, underpay:r.bal, carc:(r.carc&&PF_CARC[r.carc])?r.carc:'CO-45',
+    portal:{cat:'F2: N/A',payer:plans[plans.length-1].plan,svc:'03/23/2026',sub:'W'+acct.replace(/\D/g,'').slice(0,9),src:'Pronto',
+      codes:Array.from({length:4+Math.floor(rnd()*5)},()=>'F2: 104: Processed according to plan provisions (Plan refers to provisions that exist between the Health Plan and the Consumer or Patient)'),
+      prev:Array.from({length:5+Math.floor(rnd()*5)},(_,ix)=>({dispo:'Finalized',cat:'F2',code:rnd()>0.85?'107':'104',src:'Pronto',date:new Date(now.getTime()-(ix*9+4)*day).toLocaleDateString('en-US')}))}};
+  return d;
 }
+let __pf={open:false,acct:null,l:'pt',c:'tx',rp:'action',t0:0,timer:null};
+function openPayFlo(acct){
+  __pf={open:true,acct:acct,l:'pt',c:'tx',rp:'action',t0:Date.now(),timer:null};
+  pfRender();
+  __pf.timer=setInterval(()=>{const e=document.getElementById('pf-clock');
+    if(!e){clearInterval(__pf.timer);return;}
+    const s2=Math.floor((Date.now()-__pf.t0)/1000);
+    e.textContent=String(Math.floor(s2/60)).padStart(2,'0')+':'+String(s2%60).padStart(2,'0');},1000);
+}
+function pfClose(){__pf.open=false;if(__pf.timer)clearInterval(__pf.timer);const w=document.getElementById('pf-wrap');if(w)w.remove();}
+function pfNav(d){
+  const ix=WPA.queue.findIndex(r=>r.acct===__pf.acct);
+  const nx=WPA.queue[(ix+d+WPA.queue.length)%WPA.queue.length];
+  __pf.acct=nx.acct; __pf.t0=Date.now(); pfRender();
+}
+function pfTab(zone,id){__pf[zone]=id;pfRender();}
+function pfSecToggle(el){el.closest('.pf-sec').classList.toggle('closed');}
+function pfSec(title,inner,closed){
+  return `<div class="pf-sec ${closed?'closed':''}"><div class="pf-sec-h" onclick="pfSecToggle(this)">⣿ ${title}<span class="car">▾</span></div><div class="pf-sec-b">${inner}</div></div>`;
+}
+function pfKV(rows){return `<div class="pf-kv">${rows.map(([k,v])=>`<div>${k}</div><div>${v==null||v===''?'—':v}</div>`).join('')}</div>`;}
+function pfAEV(title,rows){
+  const tot=rows.reduce((a,x)=>[a[0]+x[1],a[1]+x[2]],[0,0]);
+  return pfSec(title,`<table class="pf-t"><thead><tr><th>${title.replace(/ *\(.*/,'')}</th><th class="r">Actual</th><th class="r">Expected</th><th class="r">Variance</th></tr></thead><tbody>
+    <tr class="tot"><td>Total:</td><td class="r">${pfMoney(tot[0])}</td><td class="r">${pfMoney(tot[1])}</td><td class="r">${pfMoney(tot[0]-tot[1])}</td></tr>
+    ${rows.map(x=>`<tr><td>${x[0]}</td><td class="r">${pfMoney(x[1])}</td><td class="r">${pfMoney(x[2])}</td><td class="r">${pfMoney(x[1]-x[2])}</td></tr>`).join('')}
+  </tbody></table>`);
+}
+function pfForm(acct){
+  const st=window.__pfState[acct]=window.__pfState[acct]||{};
+  const d=pfData(acct);
+  if(!st.form) st.form={status:'FUP: FOLLOW UP',owner:'Jordan Reyes',assignee:'Jordan Reyes',
+    root:PF_ROOTS.find(x=>x.includes((PF_CARC[d.carc]||{}).root))||'U - Underpayment',appeal:'',notes:''};
+  return st;
+}
+function pfLeft(d){
+  const r=d.r, cd=PF_CARC[d.carc]||PF_CARC['CO-50'];
+  if(__pf.l==='pt') return pfSec('Patient Details',pfKV([
+    ['Pt Name',r.pt+' <span class="pf-simtag">display-only</span>'],['Pt Account Number',r.acct],['Invoice Number',d.inv],['MRN',d.mrn],
+    ['Facility Code','Facility Code 2'],['Statement Start Date','03/23/2026'],['Statement End Date','03/23/2026'],
+    ['Health Plan',d.plans[0].plan],['Primary Payer',r.payer],['Denied Amount',d.denied?pfMoney(d.denied):'—'],
+    ['Last Remit Date','04/02/2026'],['CARC',d.carc.replace('CO-','')],['CARC Description',cd.d],
+    ['Denial Type',r.carc?'Hard denial':'—'],['Denial Owner','PATIENT ACCESS'],['Provider NPI',''],['Provider Tax ID',''],
+    ['Primary Diagnosis',''],['Authorization Number','']]));
+  if(__pf.l==='ins') return d.plans.map((p,ix)=>pfSec(['Primary','Secondary','Tertiary'][ix]+' Insurance',
+      pfKV([['Health Plan',p.plan],['Policy Number',p.pol],['Balance',pfMoney(ix?0:d.r.bal)]]))).join('')
+    +(d.plans.length<3?pfSec('Tertiary Insurance',pfKV([['Health Plan','N/A'],['Policy Number','—'],['Balance',pfMoney(0)]]),true):'');
+  // 835 details
+  return pfSec('Related Remits',pfKV([['Remit Date','04/02/2026'],['Payer',d.plans[0].plan],['Claim ID',d.inv],
+      ['Total Chgs',pfMoney(d.chg)],['Adjustments',pfMoney(d.contractual)],['Paid Amount',pfMoney(d.insPaid)],
+      ['Patient Co-Pay',pfMoney(0)],['Patient Co-Insurance',pfMoney(d.ptPay)],['Patient Deductible',pfMoney(0)],
+      ['Patient Responsibility',pfMoney(d.ptPay)],['Patient Other',pfMoney(0)]]))
+    +pfSec('CARC Listing',pfKV([['CARC',d.carc.replace('CO-','')],['CARC Description',(PF_CARC[d.carc]||{}).d||''],['Payer',d.plans[0].plan],['Remit Date','04/02/2026'],['Group','CO']]))
+    +pfSec('RARC Listing',pfKV([['RARC','N/A'],['RARC Description','—'],['Remit Date','—'],['Payer','—']]),true)
+    +pfSec('Other Open Denials',pfKV([['Last User Touch Date','—'],['Flo Assignee',pfForm(d.r.acct).form.assignee],['Flo Status',pfForm(d.r.acct).form.status]]),true);
+}
+function pfCenter(d){
+  const r=d.r;
+  if(__pf.c==='tx'){
+    return pfAEV('Ins Payments',[['Total Insurance Payments',d.insPaid,d.expected]])
+      +pfSec('Insurance Payments Transactions',`<table class="pf-t"><thead><tr><th>Trans Posted Date</th><th class="r">Trans Amount</th><th>Trans Code</th><th>Trans Description</th><th>Trans Insurance</th></tr></thead><tbody>
+        <tr class="tot"><td>Total:</td><td class="r">${pfMoney(d.insPaid)}</td><td></td><td></td><td></td></tr>
+        ${d.insPaid>0?`<tr><td>04/07/2026</td><td class="r">${pfMoney(d.insPaid)}</td><td>PINSURPY</td><td>PAYER INSURANCE PYMT</td><td>${d.plans[0].plan}</td></tr>`:'<tr><td colspan="5" style="color:var(--text3)">No insurance payments posted</td></tr>'}
+      </tbody></table>`)
+      +pfAEV('Primary Ins Payments',[[d.plans[0].plan,d.insPaid,d.expected]])
+      +pfAEV('Secondary Ins Payments',[[d.plans[1]?d.plans[1].plan:'—',0,0]])
+      +pfAEV('Patient Payments',[['Patient Payments',d.ptPay,0]])
+      +pfSec('Adjustments Transactions',`<table class="pf-t"><thead><tr><th>Trans Posted Date</th><th class="r">Trans Amount</th><th>Trans Code</th><th>Trans Description</th></tr></thead><tbody>
+        <tr class="tot"><td>Total:</td><td class="r">${pfMoney(d.contractual)}</td><td></td><td></td></tr>
+        <tr><td>03/27/2026</td><td class="r">${pfMoney(d.contractual*0.89)}</td><td>PACONADJ</td><td>SYSTEM CONTRACTUAL ADJ INS</td></tr>
+        <tr><td>04/30/2026</td><td class="r">${pfMoney(d.contractual*0.11)}</td><td>PAMCON</td><td>MANUAL CONTRACTUAL ADJ INS</td></tr>
+      </tbody></table>`)
+      +pfSec('Adjustments by Payor',`<table class="pf-t"><thead><tr><th>Payor Order</th><th>Trans Insurance</th><th class="r">Adj Amount</th></tr></thead><tbody>
+        <tr class="tot"><td>Total:</td><td></td><td class="r">${pfMoney(d.contractual)}</td></tr>
+        <tr><td>Primary Trans Insurance Payor</td><td>${d.plans[0].plan}</td><td class="r">${pfMoney(d.contractual)}</td></tr>
+        <tr><td>Secondary Trans Insurance Payor</td><td></td><td class="r"></td></tr>
+      </tbody></table>`,true);
+  }
+  if(__pf.c==='act'){
+    const st=window.__pfState[r.acct]||{};
+    const evs=[...(st.events||[]),...d.evs];
+    return `<div class="pf-note" style="display:flex;justify-content:space-between"><span>Timeline Detail ─●─ · New-Old</span><span>⭳ Download</span></div>`
+      +evs.map(e=>{
+        const dt=new Date(e.t);
+        const wd=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+        const tm=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+        return `<div class="pf-ev"><div class="d">${wd}${e.added?' <span class="pf-simtag">· saved this session</span>':''}</div>
+          <div class="m">${tm} · by: <b>${e.by}</b>${e.sys?' 🖥':' ⧉'}</div>
+          ${e.dispo?`<div class="fl">Disposition</div><div class="fv">${e.dispo}</div>`:''}
+          ${e.fup?`<div class="fl">Follow Up Date</div><div class="fv">${e.fup}</div>`:''}
+          ${e.notes?`<div class="fl">Notes</div><div class="fv">${e.notes}</div>`:''}
+          ${e.status?`<div class="fl">Status</div><div class="fv">${e.status}</div>`:''}</div>`;}).join('');
+  }
+  if(__pf.c==='claims'){
+    return pfSec('Claims Billed',`<table class="pf-t"><thead><tr><th>Invoice Number</th><th>Claim Bill Date</th><th>Flag: 837i/837p</th><th>Flag: Payer Order</th><th>Current Payer</th></tr></thead><tbody>
+      ${d.claims.billed.map(c=>`<tr><td>${c.inv}</td><td>${c.date}</td><td>${c.flag}</td><td>${c.ord}</td><td>${c.payer}</td></tr>`).join('')}</tbody></table>`)
+      +pfSec('Claim Svc Lines',`<table class="pf-t"><thead><tr><th>Invoice Number</th><th>Claim Bill Date</th><th>Service Date</th><th>Revenue Code</th><th class="r">Amount</th></tr></thead><tbody>
+      <tr class="tot"><td>Total:</td><td></td><td></td><td></td><td class="r">${pfMoney(d.chg)}</td></tr>
+      ${d.claims.lines.map(c=>`<tr><td>${c.inv}</td><td>${c.date}</td><td>${c.svc}</td><td>${c.rev}</td><td class="r">${pfMoney(c.amt)}</td></tr>`).join('')}</tbody></table>`);
+  }
+  if(__pf.c==='portal'){
+    return pfSec('Payer Portal Message',pfKV([['Pt Account Number',r.acct],['Status Effective Date','05/12/2026'],
+        ['Category',d.portal.cat],['Payer',d.portal.payer],['Service Start Date',d.portal.svc],['Service End Date',d.portal.svc],
+        ['Subscriber ID',d.portal.sub],['Charge Amount',''],['Payment Amount',''],['Claim Status Source',d.portal.src]]))
+      +pfSec('Claim Status Codes',d.portal.codes.map(c=>`<div style="font-size:11px;padding:6px 10px;border-top:1px solid var(--divider)">${c}</div>`).join(''))
+      +pfSec('Payer Portal Message WL',`<div class="pf-note">N/A</div>`,true)
+      +pfSec('Previous Statuses for This Claim',`<table class="pf-t"><thead><tr><th>Disposition</th><th>Category</th><th>Status Code</th><th>Claim Status Source</th><th>Status Date</th></tr></thead><tbody>
+      ${d.portal.prev.map(x=>`<tr><td>${x.dispo}</td><td>${x.cat}</td><td>${x.code}</td><td>${x.src}</td><td>${x.date}</td></tr>`).join('')}</tbody></table>`);
+  }
+  // prediction models — populated from OUR ML, the integration point
+  const cd=PF_CARC[d.carc]||{root:'Underpayment'};
+  return pfSec('Predicted Root Causes',pfKV([
+      ['Highest Score RC',cd.root+' — '+(Math.round((0.62+d.r.prop*0.3)*100))+'% confidence'],
+      ['Root Cause 2','Underpayment — '+(Math.round((0.31)*100))+'% confidence'],
+      ['Root Cause 3','COB / eligibility — 12% confidence']]))
+    +pfSec('Predicted Revenue Impact',pfKV([
+      ['Expected recovery (ERV)',pfMoney(d.r.erv)+' <span class="pf-simtag">balance × propensity '+Math.round(d.r.prop*100)+'%</span>'],
+      ['Stall risk (7d)',Math.round(d.r.srisk*100)+'%'],
+      ['Recommended next action',d.r.nba]]))
+    +`<div class="pf-note">Fed by the WPA analytics layer — the same propensity, stall and root-cause models that rank the queue.</div>`;
+}
+function pfRight(d){
+  const r=d.r, st=pfForm(r.acct), f=st.form;
+  if(__pf.rp==='forms') return pfSec('Forms',`<div style="padding:8px 10px;font-size:11.5px">
+    <div style="padding:6px 0;border-bottom:1px solid var(--divider)">● New Appeal Form</div>
+    <div style="padding:6px 0">● Medical Records Request</div></div>`);
+  const dispo=PF_DISPO[f.status.split(':')[0]]||'OPEN';
+  const sel=(name,opts,val)=>`<select onchange="pfSet('${name}',this.value)">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+  return `<div style="display:flex;gap:9px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface3);margin-bottom:11px;font-size:11px;color:var(--text2)">🤖 View your <a href="#" onclick="pfRec();return false" style="color:var(--orange);font-weight:700">recommended actions</a> concerning this issue.</div>
+  <div id="pf-rec" style="display:none;border:1px solid var(--green-border);border-radius:8px;background:var(--green-bg);padding:9px 11px;margin-bottom:11px;font-size:11px;line-height:1.5"><b>${r.nba}</b><br><span style="color:var(--text3)">ERV ${pfMoney(r.erv)} · propensity ${Math.round(r.prop*100)}% · from the WPA queue model</span></div>
+  <div class="pf-fld"><label>Flo Status <b>*</b></label>${sel('status',PF_STATUSES,f.status)}</div>
+  <div class="pf-fld"><label>Flo Disposition <b>*</b></label><input class="lock" value="${dispo}" disabled></div>
+  <div class="pf-fld"><label>Flo Primary Segment <b>*</b></label><input class="lock" value="${r.seg}" disabled></div>
+  <div class="pf-fld"><label>Flo Owner <b>*</b></label>${sel('owner',WPA.collectors.slice(0,6).map(c=>c.name),f.owner)}</div>
+  <div class="pf-fld"><label>Assignee <b>*</b></label>${sel('assignee',WPA.collectors.slice(0,6).map(c=>c.name),f.assignee)}</div>
+  <div class="pf-fld"><label>Flo Root Cause <b>*</b></label>${sel('root',PF_ROOTS,f.root)}</div>
+  <div class="pf-fld"><label>Last Appeal Date</label><input type="date" value="${f.appeal}" onchange="pfSet('appeal',this.value)"></div>
+  <div class="pf-fld"><label>Flo Last Notes <b>*</b></label><textarea rows="4" placeholder="What did you do, what happens next, ref #" oninput="pfSet('notes',this.value,true)">${f.notes}</textarea></div>`;
+}
+function pfSet(k,v,quiet){const st=pfForm(__pf.acct);st.form[k]=v;if(!quiet)pfRender();else pfValidate();}
+function pfValidate(){
+  const f=pfForm(__pf.acct).form;
+  const ok=f.status&&f.owner&&f.assignee&&f.root&&f.notes.trim().length>=10;
+  const b=document.getElementById('pf-savebtn'), m=document.getElementById('pf-vmsg');
+  if(b) b.disabled=!ok;
+  if(m) m.textContent = ok? 'Ready to save.' : 'Notes are required (10+ characters) before saving.';
+  return ok;
+}
+function pfSave(){
+  if(!pfValidate()) return;
+  const st=pfForm(__pf.acct), f=st.form;
+  st.events=st.events||[];
+  st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
+    dispo:PF_DISPO[f.status.split(':')[0]]||'OPEN',
+    fup:new Date(Date.now()+7*86400000).toLocaleDateString('en-US'),
+    notes:f.notes,status:f.status});
+  f.notes='';
+  __pf.c='act';                     // jump to the timeline so the save is SEEN becoming a touch
+  pfRender();
+  const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
+  t.textContent='Saved to PayFlo (simulated) — the update is now a touch event on this account.';
+  t.className='show'; setTimeout(()=>t.className='',3200);
+}
+function pfRec(){const e=document.getElementById('pf-rec');if(e)e.style.display=e.style.display==='none'?'block':'none';}
+function pfRender(){
+  const d=pfData(__pf.acct), r=d.r;
+  let w=document.getElementById('pf-wrap');
+  if(!w){w=document.createElement('div');w.id='pf-wrap';document.body.appendChild(w);}
+  const tab=(zone,id,lab)=>`<button class="pf-tab ${__pf[zone]===id?'on':''}" onclick="pfTab('${zone}','${id}')">${lab}</button>`;
+  const mt=(l,v,neg)=>`<div class="pf-mt"><div class="l">${l}</div><div class="v ${neg?'neg':''}">${v}</div></div>`;
+  w.innerHTML=`<button class="pf-nav" style="left:10px" onclick="pfNav(-1)" title="Previous account">‹</button>
+  <div class="pf-card">
+    <div class="pf-top">
+      <div><div class="pf-brand">Pay<span>Flo</span> <span class="pf-simtag">simulated · prototype</span></div>
+        <div class="pf-id">${r.acct} · ${r.pt} · ${r.payer} · ${r.seg}</div></div>
+      <div class="pf-money">
+        ${mt('Current Payer Balance',pfMoney(r.bal))}
+        ${mt('Account Balance',pfMoney(r.bal))}
+        ${mt('Expected Reimbursement',pfMoney(d.expected))}
+        ${mt('Underpayment',pfMoney(d.underpay),true)}
+        ${mt('Total Charges',pfMoney(d.chg))}
+        ${mt('Total Adjustments',pfMoney(d.contractual))}
+        ${mt('Total Payments',pfMoney(d.totPay))}
+      </div>
+      <button class="pf-x" onclick="pfClose()" title="Close">✕</button>
+    </div>
+    <div class="pf-body">
+      <div class="pf-col"><div class="pf-tabs">${tab('l','pt','Patient')}${tab('l','ins','Insurance')}${tab('l','835','835 Details')}</div>
+        <div class="pf-scroll">${pfLeft(d)}</div></div>
+      <div class="pf-col"><div class="pf-tabs">${tab('c','tx','Transaction History')}${tab('c','act','Account Activity')}${tab('c','claims','Claims')}${tab('c','portal','Payer Portal')}${tab('c','ml','Prediction Models')}</div>
+        <div class="pf-scroll">${pfCenter(d)}</div></div>
+      <div class="pf-col"><div class="pf-tabs">${tab('rp','action','Action Panel')}${tab('rp','forms','Forms')}</div>
+        <div class="pf-scroll">${pfRight(d)}</div>
+        ${__pf.rp==='action'?`<div class="pf-foot"><span id="pf-vmsg">Notes are required (10+ characters) before saving.</span>
+          <button class="pf-save" id="pf-savebtn" onclick="pfSave()" disabled>Save</button>
+          <button class="pf-cancel" onclick="pfClose()">Cancel</button></div>`:''}
+      </div>
+    </div>
+    <div class="pf-foot" style="justify-content:space-between">
+      <span>↺ Restore default layout · in PayFlo every section is drag-rearrangeable</span>
+      <span>${WPA.meta.client}</span>
+      <span title="Time on this account — this clock is where WPA touch duration comes from">⏱ <b id="pf-clock" class="num">00:00</b></span>
+    </div>
+  </div>
+  <button class="pf-nav" style="right:10px" onclick="pfNav(1)" title="Next account">›</button>`;
+  pfValidate();
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&__pf.open)pfClose();});
+
 // Keep the queue's "Recommended next action" identical to the deep dive's #1 ranked action
 function syncQueueNBA(){
   WPA.queue.forEach(r=>{
