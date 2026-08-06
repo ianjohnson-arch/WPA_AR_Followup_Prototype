@@ -1986,7 +1986,10 @@ function autoModel(){
     {id:'complex',label:'Complex denial research', share:0.10, auto:0.05},
     {id:'negotiation',label:'Payer negotiation / escalation', share:0.10, auto:0.00},
   ];
-  if(!window.__autoOn) window.__autoOn={status:true,portal:true,rebill:true,routing:true,appeal_admin:true};
+  /* Default: NOTHING enabled. First visit shows the measured profile and near-zero tiles;
+     the visitor creates the opportunity number by flipping switches. Starting all-on would
+     pre-light the reveal and turn the page back into a conclusion. */
+  if(!window.__autoOn) window.__autoOn={};
   const maturity=(window.__autoMaturity==null?85:window.__autoMaturity)/100;
   const HASBOTS=!!window.__autoHasBots;
   const SEED={status:0.25, routing:0.30, portal:0.10, rebill:0.15};   // existing-bot baseline when a client has bots
@@ -2053,8 +2056,10 @@ RENDER['director-d0'] = function(){
         manualPct>=90?'var(--amber)':'var(--navy)')}
       ${bigStat(m.tpc,'touches','to resolve one account',`over ${m.dtc} days, on average, from follow-up to resolution`)}
     </div>
-    <div style="font-size:12px;color:var(--text2);margin-top:14px;padding-top:12px;border-top:1px solid var(--divider);line-height:1.55">Up to <b style="color:var(--ml,#059669)">${Math.round(m.automatableShare*100)}%</b> of that work is bot-eligible by action type. The tiles below size what closing the gap returns at the selected scenario (${scen}).</div>
-    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Denials split in two: <b>appeal filing and packet assembly</b> is largely mechanical (pull the claim and remit, key off the CARC/RARC, generate the letter from a template, track the timely-filing clock, submit and chase status) and is bot-eligible; the <b>clinical / medical-necessity argument</b> is not. That argument, complex denial research, and payer negotiation stay human. <span style="color:var(--text3)">Use the scenario panel below to model rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:14px;padding-top:12px;border-top:1px solid var(--divider);line-height:1.55">Every touch from the last ${BOT_WIN_DAYS} days was classified by <b>actor and work type</b> — that profile is the table below. Up to <b style="color:var(--ml,#059669)">${Math.round(m.automatableShare*100)}%</b> of the work is bot-eligible. ${onN===0
+      ? 'Nothing is switched on yet: flip work types in the profile and the tiles above light up with what each one returns.'
+      : `The tiles size what the current scenario returns (${scen}).`}</div>
+    <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.55"><b>Where to start:</b> the fastest wins are <b>${topAuto.join('</b> and <b>')}</b> — high automatable share at real volume. Denials split in two: <b>appeal filing and packet assembly</b> is largely mechanical (pull the claim and remit, key off the CARC/RARC, generate the letter from a template, track the timely-filing clock, submit and chase status) and is bot-eligible; the <b>clinical / medical-necessity argument</b> is not. That argument, complex denial research, and payer negotiation stay human. <span style="color:var(--text3)">Flip work types in the profile below to model rollout in chunks; maturity sets how touchless the enabled types get.</span></div>
     <div style="font-size:10px;color:var(--text3);margin-top:8px">${ML('narrative synthesized from the automation model')}</div>`;
   const kpiTile=(l,v,sub)=>`<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px"><div class="kpi-label">${l}</div><div style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1" class="num">${v}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
   const ba=(label,cur,proj,fmt,lowerBetter)=>{
@@ -2073,30 +2078,14 @@ RENDER['director-d0'] = function(){
   + `<div id="d0-impact" style="position:sticky;top:134px;z-index:20;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 10px;box-shadow:0 3px 10px rgba(0,0,0,.07)">
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
           ${kpiTile('Automatable share', pctf(m.automatableShare), 'ceiling — status, lookups, rebills, routing, appeal filing')}
-          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), onN+'/'+eligN+' types on'+(m.HASBOTS?' · +'+curPct+'% already live':' · incremental'))}
+          ${kpiTile('FTE capacity freed', '≈ '+m.fteFreed.toFixed(1), onN===0?'nothing enabled — flip a work type below':onN+'/'+eligN+' types on'+(m.HASBOTS?' · +'+curPct+'% already live':' · incremental'))}
           ${kpiTile('Hours reclaimed / yr', Math.round(m.hoursYr).toLocaleString(), '@ '+m.MIN+' min/touch · est.')}
           ${kpiTile('Projected annual value', fmt$(m.annualValue), 'cost freed + collections lift · est.')}
           ${kpiTile('Cycle-time reduction', '-'+m.daysSaved+'d', 'days follow-up→resolution · est.')}
         </div>
       </div>`
-  + `<div class="card" style="margin-bottom:12px">
-      <div class="card-head" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
-        <div class="card-title">Scenario — what you would automate</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:420px;justify-content:flex-end">
-          <button onclick="setHasBots()" title="Demo: simulate a client that already runs some automation" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid ${m.HASBOTS?'var(--director)':'var(--border)'};border-radius:6px;padding:3px 9px;cursor:pointer;background:${m.HASBOTS?'var(--director)':'var(--surface)'};color:${m.HASBOTS?'#fff':'var(--text2)'}">${m.HASBOTS?'Existing bots: on':'Client has bots'}</button>
-          <div style="width:1px;height:18px;background:var(--border)"></div>
-          <div style="display:flex;gap:6px">${phaseBtn('quick','Quick wins')}${phaseBtn('all','All automatable')}${phaseBtn('clear','Clear')}</div>
-          <div class="kpi-label" style="white-space:nowrap;margin:0" title="How touchless the automations you have turned on are — accounts for ramp-up and edge cases">Maturity</div>
-          <input type="range" min="0" max="100" value="${mat}" style="min-width:100px;max-width:160px;accent-color:var(--director)"
-            oninput="document.getElementById('autoMatLbl').textContent=this.value+'%'" onchange="setMaturity(this.value)">
-          <div style="font-size:12px;color:var(--text2);white-space:nowrap"><b id="autoMatLbl">${mat}%</b></div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div style="font-size:10.5px;color:var(--text3);margin-bottom:9px">Automation is applied by work type (payer- and reason-agnostic). Toggle a type on and every number on this page re-reads against it${m.HASBOTS?' · existing bots folded in':' · current automation 0% (no bots yet)'}.</div>
-        ${workTypeTable(m)}
-      </div></div>`
-  + botActualsCard(m)
+  + workProfileCard(m)
+  + `<div style="margin-bottom:12px">`+recsCard(m)+`</div>`
   + `
     <div class="grid g2">
       ${card('Projected effects — throughput, efficiency, timeliness', `<table class="tbl"><thead><tr><th>Metric</th><th class="r">Current</th><th class="r">Projected</th><th class="r">Change</th></tr></thead><tbody>
@@ -2122,38 +2111,86 @@ RENDER['director-d0'] = function(){
         <tr style="border-top:2px solid var(--border)"><td><b>Total estimated annual opportunity (incremental)</b></td><td class="r num"><b style="color:#059669">${fmt$(m.annualValue)} / yr</b></td></tr>
       </tbody></table>
       <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Assumptions: ${m.MIN} min/touch, 1,800 productive hrs/FTE/yr, $75K loaded cost/FTE, $118K collections/FTE (60% redeploy). Values are the <b>incremental</b> gain beyond what's automated today.</div></div></div>
-    </div>`
-  + recsCard(m);
+    </div>`;
   d0StickTop();
 };
-/* Work-type toggles — the control surface for every projection on d0. */
-function workTypeTable(m){
-          const annual=m.annualTouches, MIN=m.MIN, mat=m.maturityPct;
-          const curPct=Math.round(m.curShare*100), projPct=Math.round(m.projShare*100);
-          const splitBar=(auto)=>{const a=Math.round(auto*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:110px;margin-top:4px"><div style="width:${a}%;background:var(--ml,#059669)"></div><div style="width:${100-a}%;background:var(--surface2)"></div></div>`;};
-          const tag=(auto)=> auto>=0.70?'<span class="pill green">Mostly automatable</span>':auto>=0.30?'<span class="pill" style="background:var(--blue-bg);color:var(--midblue)">Mixed</span>':'<span class="pill amber">Mostly manual</span>';
-          const toggle=(w)=> w.eligible
-            ? `<button onclick="toggleWork('${w.id}')" title="Automate this work type" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml)':'var(--track)'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:var(--surface)"></span></button>`
-            : `<span style="font-size:9px;color:var(--text3)">n/a</span>`;
-          const rows=m.WORK.slice().sort((a,b)=>b.auto-a.auto).map(w=>{
-            const vol=annual*w.share, curP=Math.round(w.cur*100), achP=Math.round(w.achieved*100);
-            const manToday=vol*(1-w.cur), lt=vol*w.lift, hf=lt*MIN/60, fte=hf/1800;
-            const dim = w.eligible && !w.on && w.lift===0;
-            return `<tr style="${dim?'opacity:.55':''}">
-              <td style="text-align:center">${toggle(w)}</td>
-              <td><b>${w.label}</b>${!w.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
-              <td>${splitBar(w.auto)}<div style="margin-top:5px">${tag(w.auto)}</div></td>
-              <td class="r"><b class="num">${curP}%</b> auto · ${100-curP}% manual<div style="font-size:10px;color:var(--text3)">≈ ${Math.round(manToday).toLocaleString()} manual touches/yr</div></td>
-              <td class="r"><b class="num" style="color:${achP>curP?'var(--green)':'var(--text)'}">${achP}%</b> auto · ${100-achP}% manual</td>
-              <td class="r">${w.lift>0?`<b class="num" style="color:#059669">+${Math.round(lt).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:`<span style="color:var(--text3)">—</span>`}</td></tr>`;}).join('');
-          return `<table class="tbl"><thead><tr><th style="width:44px">Auto</th><th>Work type</th><th>Automatable ceiling</th>
-            <th class="r">Today</th><th class="r">At scenario</th><th class="r">Lift (new · ${mat}% maturity)</th></tr></thead><tbody>${rows}
-            <tr style="border-top:2px solid var(--border)"><td></td><td><b>Total</b></td><td></td>
-              <td class="r"><b class="num">${curPct}%</b> auto<div style="font-size:10px;color:var(--text3)">${m.curAutomatedYr.toLocaleString()} touches/yr</div></td>
-              <td class="r"><b class="num" style="color:#059669">${projPct}%</b> auto<div style="font-size:10px;color:var(--text3)">${m.projAutomatedYr.toLocaleString()} touches/yr</div></td>
-              <td class="r"><b class="num" style="color:#059669">+${m.liftYr.toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(m.hoursYr).toLocaleString()} hrs · ${m.fteFreed.toFixed(1)} FTE</div></td></tr>
+/* ONE table: the measured profile on the left, the switch in the middle, the modeled
+   consequence on the right. Merging the census and the scenario table puts the toggle
+   physically between the reality it reads from and the projection it drives — the reader
+   no longer joins the same eight work-type rows across two cards 1,500px apart.        */
+function workProfileCard(m){
+  const A=botActuals(m), mat=m.maturityPct, annual=m.annualTouches, MIN=m.MIN;
+  const curPct=Math.round(m.curShare*100), projPct=Math.round(m.projShare*100);
+  const pct=x=>Math.round(x*100)+'%';
+  const banner = A.bot>0
+    ? `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3);margin-bottom:11px">
+         <div><div class="mini-label">Bot share of touches</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${pct(A.botShare)}</div></div>
+         <div><div class="mini-label">Bot touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.bot).toLocaleString()}</div></div>
+         <div><div class="mini-label">Human touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.hum).toLocaleString()}</div></div>
+         <div><div class="mini-label">Distinct bots seen</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${A.nBots}</div></div>
+         <div><div class="mini-label" title="Bot touched the account, then a human had to touch the same work type within 5 days">Handed back to a human</div><div class="num" style="font-size:19px;font-weight:700;line-height:1.1;color:${A.fbRate>=0.15?'var(--red)':'var(--navy)'}">${pct(A.fbRate)}</div><div style="font-size:10px;color:var(--text3)">${Math.round(A.reworkTouches).toLocaleString()} touches of rework</div></div>
+       </div>`
+    : `<div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:7px;background:var(--surface3);margin-bottom:11px;font-size:11.5px;line-height:1.55;color:var(--text2)">
+         <b>We scanned ${Math.round(A.vol).toLocaleString()} touches from the last ${BOT_WIN_DAYS} days. None carries a bot actor.</b> Bot share is a measured <b>0%</b>, not an assumption — the left half of this table is your manual workload census: who is spending time on what. The right half is what flipping each switch would change. Measured columns fill in on their own the moment the activity feed carries <code>actor_type = bot</code> and a <code>bot_id</code>.
+       </div>`;
+  const bar=(b)=>{const p=Math.round(b*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:104px;margin-top:4px"><div style="width:${p}%;background:var(--ml,#059669)"></div><div style="width:${100-p}%;background:var(--slate,#64748B)"></div></div>`;};
+  const toggle=(w)=> w.eligible
+    ? `<button onclick="toggleWork('${w.id}')" title="Automate this work type" style="width:36px;height:20px;border:none;border-radius:11px;cursor:pointer;background:${w.on?'var(--ml)':'var(--track)'};position:relative;flex:none"><span style="position:absolute;top:2px;${w.on?'right:2px':'left:2px'};width:16px;height:16px;border-radius:50%;background:var(--surface)"></span></button>`
+    : `<span style="font-size:9px;color:var(--text3)">n/a</span>`;
+  const byId={}; A.rows.forEach(r=>byId[r.id]=r);
+  const rows=m.WORK.slice().sort((a,b)=>byId[b.id].vol-byId[a.id].vol).map(w=>{
+    const r=byId[w.id];
+    const vol=annual*w.share, achP=Math.round(w.achieved*100), lt=vol*w.lift, hf=lt*MIN/60, fte=hf/1800;
+    /* Only the scenario side dims when a switch is off — the measured half is fact and
+       stays at full strength regardless of what is enabled. */
+    const off = w.eligible && !w.on && w.lift===0;
+    const dim = off?'opacity:.45':'';
+    const measSub = r.live
+      ? `handed back <b style="color:${r.fb>=0.15?'var(--red)':'inherit'}">${Math.round(r.fb*100)}%</b> · trend ${r.trend>0?'+':''}${r.trend} pts · ${r.nBots} bot${r.nBots===1?'':'s'}`
+      : `${Math.round(r.botShare*100)}% bot today`;
+    return `<tr>
+      <td><b>${w.label}</b>${!w.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
+      <td class="r"><b class="num">${Math.round(r.hum).toLocaleString()}</b> human${r.bot>0?` · <b class="num">${Math.round(r.bot).toLocaleString()}</b> bot`:''}<div style="font-size:10px;color:var(--text3)">≈ ${Math.round(vol).toLocaleString()} touches/yr</div></td>
+      <td>${bar(r.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${measSub}</div></td>
+      <td style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface3)">${toggle(w)}</td>
+      <td class="r"><span class="num" style="${w.eligible?'':'color:var(--text3)'}">${Math.round(w.auto*100)}%</span>${w.eligible&&r.headroom>0?`<div style="font-size:10px;color:var(--text3)">${Math.round(r.headroom*100)} pts headroom</div>`:''}</td>
+      <td class="r" style="${dim}"><b class="num" style="color:${achP>Math.round(w.cur*100)?'var(--green)':'var(--text)'}">${achP}%</b> auto</td>
+      <td class="r" style="${dim}">${w.lift>0?`<b class="num" style="color:#059669">+${Math.round(lt).toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(hf).toLocaleString()} hrs · ${fte.toFixed(1)} FTE</div>`:`<span style="color:var(--text3)">—</span>`}</td></tr>`;}).join('');
+  const phaseBtn=(p2,lab)=>`<button onclick="setPhase('${p2}')" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;background:var(--surface);color:var(--text2)">${lab}</button>`;
+  const bandTh='position:static;font-size:9px;letter-spacing:.08em;color:var(--text3);border-bottom:none;padding-bottom:2px';
+  return `<div class="card" style="margin-bottom:12px">
+      <div class="card-head" style="align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div class="card-title">Work profile — measured, with the switches in it</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:420px;justify-content:flex-end">
+          <button onclick="setHasBots()" title="Demo: simulate a client that already runs some automation" style="font-family:inherit;font-size:10px;font-weight:600;border:1px solid ${m.HASBOTS?'var(--director)':'var(--border)'};border-radius:6px;padding:3px 9px;cursor:pointer;background:${m.HASBOTS?'var(--director)':'var(--surface)'};color:${m.HASBOTS?'#fff':'var(--text2)'}">${m.HASBOTS?'Existing bots: on':'Client has bots'}</button>
+          <div style="width:1px;height:18px;background:var(--border)"></div>
+          <div style="display:flex;gap:6px">${phaseBtn('quick','Quick wins')}${phaseBtn('all','All automatable')}${phaseBtn('clear','Clear')}</div>
+          <div class="kpi-label" style="white-space:nowrap;margin:0" title="How touchless the automations you have turned on are — accounts for ramp-up and edge cases">Maturity</div>
+          <input type="range" min="0" max="100" value="${mat}" style="min-width:100px;max-width:160px;accent-color:var(--director)"
+            oninput="document.getElementById('autoMatLbl').textContent=this.value+'%'" onchange="setMaturity(this.value)">
+          <div style="font-size:12px;color:var(--text2);white-space:nowrap"><b id="autoMatLbl">${mat}%</b></div>
+        </div>
+      </div>
+      <div class="card-body">
+        ${banner}
+        <table class="tbl"><thead>
+          <tr><th colspan="3" style="${bandTh}">Measured — last ${BOT_WIN_DAYS} days · activity log</th>
+              <th style="${bandTh}"></th>
+              <th colspan="3" style="${bandTh}">If you automate it — modeled · ${mat}% maturity</th></tr>
+          <tr><th>Work type</th><th class="r">Touches / ${BOT_WIN_DAYS}d</th><th>Bot / human split</th>
+              <th style="width:52px;text-align:center">Auto</th>
+              <th class="r">Ceiling</th><th class="r">At scenario</th><th class="r">Lift</th></tr></thead>
+          <tbody>${rows}
+          <tr style="border-top:2px solid var(--border)"><td><b>Total</b></td>
+            <td class="r"><b class="num">${Math.round(A.hum).toLocaleString()}</b> human${A.bot>0?` · <b class="num">${Math.round(A.bot).toLocaleString()}</b> bot`:''}</td>
+            <td>${bar(A.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(A.botShare*100)}% bot · ${Math.round((1-A.botShare)*100)}% human</div></td>
+            <td style="border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--surface3)"></td>
+            <td class="r"><span class="num">${Math.round(m.automatableShare*100)}%</span></td>
+            <td class="r"><b class="num" style="color:#059669">${projPct}%</b> auto</td>
+            <td class="r">${m.liftYr>0?`<b class="num" style="color:#059669">+${m.liftYr.toLocaleString()}</b><div style="font-size:10px;color:var(--text3)">touchless/yr · ≈ ${Math.round(m.hoursYr).toLocaleString()} hrs · ${m.fteFreed.toFixed(1)} FTE</div>`:'<span style="color:var(--text3)">—</span>'}</td></tr>
           </tbody></table>
-          <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Today = what runs through bots now (0% unless the client has existing automation). At scenario = after the enabled types automate. <b>Lift</b> is the new, incremental capacity your project buys — it never double-counts existing bots. Total lift ties to the FTE freed in the impact bar.</div>`;
+        <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Left of the switch is <b>measured, not modeled</b> — counted from the actor on each touch, the only measured data on this page. <b>Handed back</b> = bot touches a human had to re-touch within 5 days (above ~15% the bot makes rework, not capacity). Right of the switch is the model: <b>Lift</b> is the new, incremental capacity beyond what runs through bots today — it never double-counts existing automation, and the total ties to the FTE freed in the tiles above.</div>
+      </div></div>`;
 }
 /* ---------- D0 measured actuals ----------
    The only MEASURED block on d0. Everything else here is modeled. Reads the activity
@@ -2226,48 +2263,6 @@ function d0StickTop(){
   el.style.top=Math.round(b||134)+'px';
 }
 addEventListener('resize',d0StickTop);
-/* Measured bot vs. human split by work type. Contrast with everything else on d0:
-   these are counted touches, not model output. */
-function botActualsCard(m){
-  const A=botActuals(m), pct=x=>Math.round(x*100)+'%';
-  const banner = A.bot>0
-    ? `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--ml,#059669);border-radius:7px;background:var(--surface3);margin-bottom:11px">
-         <div><div class="mini-label">Bot share of touches</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${pct(A.botShare)}</div></div>
-         <div><div class="mini-label">Bot touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.bot).toLocaleString()}</div></div>
-         <div><div class="mini-label">Human touches / ${BOT_WIN_DAYS}d</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${Math.round(A.hum).toLocaleString()}</div></div>
-         <div><div class="mini-label">Distinct bots seen</div><div class="num" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.1">${A.nBots}</div></div>
-         <div><div class="mini-label" title="Bot touched the account, then a human had to touch the same work type within 5 days">Handed back to a human</div><div class="num" style="font-size:19px;font-weight:700;line-height:1.1;color:${A.fbRate>=0.15?'var(--red)':'var(--navy)'}">${pct(A.fbRate)}</div><div style="font-size:10px;color:var(--text3)">${Math.round(A.reworkTouches).toLocaleString()} touches of rework</div></div>
-       </div>`
-    : `<div style="padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:7px;background:var(--surface3);margin-bottom:11px;font-size:11.5px;line-height:1.55;color:var(--text2)">
-         <b>No touch in this period carries a bot actor.</b> Bot share is a measured <b>0%</b>, not an assumption — we looked and found none. The table below is therefore the manual workload census: who is spending time on what. This card fills in on its own the moment the activity feed carries <code>actor_type = bot</code> and a <code>bot_id</code> on the touch record.
-       </div>`;
-  const bar=(b)=>{const p=Math.round(b*100);return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;width:120px;margin-top:4px"><div style="width:${p}%;background:var(--ml,#059669)"></div><div style="width:${100-p}%;background:var(--slate,#64748B)"></div></div>`;};
-  const rows=A.rows.slice().sort((a,b)=>b.vol-a.vol).map(r=>{
-    const gap=r.eligible?r.headroom:null;
-    return `<tr>
-      <td><b>${r.label}</b>${!r.eligible?'<br><span style="font-size:9px;color:var(--text3)">stays human</span>':''}</td>
-      <td>${bar(r.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(r.botShare*100)}% bot · ${Math.round((1-r.botShare)*100)}% human</div></td>
-      <td class="r num">${r.live?Math.round(r.bot).toLocaleString():'<span style="color:var(--text3)">0</span>'}</td>
-      <td class="r num">${Math.round(r.hum).toLocaleString()}</td>
-      <td class="r">${r.nBots?`<span class="num">${r.nBots}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
-      <td class="r">${r.fb==null?'<span style="color:var(--text3)">—</span>':`<b class="num" style="color:${r.fb>=0.15?'var(--red)':'var(--text)'}">${Math.round(r.fb*100)}%</b>`}</td>
-      <td class="r">${r.trend==null?'<span style="color:var(--text3)">—</span>':`<span class="num" style="color:${r.trend>0?'var(--green)':r.trend<0?'var(--red)':'var(--text3)'}">${r.trend>0?'+':''}${r.trend} pts</span>`}</td>
-      <td class="r">${gap==null?'<span style="color:var(--text3)">n/a</span>':`<span class="num">${Math.round(gap*100)} pts</span><div style="font-size:10px;color:var(--text3)">to ${Math.round(r.ceiling*100)}% ceiling</div>`}</td></tr>`;}).join('');
-  const body=banner+`<table class="tbl"><thead><tr><th>Work type</th><th>Bot / human split</th>
-      <th class="r">Bot touches</th><th class="r">Human touches</th><th class="r">Bots</th>
-      <th class="r" title="Bot touched it, then a human had to touch the same work type within 5 days">Handed back</th>
-      <th class="r">Trend</th><th class="r">Headroom</th></tr></thead><tbody>${rows}
-      <tr style="border-top:2px solid var(--border)"><td><b>Total</b></td>
-        <td>${bar(A.botShare)}<div style="font-size:10px;color:var(--text3);margin-top:3px">${Math.round(A.botShare*100)}% bot · ${Math.round((1-A.botShare)*100)}% human</div></td>
-        <td class="r num"><b>${Math.round(A.bot).toLocaleString()}</b></td>
-        <td class="r num"><b>${Math.round(A.hum).toLocaleString()}</b></td>
-        <td class="r num">${A.nBots||'—'}</td>
-        <td class="r num">${A.fbRate==null?'—':Math.round(A.fbRate*100)+'%'}</td>
-        <td class="r">—</td><td class="r">—</td></tr>
-    </tbody></table>
-    <div style="font-size:10.5px;color:var(--text3);margin-top:8px">Counted from the activity log over a trailing ${BOT_WIN_DAYS} days by the actor on each touch — <b>measured, not modeled</b>, and the only block on this page that is. <b>Handed back</b> is the share of bot touches followed by a human touch on the same work type within 5 days; above roughly 15% the bot is producing rework rather than capacity. <b>Headroom</b> is the gap from measured share to the modeled ceiling.</div>`;
-  return `<div style="margin-bottom:12px">`+card('Bot vs. human work today — measured', body, ML('actor on each touch · activity log'))+`</div>`;
-}
 /* Ranked next actions. Reads the measured actuals against the ceilings. */
 function recsCard(m){
   const R=autoRecs(m,botActuals(m));
@@ -3757,6 +3752,21 @@ reg(['where-to-point-automation-next'],{
  i:'Ranked by order of operations, not by value. A smaller fix can outrank a larger expansion when the expansion would scale a bot that is already handing work back.',
  a:'Work the list top to bottom. It re-ranks on its own as the measured actuals move.',
  s:'Source: measured actuals vs. Gate 8 §7 ceilings — partly modeled'});
+reg(['work-profile'],{
+ d:'One table holding both halves of the automation story: the measured work profile on the left (what bots and people actually did, counted from the activity log) and the modeled scenario on the right (ceiling, at-scenario share, and lift). The toggle for each work type sits between them.',
+ c:'Measured half: touches by actor over a trailing 90 days, bot share, hand-back rate, trend, and headroom to ceiling. Modeled half: ceilings per Gate 8 §7.1 (routing 95%, status 92%, portal 85%, rebill 80%, appeal filing 75%, clinical argument 8%, complex research 5%, negotiation 0%), share at the selected scenario, and incremental lift at the chosen maturity.',
+ p:'Measurement and decision about the same work type belong in the same row. Splitting them across two tables made the reader join the same eight rows twice.',
+ i:'The page opens with nothing enabled, so lift reads zero until you flip a switch — deliberate: the visitor creates the opportunity number rather than being handed it. Only the scenario side dims when a switch is off; the measured half is fact and stays at full strength. Where no bot actor exists in the feed, the measured half is the manual workload census and bot share is an explicit measured 0%.',
+ a:'Read the measured half first, then flip the recommended work type and watch the tiles above react. Presets model phased rollout; maturity sets how touchless enabled types get.',
+ s:'Source: activity log touch actor (measured) + Gate 8 §7 automation model (modeled)'});
+reg(['touches-/-90d'],{d:'Touches on this work type in the trailing 90-day window, split human vs bot, with the annualized volume beneath.',
+ c:'Counted from the activity log by <code>actor_type</code> on each touch — measured, not modeled.'});
+reg(['measured'],{d:'Everything left of the switch is counted from the activity log over the trailing 90 days. It does not change when you flip toggles.'});
+reg(['if-you-automate-it'],{d:'Everything right of the switch is the Gate 8 §7 model at the selected maturity. It re-reads instantly as you flip toggles.'});
+reg(['ceiling'],{d:'The upper bound on what could ever be automated for this work type — a property of the work, not a forecast.',
+ c:'Gate 8 §7.1 defaults, configurable per client. The headroom line beneath is ceiling minus measured bot share: the untapped gap.'});
+reg(['lift'],{d:'The new, incremental touchless capacity flipping this switch buys at the selected maturity — never double-counting what existing bots already do.',
+ c:'<code>volume × (achieved − current share)</code>, converted to hours at 4.5 min/touch and FTE at 1,800 hrs/yr.'});
 reg(['scenario','automatable-work-by-type'],{
  d:'Every work type the team performs, its automation ceiling, and what automating the selected types would change. This panel is the control surface: every projection on this page re-reads against it.',
  c:'Touches classified by action and reason type, each with a configurable ceiling: routing 95%, status check 92%, portal lookup 85%, rebill 80%, appeal filing and packet assembly 75%, clinical or medical-necessity argument 8%, complex denial research 5%, payer negotiation 0%. Appeal work is split because the two halves behave nothing alike.',
@@ -4387,10 +4397,10 @@ const TOURS=[
      text:'Collections, AR days, denial rate, and cost to collect, each with trend sparklines and benchmark context. This is the page a VP checks between meetings.'},
     {role:'director',pg:'d0',cardTitle:'Big picture',title:'How much of our work could a bot do?',
      text:'Every account touch is classified by work type. The model separates truly manual work from work that fits automation, using honest, work-type-level estimates. Today’s automation level starts at zero because current Flo does not automate; this is the opportunity, not a claim.'},
-    {role:'director',pg:'d0',cardTitle:'Scenario',title:'Automate in chunks, not with a magic wand',
-     text:'Each work type gets its own automation ceiling and toggles independently, and a maturity slider sets how far along the rollout is. Note that denials are split: appeal filing and packet assembly is mechanical enough to automate, while the clinical argument is not. Everything above re-reads as you change the scenario, including credit for bots the client already runs.'},
-    {role:'director',pg:'d0',cardTitle:'Bot vs. human work today',title:'What the bots are actually doing',
-     text:'Everything else on this page is a model. This block is counted: the activity log carries an actor on every touch, so we can show what bots did versus what people did, by work type. It also shows how often a bot handed work back to a human within five days, which is the difference between a bot that creates capacity and one that creates rework. Where a client runs no bots, the share is a measured zero rather than an assumed one.'},
+    {role:'director',pg:'d0',cardTitle:'Work profile',title:'Your operation, scanned — with the switches in it',
+     text:'Every touch from the last 90 days, classified by actor and work type. The left half is measured: who does what, and where bots already carry load. The right half is the model: each work type has its own automation ceiling and its own switch. The page opens with nothing enabled — flip a switch and the tiles above light up with what that single decision returns. Denials split in two: filing and packet assembly automates, the clinical argument stays human.'},
+    {role:'director',pg:'d0',cardTitle:'Where to point automation next',title:'A ranked answer, not just a table',
+     text:'The measured profile read against the ceilings produces a short ordered list: fix a bot that hands work back before widening it, start where headroom times volume is largest, stop polishing anything near its ceiling, and name where the freed capacity should land. Ranked by order of operations, not dollar size, because rework compounds and dollars do not.'},
     {role:'director',pg:'d0',cardTitle:'Operational & financial impact',title:'The impact, in FTEs and dollars',
      text:'Hours freed per year, FTE capacity released, and the collections lift if that capacity is redeployed to complex accounts. This is the slide leadership asks for, generated from the same data the floor works from.'},
     {role:'director',pg:'d5',cardTitle:'Required vs staffed FTE',title:'The staffing gap, forecast forward',
