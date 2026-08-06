@@ -872,7 +872,16 @@ function pfCenter(d){
       ${d.claims.lines.map(c=>`<tr><td>${c.inv}</td><td>${c.date}</td><td>${c.svc}</td><td>${c.rev}</td><td class="r">${pfMoney(c.amt)}</td></tr>`).join('')}</tbody></table>`);
   }
   if(__pf.c==='portal'){
-    return pfSec('Payer Portal Message',pfKV([['Pt Account Number',r.acct],['Status Effective Date','05/12/2026'],
+    const po=pfPortal(r.payer);
+    const link = po
+      ? `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--orange);border-radius:9px;background:var(--surface3);margin-bottom:10px">
+          <div style="flex:1"><div style="font-size:12px;font-weight:700">${po.name}</div>
+            <div style="font-size:10.5px;color:var(--text3)">Portal for ${r.payer} · subscriber ID <b class="num">${d.portal.sub}</b> · statuses below pulled from ${d.portal.src}</div></div>
+          <a href="${po.url}" target="_blank" rel="noopener" class="pf-save" style="text-decoration:none;white-space:nowrap" title="Opens the payer's provider portal in a new tab">Open payer portal ↗</a>
+        </div>`
+      : `<div class="pf-note" style="border:1px solid var(--border);border-radius:9px;margin-bottom:10px">No provider portal for ${r.payer} — work this account by phone or mail.</div>`;
+    return link
+      +pfSec('Payer Portal Message',pfKV([['Pt Account Number',r.acct],['Status Effective Date','05/12/2026'],
         ['Category',d.portal.cat],['Payer',d.portal.payer],['Service Start Date',d.portal.svc],['Service End Date',d.portal.svc],
         ['Subscriber ID',d.portal.sub],['Charge Amount',''],['Payment Amount',''],['Claim Status Source',d.portal.src]]))
       +pfSec('Claim Status Codes',d.portal.codes.map(c=>`<div style="font-size:11px;padding:6px 10px;border-top:1px solid var(--divider)">${c}</div>`).join(''))
@@ -903,6 +912,18 @@ const PF_FORMS=[
  {id:'payizsub', name:'Payer IZ Detail - Daily Subtotal'},
  {id:'payizrep', name:'Payer IZ Detail Report'},
 ];
+/* Payer portal directory: which portal serves this payer, and where it lives. */
+const PF_PORTALS=[
+ [/unitedhealthcare|medicare adv \(uhc\)/i,'UHC Provider Portal','https://www.uhcprovider.com'],
+ [/cigna/i,'CignaforHCP','https://cignaforhcp.cigna.com'],
+ [/aetna|humana|bcbs|blue|molina/i,'Availity Essentials','https://apps.availity.com'],
+ [/illinois medicaid/i,'IL HFS MEDI Portal','https://medi.hfs.illinois.gov'],
+ [/medicare/i,'Novitasphere (MAC portal)','https://www.novitas-solutions.com'],
+];
+function pfPortal(payer){
+  const hit=PF_PORTALS.find(([re])=>re.test(payer));
+  return hit? {name:hit[1],url:hit[2]} : null;
+}
 function pfSuggestForm(r){
   const n=(r.nba||'').toLowerCase();
   if(/appeal|file claim/.test(n)) return 'appeal';
