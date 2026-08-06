@@ -1123,17 +1123,17 @@ function pfRight(d){
      takes care of itself. */
   const sn=f.sn, hasDenial=!!r.carc;
   const chip=(ok,lab)=>`<span class="pf-chip ${ok?'ok':''}">${ok?'✓':'○'} ${lab}</span>`;
-  const needAct=sn.act.trim().length<8, needNext=sn.next.trim().length<8;
-  const smart=`<div class="pf-fld"><label>Flo Last Notes <b>*</b> — guided<span id="pf-sn-head" class="${(needAct||needNext)?'pf-need-tag':'pf-done-tag'}">${(needAct||needNext)?((needAct?1:0)+(needNext?1:0))+' required field'+((needAct?1:0)+(needNext?1:0)===1?'':'s')+' below':'✓ complete'}</span></label>
-    <div class="pf-sn ${(needAct||needNext)?'pf-sn-need':''}" id="pf-sn-box">
+  const needAct=sn.act.trim().length<8, needNext=sn.next.trim().length<8, needDen=hasDenial&&sn.denial.trim().length<5;
+  const smart=`<div class="pf-fld"><label>Flo Last Notes <b>*</b> — guided<span id="pf-sn-head" class="${(needAct||needNext||needDen)?'pf-need-tag':'pf-done-tag'}">${(needAct||needNext||needDen)?((needAct?1:0)+(needNext?1:0)+(needDen?1:0))+' required field'+((needAct?1:0)+(needNext?1:0)+(needDen?1:0)===1?'':'s')+' below':'✓ complete'}</span></label>
+    <div class="pf-sn ${(needAct||needNext||needDen)?'pf-sn-need':''}" id="pf-sn-box">
       <div class="row"><label>Action taken — what did you do?<span id="pf-tag-act" class="${needAct?'pf-need-tag':'pf-done-tag'}">${needAct?'required':'✓'}</span></label>
         <input id="pf-sn-act" class="${needAct?'pf-need':''}" value="${sn.act.replace(/"/g,'&quot;')}" placeholder="e.g. Called ${r.payer} provider line re: claim status" oninput="pfSN('act',this.value)"></div>
       <div class="row"><label>Contact / outcome — who, and the ref #</label>
         <input value="${sn.contact.replace(/"/g,'&quot;')}" placeholder="e.g. Rep Maria, ref# AR0000000000 — claim pended for records" oninput="pfSN('contact',this.value)"></div>
       <div class="row"><label>Next step — what happens now, by when<span id="pf-tag-next" class="${needNext?'pf-need-tag':'pf-done-tag'}">${needNext?'required':'✓'}</span></label>
         <input id="pf-sn-next" class="${needNext?'pf-need':''}" value="${sn.next.replace(/"/g,'&quot;')}" placeholder="e.g. Fax itemized bill by Fri; follow up 7/16" oninput="pfSN('next',this.value)"></div>
-      ${hasDenial?`<div class="row"><label>Denial reference (${r.carc})</label>
-        <input value="${sn.denial.replace(/"/g,'&quot;')}" placeholder="e.g. ${r.carc} ${(PF_CARC[r.carc]||{}).root||''} — appeal grounds / correction" oninput="pfSN('denial',this.value)"></div>`:''}
+      ${hasDenial?`<div class="row"><label>Denial reference (${r.carc})<span id="pf-tag-den" class="${sn.denial.trim().length<5?'pf-need-tag':'pf-done-tag'}">${sn.denial.trim().length<5?'required — denial on file':'✓'}</span></label>
+        <input id="pf-sn-den" class="${sn.denial.trim().length<5?'pf-need':''}" value="${sn.denial.replace(/"/g,'&quot;')}" placeholder="e.g. ${r.carc} ${(PF_CARC[r.carc]||{}).root||''} — appeal grounds / correction" oninput="pfSN('denial',this.value)"></div>`:''}
       <div class="pf-chips" id="pf-chips">${chip(sn.act.length>=8,'Action')}${chip(sn.next.length>=8,'Next step')}${hasDenial?chip(sn.denial.length>=5,'Denial ref'):''}${chip(sn.contact.length>=5,'Contact')}</div>
       <div style="font-size:9px;color:var(--text3)">The same four dimensions WPA's note-quality model scores — a complete note here is a 100 NLI note there.</div>
       <div class="pf-preview" id="pf-notepv">${pfComposeNote(f,r)||'<span style="color:var(--text3)">Note preview builds here as you fill the fields…</span>'}</div>
@@ -1165,8 +1165,13 @@ function pfSN(k,v){
     if(tg){tg.className=ok?'pf-done-tag':'pf-need-tag';tg.textContent=ok?'✓':'required';}};
   mark('pf-sn-act','pf-tag-act',sn2.act.trim().length>=8);
   mark('pf-sn-next','pf-tag-next',sn2.next.trim().length>=8);
+  const hasDen=!!pfData(__pf.acct).r.carc;
+  if(hasDen){const dOk=sn2.denial.trim().length>=5;
+    const el=document.getElementById('pf-sn-den'),tg=document.getElementById('pf-tag-den');
+    if(el) el.classList.toggle('pf-need',!dOk);
+    if(tg){tg.className=dOk?'pf-done-tag':'pf-need-tag';tg.textContent=dOk?'✓':'required — denial on file';}}
   const box=document.getElementById('pf-sn-box');
-  const nA=sn2.act.trim().length<8, nN=sn2.next.trim().length<8, nTot=(nA?1:0)+(nN?1:0);
+  const nA=sn2.act.trim().length<8, nN=sn2.next.trim().length<8, nD=hasDen&&sn2.denial.trim().length<5, nTot=(nA?1:0)+(nN?1:0)+(nD?1:0);
   if(box) box.classList.toggle('pf-sn-need',nTot>0);
   const hd=document.getElementById('pf-sn-head');
   if(hd){hd.className=nTot?'pf-need-tag':'pf-done-tag';
@@ -1182,10 +1187,13 @@ function pfSN(k,v){
 function pfSet(k,v,quiet){const st=pfForm(__pf.acct);st.form[k]=v;if(!quiet)pfRender();else pfValidate();}
 function pfValidate(){
   const f=pfForm(__pf.acct).form, sn=f.sn;
-  const ok=f.status&&f.owner&&f.assignee&&f.root&&sn.act.trim().length>=8&&sn.next.trim().length>=8;
+  const hasDen=!!pfData(__pf.acct).r.carc;
+  const ok=f.status&&f.owner&&f.assignee&&f.root&&sn.act.trim().length>=8&&sn.next.trim().length>=8&&(!hasDen||sn.denial.trim().length>=5);
   const b=document.getElementById('pf-savebtn'), m=document.getElementById('pf-vmsg');
   if(b) b.disabled=!ok;
-  if(m) m.textContent = ok? 'Ready to save.' : 'Guided note needs at least an action taken and a next step.';
+  if(m) m.textContent = ok? 'Ready to save.' : (hasDen
+    ? 'Guided note needs an action taken, a next step, and the denial reference — this account has a denial on file.'
+    : 'Guided note needs at least an action taken and a next step.');
   return ok;
 }
 function pfSave(){
