@@ -230,8 +230,8 @@ select.inline-sel{font-size:11.5px;padding:4px 8px;border:1px solid var(--border
 
 
 /* ===== PayFlo card simulation (opened from PayFlo links) ===== */
-#pf-wrap{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.72)}
-.pf-card{width:min(96vw,1720px);height:92vh;background:var(--bg,var(--surface2));border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.55)}
+#pf-wrap{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(2,5,11,.9);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.pf-card{width:min(97vw,1760px);height:96vh;background:var(--bg,var(--surface2));border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.55)}
 .pf-top{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--navy-bg,#1B2A4A);border-bottom:2px solid var(--orange)}
 html[data-theme="dark"] .pf-top{background:#111A2E}
 .pf-brand{font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em}
@@ -302,6 +302,26 @@ html[data-theme="dark"] .pf-top{background:#111A2E}
 .pf-chip{font-size:9px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:9px;background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
 .pf-chip.ok{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
 .pf-preview{font-size:10.5px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:7px 9px;margin-top:4px;min-height:34px}
+#pf-docviewer{position:absolute;inset:0;z-index:3005;background:rgba(4,8,16,.66);display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:26px 16px}
+.pf-dv-bar{width:min(780px,96%);display:flex;align-items:center;gap:10px;margin-bottom:10px;position:sticky;top:0;z-index:2;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px}
+.pf-dv-bar .t{font-size:12px;font-weight:700;color:var(--text)}
+.pf-paper{width:min(780px,96%);background:#FFFFFF;color:#1B2430;border-radius:4px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:44px 52px;font-size:12px;line-height:1.65;margin-bottom:30px}
+.pf-paper .lh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1B2A4A;padding-bottom:12px;margin-bottom:20px}
+.pf-paper .lh .org{font-size:17px;font-weight:800;color:#1B2A4A}
+.pf-paper .lh .sub{font-size:10px;color:#5A6B84}
+.pf-paper h3{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:#1B2A4A;margin:20px 0 8px;text-align:center}
+.pf-paper .re{background:#F2F5FA;border:1px solid #D8E0EC;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:11.5px}
+.pf-paper .re b{display:inline-block;min-width:120px;color:#40506B}
+.pf-paper p{margin:0 0 11px}
+.pf-paper table{width:100%;border-collapse:collapse;font-size:11px;margin:10px 0}
+.pf-paper th{background:#1B2A4A;color:#fff;text-align:left;padding:6px 8px;font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+.pf-paper td{padding:5.5px 8px;border-bottom:1px solid #E3E9F2}
+.pf-paper tr.sub td{background:#F2F5FA;font-weight:700}
+.pf-paper tr.tot td{background:#FBF3E4;font-weight:800;border-top:2px solid #1B2A4A}
+.pf-paper .r{text-align:right}
+.pf-paper .sig{margin-top:26px}
+.pf-paper .fineprint{font-size:9.5px;color:#7A889D;border-top:1px solid #E3E9F2;padding-top:8px;margin-top:22px}
+.pf-paper .wm{position:relative}
 .pf-fdoc{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:12px;font-size:11px;line-height:1.6}
 .pf-fdoc h4{font-size:12px;color:var(--navy);margin:0 0 8px}
 </style>
@@ -877,7 +897,7 @@ function pfCenter(d){
       ? `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--orange);border-radius:9px;background:var(--surface3);margin-bottom:10px">
           <div style="flex:1"><div style="font-size:12px;font-weight:700">${po.name}</div>
             <div style="font-size:10.5px;color:var(--text3)">Portal for ${r.payer} · subscriber ID <b class="num">${d.portal.sub}</b> · statuses below pulled from ${d.portal.src}</div></div>
-          <a href="${po.url}" target="_blank" rel="noopener" class="pf-save" style="text-decoration:none;white-space:nowrap" title="Opens the payer's provider portal in a new tab">Open payer portal ↗</a>
+          <a href="${po.url}" target="_blank" rel="noopener" class="pf-save" style="text-decoration:none;white-space:nowrap" title="Opens the payer's provider portal sign-in in a new tab">Open payer portal login ↗</a>
         </div>`
       : `<div class="pf-note" style="border:1px solid var(--border);border-radius:9px;margin-bottom:10px">No provider portal for ${r.payer} — work this account by phone or mail.</div>`;
     return link
@@ -914,11 +934,11 @@ const PF_FORMS=[
 ];
 /* Payer portal directory: which portal serves this payer, and where it lives. */
 const PF_PORTALS=[
- [/unitedhealthcare|medicare adv \(uhc\)/i,'UHC Provider Portal','https://www.uhcprovider.com'],
- [/cigna/i,'CignaforHCP','https://cignaforhcp.cigna.com'],
- [/aetna|humana|bcbs|blue|molina/i,'Availity Essentials','https://apps.availity.com'],
- [/illinois medicaid/i,'IL HFS MEDI Portal','https://medi.hfs.illinois.gov'],
- [/medicare/i,'Novitasphere (MAC portal)','https://www.novitas-solutions.com'],
+ [/unitedhealthcare|medicare adv \(uhc\)/i,'UHC Provider Portal','https://www.uhcprovider.com/en/sign-in.html'],
+ [/cigna/i,'CignaforHCP','https://cignaforhcp.cigna.com/app/login'],
+ [/aetna|humana|bcbs|blue|molina/i,'Availity Essentials','https://apps.availity.com/availity/web/public.elegant.login'],
+ [/illinois medicaid/i,'IL HFS MEDI Portal','https://medi.hfs.illinois.gov/medi/mlogin.do'],
+ [/medicare/i,'Novitasphere (MAC portal)','https://www.novitas-solutions.com/webcenter/portal/Novitasphere_JL'],
 ];
 function pfPortal(payer){
   const hit=PF_PORTALS.find(([re])=>re.test(payer));
@@ -946,6 +966,91 @@ function pfGenForm(id){
   t.textContent='"'+f.name+'" generated (simulated) — logged as an activity event.';
   t.className='show'; setTimeout(()=>t.className='',3200);
 }
+/* Real document renderings — an appeal letter reads like a letter, a statement like a
+   statement. Rendered as white paper in a viewer regardless of app theme. All content
+   prefills from the account's synthetic data. */
+const PF_REV={'0710':'Recovery room','0636':'Drugs requiring detailed coding','0450':'Emergency room - general','0300':'Laboratory - general','0250':'Pharmacy - general'};
+function pfDocHTML(id,d){
+  const r=d.r, today='August 6, 2026';
+  const lh=`<div class="lh"><div><div class="org">Demo Health System</div><div class="sub">Patient Financial Services · 4400 Harbor Blvd, Suite 200 · Chicago, IL 60601 · (312) 555-0148</div></div>
+    <div class="sub" style="text-align:right">Account ${r.acct}<br>Invoice ${d.inv}<br>${today}</div></div>`;
+  const reBlock=(extra)=>`<div class="re">
+    <div><b>Patient:</b> ${r.pt} <span style="color:#7A889D">(display-only)</span></div>
+    <div><b>Account #:</b> ${r.acct} &nbsp; <b>Invoice:</b> ${d.inv}</div>
+    <div><b>Payer:</b> ${r.payer} &nbsp; <b>Member ID:</b> ${d.portal.sub}</div>
+    <div><b>Date(s) of service:</b> 03/23/2026 &nbsp; <b>Billed:</b> ${pfMoney(d.chg)}</div>
+    ${extra||''}</div>`;
+  const lines=d.claims.lines.map((l,ix)=>({date:l.svc,rev:l.rev,desc:PF_REV[l.rev]||'Ancillary service',units:1,amt:l.amt}));
+  const linesRows=lines.map(l=>`<tr><td>${l.date}</td><td>${l.rev}</td><td>${l.desc}</td><td class="r">${l.units}</td><td class="r">${pfMoney(l.amt)}</td></tr>`).join('');
+  const carc=(PF_CARC[d.carc]||PF_CARC['CO-50']);
+  if(id==='appeal') return `${lh}<h3>First-Level Appeal — Request for Reconsideration</h3>
+    <p>${r.payer}<br>Attn: Provider Appeals Department<br>P.O. Box 30432<br>Salt Lake City, UT 84130</p>
+    ${reBlock(`<div><b>Denial code:</b> ${d.carc} — ${carc.root}</div><div><b>Denied amount:</b> ${pfMoney(d.denied||r.bal)}</div><div><b>Remit date:</b> 04/02/2026</div>`)}
+    <p>To Whom It May Concern:</p>
+    <p>We are writing to formally appeal the denial of the above-referenced claim. The claim was denied under reason code <b>${d.carc}</b>: "${carc.d}"</p>
+    <p>We respectfully disagree with this determination. The services rendered on 03/23/2026 were medically necessary, appropriately documented, and billed in accordance with the terms of our participation agreement. Enclosed please find the complete medical record, the itemized statement of charges, and the operative documentation supporting the level of service billed${r.carc==='CO-197'?', together with evidence of the authorization obtained prior to service':''}.</p>
+    <p>We request that this claim be reprocessed and payment issued in the amount of <b>${pfMoney(d.underpay)}</b>. ${r.timer!=null&&r.timer<=30?`Please note the applicable appeal window: this appeal is submitted with <b>${r.timer} day${r.timer===1?'':'s'}</b> remaining under the timely-filing provision.`:'This appeal is submitted within the applicable filing window.'} If additional information is required, contact our office at (312) 555-0148, reference account ${r.acct}.</p>
+    <div class="sig">Sincerely,<br><br><b>Jordan Reyes</b><br>AR Follow-up, Collector II<br>Demo Health System · Patient Financial Services</div>
+    <div class="re" style="margin-top:16px"><b>Enclosures:</b> Medical records (complete chart) · Itemized charge statement · 835 remittance advice · UB-04 claim ${d.inv}</div>
+    <div class="fineprint">Generated by PayFlo (simulated) from account ${r.acct}. Synthetic data — no PHI. Demo Health System is a fictional entity.</div>`;
+  if(id==='mrr') return `${lh}<h3>Medical Records Request — Cover Sheet</h3>
+    ${reBlock(`<div><b>Reason:</b> Payer documentation request (${d.carc})</div>`)}
+    <p>Health Information Management:</p>
+    <p>Please compile the following records for the above account to support ${r.payer}'s review of claim ${d.inv}:</p>
+    <table><thead><tr><th>#</th><th>Record</th><th>Date range</th></tr></thead><tbody>
+      <tr><td>1</td><td>Complete medical chart, including physician notes</td><td>03/23/2026</td></tr>
+      <tr><td>2</td><td>Itemized bill (UB-04 detail)</td><td>03/23/2026</td></tr>
+      <tr><td>3</td><td>Orders and results for all ancillary services</td><td>03/23/2026</td></tr>
+      <tr><td>4</td><td>Authorization / notification documentation</td><td>as applicable</td></tr></tbody></table>
+    <p>Deliver to Patient Financial Services, attention Jordan Reyes, within 5 business days. Reference account ${r.acct}.</p>
+    <div class="sig"><b>Jordan Reyes</b> · AR Follow-up · (312) 555-0148</div>
+    <div class="fineprint">Generated by PayFlo (simulated). Synthetic data — no PHI.</div>`;
+  if(id==='itemized') return `${lh}<h3>Patient Itemized Charge Statement</h3>
+    ${reBlock()}
+    <table><thead><tr><th>Service date</th><th>Rev code</th><th>Description</th><th class="r">Units</th><th class="r">Charge</th></tr></thead><tbody>
+      ${linesRows}
+      <tr class="tot"><td colspan="4">Total charges</td><td class="r">${pfMoney(d.chg)}</td></tr></tbody></table>
+    <table><tbody>
+      <tr><td>Insurance payments</td><td class="r">−${pfMoney(d.insPaid)}</td></tr>
+      <tr><td>Contractual adjustments</td><td class="r">−${pfMoney(d.contractual)}</td></tr>
+      <tr><td>Patient payments</td><td class="r">−${pfMoney(d.ptPay)}</td></tr>
+      <tr class="tot"><td>Balance</td><td class="r">${pfMoney(r.bal)}</td></tr></tbody></table>
+    <div class="fineprint">This statement reflects charges as billed. Generated by PayFlo (simulated) from account ${r.acct}. Synthetic data.</div>`;
+  if(id==='payiz') return `${lh}<h3>Payer Itemized — Payments and Adjustments</h3>
+    ${reBlock()}
+    <table><thead><tr><th>Posted</th><th>Code</th><th>Description</th><th>Payer order</th><th class="r">Amount</th></tr></thead><tbody>
+      ${d.insPaid>0?`<tr><td>04/07/2026</td><td>PINSURPY</td><td>Payer insurance payment</td><td>Primary — ${d.plans[0].plan}</td><td class="r">${pfMoney(d.insPaid)}</td></tr>`:''}
+      <tr><td>03/27/2026</td><td>PACONADJ</td><td>System contractual adjustment</td><td>Primary — ${d.plans[0].plan}</td><td class="r">${pfMoney(d.contractual*0.89)}</td></tr>
+      <tr><td>04/30/2026</td><td>PAMCON</td><td>Manual contractual adjustment</td><td>Primary — ${d.plans[0].plan}</td><td class="r">${pfMoney(d.contractual*0.11)}</td></tr>
+      <tr class="tot"><td colspan="4">Total payments and adjustments</td><td class="r">${pfMoney(d.insPaid+d.contractual)}</td></tr></tbody></table>
+    <p><b>Expected reimbursement:</b> ${pfMoney(d.expected)} &nbsp;·&nbsp; <b>Received:</b> ${pfMoney(d.insPaid)} &nbsp;·&nbsp; <b style="color:#B4231F">Variance: ${pfMoney(d.insPaid-d.expected)}</b></p>
+    <div class="fineprint">Generated by PayFlo (simulated). Synthetic data.</div>`;
+  if(id==='payizsub') return `${lh}<h3>Payer Itemized Detail — Daily Subtotal</h3>
+    ${reBlock()}
+    <table><thead><tr><th>Date</th><th>Activity</th><th class="r">Amount</th><th class="r">Daily subtotal</th></tr></thead><tbody>
+      <tr><td>03/23/2026</td><td>Charges posted (${lines.length} lines)</td><td class="r">${pfMoney(d.chg)}</td><td class="r"></td></tr>
+      <tr class="sub"><td colspan="3">Subtotal 03/23/2026</td><td class="r">${pfMoney(d.chg)}</td></tr>
+      <tr><td>03/27/2026</td><td>PACONADJ — system contractual adj</td><td class="r">−${pfMoney(d.contractual*0.89)}</td><td class="r"></td></tr>
+      <tr class="sub"><td colspan="3">Subtotal 03/27/2026</td><td class="r">${pfMoney(d.chg-d.contractual*0.89)}</td></tr>
+      ${d.insPaid>0?`<tr><td>04/07/2026</td><td>PINSURPY — payer payment</td><td class="r">−${pfMoney(d.insPaid)}</td><td class="r"></td></tr>
+      <tr class="sub"><td colspan="3">Subtotal 04/07/2026</td><td class="r">${pfMoney(d.chg-d.contractual*0.89-d.insPaid)}</td></tr>`:''}
+      <tr><td>04/30/2026</td><td>PAMCON — manual contractual adj</td><td class="r">−${pfMoney(d.contractual*0.11)}</td><td class="r"></td></tr>
+      <tr class="tot"><td colspan="3">Current balance</td><td class="r">${pfMoney(r.bal)}</td></tr></tbody></table>
+    <div class="fineprint">Generated by PayFlo (simulated). Synthetic data.</div>`;
+  // payizrep: full ledger
+  let run=0; const ledger=[];
+  lines.forEach(l=>{run+=l.amt;ledger.push(`<tr><td>03/23/2026</td><td>CHG</td><td>${l.rev} — ${l.desc}</td><td class="r">${pfMoney(l.amt)}</td><td class="r">${pfMoney(run)}</td></tr>`);});
+  run-=d.contractual*0.89; ledger.push(`<tr><td>03/27/2026</td><td>PACONADJ</td><td>System contractual adjustment</td><td class="r">−${pfMoney(d.contractual*0.89)}</td><td class="r">${pfMoney(run)}</td></tr>`);
+  if(d.insPaid>0){run-=d.insPaid; ledger.push(`<tr><td>04/07/2026</td><td>PINSURPY</td><td>Payer insurance payment — ${d.plans[0].plan}</td><td class="r">−${pfMoney(d.insPaid)}</td><td class="r">${pfMoney(run)}</td></tr>`);}
+  if(d.ptPay>0){run-=d.ptPay; ledger.push(`<tr><td>04/12/2026</td><td>PTPAY</td><td>Patient payment</td><td class="r">−${pfMoney(d.ptPay)}</td><td class="r">${pfMoney(run)}</td></tr>`);}
+  run-=d.contractual*0.11; ledger.push(`<tr><td>04/30/2026</td><td>PAMCON</td><td>Manual contractual adjustment</td><td class="r">−${pfMoney(d.contractual*0.11)}</td><td class="r">${pfMoney(run)}</td></tr>`);
+  return `${lh}<h3>Payer Itemized Detail Report</h3>
+    ${reBlock()}
+    <table><thead><tr><th>Date</th><th>Code</th><th>Description</th><th class="r">Amount</th><th class="r">Running balance</th></tr></thead><tbody>
+      ${ledger.join('')}
+      <tr class="tot"><td colspan="4">Current balance</td><td class="r">${pfMoney(r.bal)}</td></tr></tbody></table>
+    <div class="fineprint">Complete transaction ledger for rebill / resubmission review. Generated by PayFlo (simulated). Synthetic data.</div>`;
+}
 function pfFormDoc(id,d,docIx){
   const _docs=(window.__pfState[d.r.acct]||{}).docs||[];
   const _gen=(docIx!=null)?_docs[docIx]:null;
@@ -962,11 +1067,12 @@ function pfFormDoc(id,d,docIx){
      <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">Full transaction detail by posted date, code, and payer order — the rebill/resubmit working document.</div>`};
   const stamp=_gen?`<div style="font-size:10px;font-weight:700;color:var(--green);border:1px solid var(--green-border);background:var(--green-bg);border-radius:6px;padding:5px 9px;margin-bottom:8px">✓ Generated ${new Date(_gen.t).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} by ${_gen.by}</div>`:'';
   return stamp+`<div class="pf-fdoc">${body[id]||''}</div>
-    <div style="display:flex;gap:8px;margin-top:10px">
-      ${_gen?`<button class="pf-save" onclick="pfGenForm('${id}')">Regenerate</button>`:`<button class="pf-save" onclick="pfGenForm('${id}')">Generate (simulated)</button>`}
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="pf-save" onclick="pfViewDoc('${id}')">View document</button>
+      ${_gen?`<button class="pf-cancel" onclick="pfGenForm('${id}')">Regenerate</button>`:`<button class="pf-cancel" onclick="pfGenForm('${id}')">Generate (simulated)</button>`}
       <button class="pf-cancel" onclick="__pf.formOpen=null;__pf.docView=null;pfRender()">Back to forms</button>
     </div>
-    <div class="pf-note">Prefilled from the account. Generating logs an activity event — document work is a touch too.</div>`;
+    <div class="pf-note">Prefilled from the account. View shows the rendered document; Generate logs it as an activity event.</div>`;
 }
 function pfRight(d){
   const r=d.r, st=pfForm(r.acct), f=st.form;
@@ -976,7 +1082,7 @@ function pfRight(d){
     const docs=(window.__pfState[r.acct]||{}).docs||[];
     const gen = docs.length
       ? `<div style="font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin:2px 0 6px">Generated on this account — ${docs.length}</div>`
-        +docs.map((x,ix)=>`<div class="pf-form-item" style="border-left:3px solid var(--green)" onclick="__pf.docView=${ix};pfOpenForm('${x.id}')">📄 ${x.name}
+        +docs.map((x,ix)=>`<div class="pf-form-item" style="border-left:3px solid var(--green)" onclick="pfViewDoc('${x.id}')">📄 ${x.name}
             <span class="tag" style="color:var(--green)">${new Date(x.t).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · view</span></div>`).join('')
         +`<div style="height:8px"></div>`
       : '';
@@ -1104,10 +1210,23 @@ function pfRender(){
       <span title="Time on this account — this clock is where WPA touch duration comes from">⏱ <b id="pf-clock" class="num">00:00</b></span>
     </div>
   </div>
-  <button class="pf-nav" style="right:10px" onclick="pfNav(1)" title="Next account"><span class="ar">›</span><span class="lb">Next</span></button>`;
+  <button class="pf-nav" style="right:10px" onclick="pfNav(1)" title="Next account"><span class="ar">›</span><span class="lb">Next</span></button>
+  ${__pf.doc?`<div id="pf-docviewer" onclick="if(event.target.id==='pf-docviewer')pfCloseDoc()">
+    <div class="pf-dv-bar"><span class="t">${(PF_FORMS.find(x=>x.id===__pf.doc)||{}).name}</span>
+      <span style="flex:1;font-size:10px;color:var(--text3)">prefilled from ${d.r.acct} · simulated document</span>
+      <button class="pf-save" onclick="pfGenForm('${__pf.doc}');__pf.doc=null" style="padding:5px 12px">Generate (simulated)</button>
+      <button class="pf-cancel" onclick="pfCloseDoc()" style="padding:5px 12px">Close ✕</button></div>
+    <div class="pf-paper">${pfDocHTML(__pf.doc,d)}</div>
+  </div>`:''}`;
   pfValidate();
 }
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&__pf.open)pfClose();});
+function pfViewDoc(id){__pf.doc=id;pfRender();}
+function pfCloseDoc(){__pf.doc=null;pfRender();}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape'||!__pf.open) return;
+  if(__pf.doc){pfCloseDoc();return;}       // Esc closes the document first, then the card
+  pfClose();
+});
 
 // Keep the queue's "Recommended next action" identical to the deep dive's #1 ranked action
 function syncQueueNBA(){
