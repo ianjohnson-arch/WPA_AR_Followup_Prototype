@@ -269,6 +269,10 @@ html[data-theme="dark"] .pf-top{background:#111A2E}
 .pf-ev .m{font-size:10px;color:var(--text3);margin:1px 0 5px}
 .pf-ev .fl{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-top:6px}
 .pf-ev .fv{font-size:11px;color:var(--text2);background:var(--surface3);border:1px solid var(--divider);border-radius:6px;padding:5px 8px;margin-top:2px;line-height:1.5}
+.pf-ev.added{background:rgba(232,104,26,.12);border-left:3px solid var(--orange);border-radius:0 8px 8px 0;padding-top:8px;padding-bottom:8px;padding-right:10px;margin-left:7px}
+.pf-ev.added:before{background:var(--orange);box-shadow:0 0 0 3px rgba(232,104,26,.25)}
+@keyframes pfEvIn{0%{background:rgba(232,104,26,.45);transform:translateX(8px)}100%{background:rgba(232,104,26,.12);transform:none}}
+.pf-ev.hot{animation:pfEvIn 1.4s ease-out}
 .pf-fld{margin-bottom:10px}
 .pf-fld label{display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:3px}
 .pf-fld label b{color:var(--red)}
@@ -873,11 +877,12 @@ function pfCenter(d){
     const st=window.__pfState[r.acct]||{};
     const evs=[...(st.events||[]),...d.evs];
     return `<div class="pf-note" style="display:flex;justify-content:space-between"><span>Timeline Detail ─●─ · New-Old</span><span>⭳ Download</span></div>`
-      +evs.map(e=>{
+      +evs.map((e,ix)=>{
         const dt=new Date(e.t);
         const wd=dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
         const tm=dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-        return `<div class="pf-ev"><div class="d">${wd}${e.added?' <span class="pf-simtag">· saved this session</span>':''}</div>
+        const hot=e.added && e.t===window.__pfHotT;
+        return `<div class="pf-ev${e.added?' added':''}${hot?' hot':''}"><div class="d">${wd}${e.added?` <span class="pf-simtag">· ${hot?'just now — this is the touch you just created':'saved this session'}</span>`:''}</div>
           <div class="m">${tm} · by: <b>${e.by}</b>${e.sys?' 🖥':' ⧉'}</div>
           ${e.dispo?`<div class="fl">Disposition</div><div class="fv">${e.dispo}</div>`:''}
           ${e.fup?`<div class="fl">Follow Up Date</div><div class="fv">${e.fup}</div>`:''}
@@ -958,8 +963,9 @@ function pfOpenForm(id){__pf.formOpen=id;__pf.rp='forms';pfRender();}
 function pfGenForm(id){
   const st=pfForm(__pf.acct); st.events=st.events||[]; st.docs=st.docs||[];
   const f=PF_FORMS.find(x=>x.id===id);
-  st.docs.unshift({id:id, name:f.name, t:Date.now(), by:'Jordan Reyes'});
-  st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
+  window.__pfHotT=Date.now();
+  st.docs.unshift({id:id, name:f.name, t:window.__pfHotT, by:'Jordan Reyes'});
+  st.events.unshift({t:window.__pfHotT,by:'Jordan Reyes',added:true,
     notes:'Generated "'+f.name+'" from the PayFlo card.',status:'DOC: FORM GENERATED'});
   __pf.formOpen=null; __pf.docView=null; __pf.c='act'; pfRender();
   const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
@@ -1160,9 +1166,10 @@ function pfSave(){
   const st=pfForm(__pf.acct), f=st.form;
   st.events=st.events||[];
   const noteTxt=pfComposeNote(f,pfData(__pf.acct).r);
-  st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
+  window.__pfHotT=Date.now();
+  st.events.unshift({t:window.__pfHotT,by:'Jordan Reyes',added:true,
     dispo:PF_DISPO[f.status.split(':')[0]]||'OPEN',
-    fup:new Date(Date.now()+7*86400000).toLocaleDateString('en-US'),
+    fup:new Date(window.__pfHotT+7*86400000).toLocaleDateString('en-US'),
     notes:noteTxt,status:f.status});
   f.sn={act:'',contact:'',next:'',denial:''};
   __pf.c='act';                     // jump to the timeline so the save is SEEN becoming a touch
