@@ -278,9 +278,32 @@ html[data-theme="dark"] .pf-top{background:#111A2E}
 .pf-save{font-family:inherit;font-size:11px;font-weight:700;border:none;border-radius:7px;padding:7px 18px;cursor:pointer;background:var(--orange);color:#fff}
 .pf-save:disabled{opacity:.45;cursor:not-allowed}
 .pf-cancel{font-family:inherit;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:7px;padding:7px 14px;cursor:pointer;background:var(--surface);color:var(--text2)}
-.pf-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:52px;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:8px;cursor:pointer;font-size:15px;z-index:3001}
+.pf-nav{position:absolute;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:52px;height:76px;border:2px solid var(--orange);background:var(--surface);color:var(--orange);border-radius:10px;cursor:pointer;z-index:3001;box-shadow:0 6px 18px rgba(0,0,0,.45);transition:background .12s,transform .12s}
+.pf-nav:hover{background:var(--orange);color:#fff;transform:translateY(-50%) scale(1.06)}
+.pf-nav .ar{font-size:22px;font-weight:700;line-height:1}
+.pf-nav .lb{font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .pf-note{font-size:10px;color:var(--text3);padding:6px 10px}
 .pf-simtag{font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--orange);text-transform:uppercase}
+@keyframes pfPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,104,26,.55)}50%{box-shadow:0 0 0 7px rgba(232,104,26,0)}}
+.pf-form-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:11.5px;background:var(--surface)}
+.pf-form-item:hover{border-color:var(--orange)}
+.pf-form-item.suggest{border-color:var(--orange);animation:pfPulse 1.6s infinite}
+.pf-form-item .tag{margin-left:auto;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--orange)}
+.pf-rec{border:1px solid var(--green-border);border-radius:9px;background:var(--green-bg);margin-bottom:11px;overflow:hidden}
+.pf-rec-h{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--green)}
+.pf-rec-h .car{margin-left:auto;font-size:9px;color:var(--text3)}
+.pf-rec-b{padding:0 11px 10px;font-size:11.5px;line-height:1.55;color:var(--text)}
+.pf-rec.min .pf-rec-b{display:none}
+.pf-sn{border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--surface3)}
+.pf-sn .row{margin-bottom:8px}
+.pf-sn label{display:block;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+.pf-sn input,.pf-sn textarea{width:100%;font-family:inherit;font-size:11px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)}
+.pf-chips{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 3px}
+.pf-chip{font-size:9px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:9px;background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.pf-chip.ok{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.pf-preview{font-size:10.5px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:7px 9px;margin-top:4px;min-height:34px}
+.pf-fdoc{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:12px;font-size:11px;line-height:1.6}
+.pf-fdoc h4{font-size:12px;color:var(--navy);margin:0 0 8px}
 </style>
 </head>
 <body>
@@ -778,7 +801,9 @@ function pfForm(acct){
   const st=window.__pfState[acct]=window.__pfState[acct]||{};
   const d=pfData(acct);
   if(!st.form) st.form={status:'FUP: FOLLOW UP',owner:'Jordan Reyes',assignee:'Jordan Reyes',
-    root:PF_ROOTS.find(x=>x.includes((PF_CARC[d.carc]||{}).root))||'U - Underpayment',appeal:'',notes:''};
+    root:PF_ROOTS.find(x=>x.includes((PF_CARC[d.carc]||{}).root))||'U - Underpayment',appeal:'',
+    sn:{act:'',contact:'',next:'',denial:''}};
+  if(!st.form.sn) st.form.sn={act:'',contact:'',next:'',denial:''};
   return st;
 }
 function pfLeft(d){
@@ -867,56 +892,151 @@ function pfCenter(d){
       ['Recommended next action',d.r.nba]]))
     +`<div class="pf-note">Fed by the WPA analytics layer — the same propensity, stall and root-cause models that rank the queue.</div>`;
 }
+/* Forms: the launchable documents. The one matching the recommended action pulses,
+   and "generating" one is itself logged as an activity event — every piece of work in
+   this card leaves a touch record. */
+const PF_FORMS=[
+ {id:'appeal',   name:'New Appeal Form'},
+ {id:'mrr',      name:'Medical Records Request'},
+ {id:'itemized', name:'Patient Itemized Charge Statement'},
+ {id:'payiz',    name:'Payer IZ - Payments and Adjs'},
+ {id:'payizsub', name:'Payer IZ Detail - Daily Subtotal'},
+ {id:'payizrep', name:'Payer IZ Detail Report'},
+];
+function pfSuggestForm(r){
+  const n=(r.nba||'').toLowerCase();
+  if(/appeal|file claim/.test(n)) return 'appeal';
+  if(/records|documentation|clinical/.test(n)) return 'mrr';
+  if(/itemized|statement/.test(n)) return 'itemized';
+  if(/status|portal/.test(n)) return 'payiz';
+  if(/rebill|resubmit|corrected/.test(n)) return 'payizrep';
+  return 'payiz';
+}
+function pfOpenForm(id){__pf.formOpen=id;__pf.rp='forms';pfRender();}
+function pfGenForm(id){
+  const st=pfForm(__pf.acct); st.events=st.events||[];
+  const f=PF_FORMS.find(x=>x.id===id);
+  st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
+    notes:'Generated "'+f.name+'" from the PayFlo card.',status:'DOC: FORM GENERATED'});
+  __pf.formOpen=null; __pf.c='act'; pfRender();
+  const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
+  t.textContent='"'+f.name+'" generated (simulated) — logged as an activity event.';
+  t.className='show'; setTimeout(()=>t.className='',3200);
+}
+function pfFormDoc(id,d){
+  const r=d.r, kv=(k,v)=>`<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--divider);padding:3px 0"><span style="color:var(--text3)">${k}</span><b>${v}</b></div>`;
+  const head=kv('Account',r.acct)+kv('Patient',r.pt+' (display-only)')+kv('Payer',r.payer)+kv('Invoice',d.inv);
+  const body={
+   appeal:  `<h4>New Appeal Form — Level 1</h4>${head}${kv('Denial code',d.carc)}${kv('Denial reason',(PF_CARC[d.carc]||{}).d?.slice(0,80)+'…')}${kv('Denied amount',pfMoney(d.denied||r.bal))}${kv('Remit date','04/02/2026')}${kv('Timely-filing deadline',r.timer!=null?r.timer+' days remaining':'n/a')}
+     <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">Attachments auto-assembled: claim ${d.inv}, 835 remit, itemized statement, medical records cover sheet. Appeal narrative drafts from the CARC and the account history.</div>`,
+   mrr:     `<h4>Medical Records Request</h4>${head}${kv('Service date','03/23/2026')}${kv('Records requested','Full chart · itemized bill · physician notes')}${kv('Reason','Payer requested documentation ('+d.carc+')')}`,
+   itemized:`<h4>Patient Itemized Charge Statement</h4>${head}${kv('Statement period','03/23/2026 – 03/23/2026')}${kv('Total charges',pfMoney(d.chg))}${kv('Line items',d.claims.lines.length+' service lines (rev codes '+[...new Set(d.claims.lines.map(l=>l.rev))].join(', ')+')')}${kv('Patient responsibility',pfMoney(d.ptPay))}`,
+   payiz:   `<h4>Payer IZ — Payments and Adjs</h4>${head}${kv('Insurance payments',pfMoney(d.insPaid))}${kv('Expected',pfMoney(d.expected))}${kv('Variance',pfMoney(d.insPaid-d.expected))}${kv('Adjustments',pfMoney(d.contractual))}`,
+   payizsub:`<h4>Payer IZ Detail — Daily Subtotal</h4>${head}${kv('03/27/2026 · PACONADJ',pfMoney(d.contractual*0.89))}${kv('04/30/2026 · PAMCON',pfMoney(d.contractual*0.11))}${kv('04/07/2026 · PINSURPY',pfMoney(d.insPaid))}`,
+   payizrep:`<h4>Payer IZ Detail Report</h4>${head}${kv('Claims on account',d.claims.billed.length)}${kv('Service lines',d.claims.lines.length)}${kv('Total charges',pfMoney(d.chg))}${kv('Balance',pfMoney(r.bal))}
+     <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">Full transaction detail by posted date, code, and payer order — the rebill/resubmit working document.</div>`};
+  return `<div class="pf-fdoc">${body[id]||''}</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="pf-save" onclick="pfGenForm('${id}')">Generate (simulated)</button>
+      <button class="pf-cancel" onclick="__pf.formOpen=null;pfRender()">Back to forms</button>
+    </div>
+    <div class="pf-note">Prefilled from the account. Generating logs an activity event — document work is a touch too.</div>`;
+}
 function pfRight(d){
   const r=d.r, st=pfForm(r.acct), f=st.form;
-  if(__pf.rp==='forms') return pfSec('Forms',`<div style="padding:8px 10px;font-size:11.5px">
-    <div style="padding:6px 0;border-bottom:1px solid var(--divider)">● New Appeal Form</div>
-    <div style="padding:6px 0">● Medical Records Request</div></div>`);
+  const sug=pfSuggestForm(r), sugName=(PF_FORMS.find(x=>x.id===sug)||{}).name;
+  if(__pf.rp==='forms'){
+    if(__pf.formOpen) return pfFormDoc(__pf.formOpen,d);
+    return `<div class="pf-note" style="padding:0 0 8px">Forms prefill from this account. The suggested form for the recommended action pulses.</div>`
+      +PF_FORMS.map(x=>`<div class="pf-form-item ${x.id===sug?'suggest':''}" onclick="pfOpenForm('${x.id}')">● ${x.name}${x.id===sug?'<span class="tag">suggested</span>':''}</div>`).join('');
+  }
+  /* Recommended action: visible by default at the top, collapsible on click. */
+  const rec=`<div class="pf-rec ${__pf.recMin?'min':''}">
+    <div class="pf-rec-h" onclick="__pf.recMin=!__pf.recMin;pfRender()">🤖 Recommended action<span class="car">${__pf.recMin?'▸ expand':'▾ collapse'}</span></div>
+    <div class="pf-rec-b"><b>${r.nba}</b><br>
+      <span style="color:var(--text3);font-size:10.5px">ERV ${pfMoney(r.erv)} · propensity ${Math.round(r.prop*100)}%${r.timer!=null?' · timely filing '+r.timer+'d':''} · from the WPA queue model</span><br>
+      <button class="pf-cancel" style="margin-top:7px;border-color:var(--orange);color:var(--orange)" onclick="pfOpenForm('${sug}')">Open suggested form: ${sugName}</button></div></div>`;
   const dispo=PF_DISPO[f.status.split(':')[0]]||'OPEN';
   const sel=(name,opts,val)=>`<select onchange="pfSet('${name}',this.value)">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
-  return `<div style="display:flex;gap:9px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface3);margin-bottom:11px;font-size:11px;color:var(--text2)">🤖 View your <a href="#" onclick="pfRec();return false" style="color:var(--orange);font-weight:700">recommended actions</a> concerning this issue.</div>
-  <div id="pf-rec" style="display:none;border:1px solid var(--green-border);border-radius:8px;background:var(--green-bg);padding:9px 11px;margin-bottom:11px;font-size:11px;line-height:1.5"><b>${r.nba}</b><br><span style="color:var(--text3)">ERV ${pfMoney(r.erv)} · propensity ${Math.round(r.prop*100)}% · from the WPA queue model</span></div>
-  <div class="pf-fld"><label>Flo Status <b>*</b></label>${sel('status',PF_STATUSES,f.status)}</div>
+  /* Smart note: guided fields matching the 4-part note standard the NLI model scores.
+     The chips are the same four dimensions — fill the note right and the quality score
+     takes care of itself. */
+  const sn=f.sn, hasDenial=!!r.carc;
+  const chip=(ok,lab)=>`<span class="pf-chip ${ok?'ok':''}">${ok?'✓':'○'} ${lab}</span>`;
+  const smart=`<div class="pf-fld"><label>Flo Last Notes <b>*</b> — guided</label>
+    <div class="pf-sn">
+      <div class="row"><label>Action taken — what did you do?</label>
+        <input value="${sn.act.replace(/"/g,'&quot;')}" placeholder="e.g. Called ${r.payer} provider line re: claim status" oninput="pfSN('act',this.value)"></div>
+      <div class="row"><label>Contact / outcome — who, and the ref #</label>
+        <input value="${sn.contact.replace(/"/g,'&quot;')}" placeholder="e.g. Rep Maria, ref# AR0000000000 — claim pended for records" oninput="pfSN('contact',this.value)"></div>
+      <div class="row"><label>Next step — what happens now, by when</label>
+        <input value="${sn.next.replace(/"/g,'&quot;')}" placeholder="e.g. Fax itemized bill by Fri; follow up 7/16" oninput="pfSN('next',this.value)"></div>
+      ${hasDenial?`<div class="row"><label>Denial reference (${r.carc})</label>
+        <input value="${sn.denial.replace(/"/g,'&quot;')}" placeholder="e.g. ${r.carc} ${(PF_CARC[r.carc]||{}).root||''} — appeal grounds / correction" oninput="pfSN('denial',this.value)"></div>`:''}
+      <div class="pf-chips" id="pf-chips">${chip(sn.act.length>=8,'Action')}${chip(sn.next.length>=8,'Next step')}${hasDenial?chip(sn.denial.length>=5,'Denial ref'):''}${chip(sn.contact.length>=5,'Contact')}</div>
+      <div style="font-size:9px;color:var(--text3)">The same four dimensions WPA's note-quality model scores — a complete note here is a 100 NLI note there.</div>
+      <div class="pf-preview" id="pf-notepv">${pfComposeNote(f,r)||'<span style="color:var(--text3)">Note preview builds here as you fill the fields…</span>'}</div>
+    </div></div>`;
+  return rec
+  +`<div class="pf-fld"><label>Flo Status <b>*</b></label>${sel('status',PF_STATUSES,f.status)}</div>
   <div class="pf-fld"><label>Flo Disposition <b>*</b></label><input class="lock" value="${dispo}" disabled></div>
   <div class="pf-fld"><label>Flo Primary Segment <b>*</b></label><input class="lock" value="${r.seg}" disabled></div>
   <div class="pf-fld"><label>Flo Owner <b>*</b></label>${sel('owner',WPA.collectors.slice(0,6).map(c=>c.name),f.owner)}</div>
   <div class="pf-fld"><label>Assignee <b>*</b></label>${sel('assignee',WPA.collectors.slice(0,6).map(c=>c.name),f.assignee)}</div>
   <div class="pf-fld"><label>Flo Root Cause <b>*</b></label>${sel('root',PF_ROOTS,f.root)}</div>
-  <div class="pf-fld"><label>Last Appeal Date</label><input type="date" value="${f.appeal}" onchange="pfSet('appeal',this.value)"></div>
-  <div class="pf-fld"><label>Flo Last Notes <b>*</b></label><textarea rows="4" placeholder="What did you do, what happens next, ref #" oninput="pfSet('notes',this.value,true)">${f.notes}</textarea></div>`;
+  <div class="pf-fld"><label>Last Appeal Date</label><input type="date" value="${f.appeal}" onchange="pfSet('appeal',this.value)"></div>`
+  +smart;
+}
+function pfComposeNote(f,r){
+  const sn=f.sn, parts=[];
+  if(sn.act) parts.push(sn.act.replace(/\.?$/,'.'));
+  if(sn.contact) parts.push(sn.contact.replace(/\.?$/,'.'));
+  if(r.carc&&sn.denial) parts.push('Denial '+r.carc+': '+sn.denial.replace(/\.?$/,'.'));
+  if(sn.next) parts.push('Next: '+sn.next.replace(/\.?$/,'.'));
+  return parts.join(' ');
+}
+function pfSN(k,v){
+  const st=pfForm(__pf.acct); st.form.sn[k]=v;
+  const r=pfData(__pf.acct).r, sn=st.form.sn;
+  const pv=document.getElementById('pf-notepv');
+  if(pv) pv.innerHTML=pfComposeNote(st.form,r)||'<span style="color:var(--text3)">Note preview builds here as you fill the fields…</span>';
+  const ch=document.getElementById('pf-chips');
+  if(ch){const chip=(ok,lab)=>`<span class="pf-chip ${ok?'ok':''}">${ok?'✓':'○'} ${lab}</span>`;
+    ch.innerHTML=chip(sn.act.length>=8,'Action')+chip(sn.next.length>=8,'Next step')+(r.carc?chip(sn.denial.length>=5,'Denial ref'):'')+chip(sn.contact.length>=5,'Contact');}
+  pfValidate();
 }
 function pfSet(k,v,quiet){const st=pfForm(__pf.acct);st.form[k]=v;if(!quiet)pfRender();else pfValidate();}
 function pfValidate(){
-  const f=pfForm(__pf.acct).form;
-  const ok=f.status&&f.owner&&f.assignee&&f.root&&f.notes.trim().length>=10;
+  const f=pfForm(__pf.acct).form, sn=f.sn;
+  const ok=f.status&&f.owner&&f.assignee&&f.root&&sn.act.trim().length>=8&&sn.next.trim().length>=8;
   const b=document.getElementById('pf-savebtn'), m=document.getElementById('pf-vmsg');
   if(b) b.disabled=!ok;
-  if(m) m.textContent = ok? 'Ready to save.' : 'Notes are required (10+ characters) before saving.';
+  if(m) m.textContent = ok? 'Ready to save.' : 'Guided note needs at least an action taken and a next step.';
   return ok;
 }
 function pfSave(){
   if(!pfValidate()) return;
   const st=pfForm(__pf.acct), f=st.form;
   st.events=st.events||[];
+  const noteTxt=pfComposeNote(f,pfData(__pf.acct).r);
   st.events.unshift({t:Date.now(),by:'Jordan Reyes',added:true,
     dispo:PF_DISPO[f.status.split(':')[0]]||'OPEN',
     fup:new Date(Date.now()+7*86400000).toLocaleDateString('en-US'),
-    notes:f.notes,status:f.status});
-  f.notes='';
+    notes:noteTxt,status:f.status});
+  f.sn={act:'',contact:'',next:'',denial:''};
   __pf.c='act';                     // jump to the timeline so the save is SEEN becoming a touch
   pfRender();
   const t=document.getElementById('pf-toast')||(()=>{const x=document.createElement('div');x.id='pf-toast';document.body.appendChild(x);return x;})();
   t.textContent='Saved to PayFlo (simulated) — the update is now a touch event on this account.';
   t.className='show'; setTimeout(()=>t.className='',3200);
 }
-function pfRec(){const e=document.getElementById('pf-rec');if(e)e.style.display=e.style.display==='none'?'block':'none';}
 function pfRender(){
   const d=pfData(__pf.acct), r=d.r;
   let w=document.getElementById('pf-wrap');
   if(!w){w=document.createElement('div');w.id='pf-wrap';document.body.appendChild(w);}
   const tab=(zone,id,lab)=>`<button class="pf-tab ${__pf[zone]===id?'on':''}" onclick="pfTab('${zone}','${id}')">${lab}</button>`;
   const mt=(l,v,neg)=>`<div class="pf-mt"><div class="l">${l}</div><div class="v ${neg?'neg':''}">${v}</div></div>`;
-  w.innerHTML=`<button class="pf-nav" style="left:10px" onclick="pfNav(-1)" title="Previous account">‹</button>
+  w.innerHTML=`<button class="pf-nav" style="left:10px" onclick="pfNav(-1)" title="Previous account"><span class="ar">‹</span><span class="lb">Prev</span></button>
   <div class="pf-card">
     <div class="pf-top">
       <div><div class="pf-brand">Pay<span>Flo</span> <span class="pf-simtag">simulated · prototype</span></div>
@@ -950,7 +1070,7 @@ function pfRender(){
       <span title="Time on this account — this clock is where WPA touch duration comes from">⏱ <b id="pf-clock" class="num">00:00</b></span>
     </div>
   </div>
-  <button class="pf-nav" style="right:10px" onclick="pfNav(1)" title="Next account">›</button>`;
+  <button class="pf-nav" style="right:10px" onclick="pfNav(1)" title="Next account"><span class="ar">›</span><span class="lb">Next</span></button>`;
   pfValidate();
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&__pf.open)pfClose();});
